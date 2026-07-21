@@ -1,0 +1,38 @@
+# Dependencias de Node.js: se reinstalan con npm/yarn, no deben versionarse.
+node_modules/
+
+# Carpetas de salida de build/compilación (Vite, Webpack, etc.).
+dist/
+build/
+
+# Variables de entorno y secretos: nunca deben subirse al repo.
+.env
+.env.*
+!.env.example
+
+# Archivos temporales de Microsoft Office (Word, Excel, PowerPoint).
+~$*
+*.tmp
+
+# Basura generada por el sistema operativo (principalmente Windows).
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Configuración de IDEs/editores. Se ignora la carpeta completa;
+# si luego se quiere compartir configuración de VSCode del equipo,
+# se puede exceptuar puntualmente con "!.vscode/settings.json".
+.vscode/
+.idea/
+
+# Logs generales de la aplicación o de herramientas de build.
+*.log
+
+# Cache/modelos de IA descargados localmente para pruebas.
+# Los modelos de Hugging Face (Whisper, SpeechT5, T5) se descargan
+# en tiempo de ejecución en el navegador del usuario final, así que
+# no deberían versionarse copias locales pesadas. Si en desarrollo se
+# llegan a guardar modelos en disco para pruebas, se ignoran aquí:
+# models/
+# *.onnx
