@@ -94,6 +94,10 @@ Nadie habla exactamente a la velocidad de la referencia, y sin alineación tempo
 
 La señal de referencia contra la que se compara al usuario se sintetiza con el mismo motor TTS de la app, lo que garantiza disponibilidad offline de cualquier frase sin grabar audios de hablantes nativos ni empaquetar un corpus. Sin embargo, una referencia sintética tiene una identidad vocal distinta a la del usuario (F0 y formantes dependen del sexo y del tracto vocal de cada hablante), por lo que las features se normalizan por locutor antes del DTW — contornos de pitch relativos y z-score por enunciado en lugar de valores absolutos — para que la distancia mida pronunciación y no identidad de voz.
 
+### Arquitectura en capas con núcleo de dominio puro
+
+El código de `app/` se organiza en cuatro capas con regla de dependencia hacia adentro: presentación (`ui/`, componentes React y visualizaciones), orquestación (workers: el pipeline de IA y la coordinación de audio), dominio (`dsp/` e `ia/`: algoritmos como funciones puras — YIN, MFCC, VAD, DTW, prompts y reglas de escenarios) e infraestructura (adaptadores de Web Audio, transformers.js, Cache API e IndexedDB en `audio/` y `storage/`). El dominio no importa nada de las capas externas, lo que ya estaba implícito en la convención de funciones puras testeables y aquí se vuelve regla explícita. Se eligió sobre MVC (encaje artificial con React y workers) y sobre hexagonal estricta (ceremonia de puertos innecesaria para 7 semanas); además el diagrama de bloques que exige la documentación del curso (frontend, motor de audio, pipeline de IA, almacenamiento, módulos de señales) mapea directamente sobre estas capas.
+
 ## Decisiones de producto
 
 ### Interfaz en español, sin toggle bilingüe
@@ -120,7 +124,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - MFCC: ventana Hann de 25 ms, hop de 10 ms, 13 coeficientes, 40 filtros mel (parámetros estándar de ASR, justificados en el marco teórico).
 - Corrección gramatical y de pronunciación disparada al finalizar cada frase (post-utterance): Whisper no opera en streaming en el navegador.
 - Estado global con React Context + hooks; se migrará a Zustand solo si la complejidad lo exige.
-- Package manager: npm.
+- Package manager: pnpm en todo el proyecto (instalación más rápida, node_modules estricto que evita dependencias fantasma y menor uso de disco); npm y yarn quedan descartados.
 - PWA con vite-plugin-pwa (Workbox).
 - Calidad de código: ESLint + Prettier con configuración compartida en el repo.
 - Estructura de `app/` por dominios: `audio/`, `dsp/`, `ia/`, `ui/`, `storage/`.
@@ -136,6 +140,12 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - Presupuesto de latencia medido sobre WASM como caso base; WebGPU se trata como aceleración oportunista (su soporte para modelos seq2seq con KV-cache aún es inmaduro), no como supuesto de diseño.
 - Toda la lógica DSP (YIN, MFCC, VAD, DTW) se escribe como funciones puras sin dependencias de AudioWorklet ni postMessage, importables por igual desde el worklet, los workers y los tests de Vitest.
 - El pipeline Markdown→PDF pre-renderiza los diagramas Mermaid a SVG con mermaid-cli antes de pandoc (pandoc no renderiza Mermaid nativo).
+- Revisión fija de modelos: cada modelo del Hub se consume con una revision anclada en un registro central (ia/model-registry.ts); antes de la Entrega Final se fija a un commit exacto para que una actualización upstream no cambie el comportamiento offline.
+- IndexedDB con esquema versionado y migraciones explícitas: los datos de progreso deben sobrevivir los cambios de esquema entre avances sin perder sesiones.
+- Nomenclatura: identificadores de código (archivos, funciones, variables) descriptivos y en inglés, sin abreviaturas crípticas ni nombres genéricos (utils, misc); los textos visibles de la interfaz viven en español, centralizados en ui/interface-texts.ts.
+- Integración continua con GitHub Actions: lint, typecheck, tests y build en cada Pull Request y push a main (gratuito en el plan del repo privado); un PR no se mergea con el CI en rojo.
+- Versión de Node fijada con .nvmrc y campo engines (Node 22 LTS) y pnpm declarado en packageManager, para que las cinco máquinas del equipo y el CI usen el mismo entorno.
+- Estados de error de primera clase para las operaciones frágiles: permiso de micrófono denegado, descarga de modelo fallida o incompleta, espacio de almacenamiento insuficiente y ausencia de WebGPU (cae a WASM); cada uno con mensaje en español definido en ui/interface-texts.ts.
 
 ## Decisiones de proceso y entregas
 
@@ -150,6 +160,10 @@ Los diagramas de bloques y de flujo se describen como texto y se renderizan dent
 ### Demo en localhost + deploy en Vercel
 
 La presentación en vivo corre desde localhost, que no depende de la red del aula y demuestra el funcionamiento offline real. Para el desarrollo, al no existir backend la app es un sitio 100% estático, y eso encaja exactamente con el hosting estático gratuito de Vercel: HTTPS (el contexto seguro que exigen el service worker y el micrófono), integración directa con el repositorio privado de GitHub y preview deploys por cada Pull Request, algo que se alinea con el flujo de PRs del equipo. Usar una plataforma orientada a servidores para servir archivos estáticos sería pagar por capacidad que la app no utiliza.
+
+### Metodología iterativa por avances
+
+La documentación del curso fija metodología iterativa (Agile-like); el trabajo se organiza en ciclos alineados a los tres hitos (Avance 1, Avance 2, Entrega Final), con integración continua a `main` vía Pull Requests conforme el equipo esté activo. Los enfoques en cascada quedan descartados por la propia documentación.
 
 ## Estructura actual del repositorio
 
