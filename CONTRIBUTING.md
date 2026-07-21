@@ -18,6 +18,12 @@ Cada integrante trabaja en dos ramas propias, sin tildes en el nombre:
 Cada persona trabaja únicamente en sus propias ramas. No se realizan cambios
 en las ramas de otro integrante sin coordinarlo primero.
 
+La aplicación es 100% client-side, así que en este proyecto «backend» no
+significa servidor: las ramas `*-backend` cubren el motor no visual de la
+app (captura y procesamiento de audio, DSP, pipeline de IA y almacenamiento
+— carpetas `audio/`, `dsp/`, `ia/`, `storage/`), y las ramas `*-frontend`
+cubren la interfaz React (`ui/`).
+
 ## Flujo de integración
 
 - `main` es la rama de integración del proyecto.
