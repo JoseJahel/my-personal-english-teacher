@@ -10,6 +10,10 @@ build/
 .env.*
 !.env.example
 
+# Carpeta privada local de cada integrante (credenciales, .env, claves API,
+# notas personales). Cada quien mantiene la suya; nunca se versiona.
+_private/
+
 # Archivos temporales de Microsoft Office (Word, Excel, PowerPoint).
 ~$*
 *.tmp
