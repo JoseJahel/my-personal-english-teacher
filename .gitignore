@@ -1,4 +1,4 @@
-# Dependencias de Node.js: se reinstalan con npm/yarn, no deben versionarse.
+# Dependencias de Node.js: se reinstalan con pnpm, no deben versionarse.
 node_modules/
 
 # Carpetas de salida de build/compilación (Vite, Webpack, etc.).
