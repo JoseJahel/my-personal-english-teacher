@@ -12,7 +12,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al proyecto:
 
 - Reconocimiento de voz (ASR) client-side con Whisper (`Xenova/whisper-tiny.en`).
 - Síntesis de voz (TTS) client-side con SpeechT5 (`Xenova/speecht5_tts`).
-- Corrección gramatical con un modelo T5 cuantizado (`vennify/t5-base-grammar-correction`, port ONNX).
+- Corrección gramatical con un modelo T5 cuantizado (`vennify/t5-base-grammar-correction`, consumido vía su port ONNX `Xenova/t5-base-grammar-correction`).
 - Generación de sugerencias conversacionales con SmolLM2-360M-Instruct (a integrarse en el Avance 2).
 - Extracción de features acústicas: pitch (algoritmo YIN), energía, formantes, MFCC.
 - Detección de actividad de voz (VAD) por energía para el corte automático de captura.
@@ -35,7 +35,7 @@ El soporte multi-idioma se descartó explícitamente por ser incompatible con la
 - **Modelos:**
   - ASR: `Xenova/whisper-tiny.en` (~40 MB cuantizado).
   - TTS: `Xenova/speecht5_tts`.
-  - Corrección gramatical: `vennify/t5-base-grammar-correction` (port ONNX).
+  - Corrección gramatical: `vennify/t5-base-grammar-correction`, consumido vía su port ONNX `Xenova/t5-base-grammar-correction`.
   - Sugerencias conversacionales: `SmolLM2-360M-Instruct` (ONNX, ~250 MB cuantizado; se integra en el Avance 2).
 - **DSP / Audio:** Web Audio API mediante AudioWorklet; detección de pitch con el algoritmo YIN; extracción de MFCC de implementación propia del equipo (FFT → banco de filtros mel → DCT), energía y formantes.
 - **Comparación de pronunciación:** alineación DTW (Dynamic Time Warping) + distancia euclidiana de features frame a frame, contra una referencia generada con el propio TTS (SpeechT5).
@@ -64,7 +64,7 @@ Al mismo peso (~40 MB), la variante entrenada solo en inglés ofrece mejor preci
 
 ### vennify/t5-base-grammar-correction sobre hassaanik/grammar-correction-model
 
-Se optó por `vennify/t5-base-grammar-correction` por ser el modelo de corrección gramatical más usado y mejor documentado de su categoría, con una conversión ONNX compatible con transformers.js ya publicada en el Hub de Hugging Face, lo que elimina el riesgo de integración. La alternativa evaluada no cuenta con un port ONNX verificado, y descubrir ese problema recién durante la implementación habría puesto en riesgo la entrega del Avance 1.
+Se optó por `vennify/t5-base-grammar-correction` por ser el modelo de corrección gramatical más usado y mejor documentado de su categoría, con una conversión ONNX compatible con transformers.js ya publicada en el Hub de Hugging Face (`Xenova/t5-base-grammar-correction`, la que efectivamente consume la aplicación), lo que elimina el riesgo de integración. La alternativa evaluada no cuenta con un port ONNX verificado, y descubrir ese problema recién durante la implementación habría puesto en riesgo la entrega del Avance 1.
 
 ### YIN sobre autocorrelación simple
 
@@ -169,13 +169,15 @@ La documentación del curso fija metodología iterativa (Agile-like); el trabajo
 
 ```
 /
+├── .github/workflows/ci.yml # Pipeline de integración continua
 ├── Documentacion general/   # Documentación del curso
+├── app/                     # Código de la aplicación (React + TypeScript + Vite)
 ├── CONTRIBUTING.md          # Guía de contribución del equipo
 ├── README.md
 └── .gitignore
 ```
 
-Próximamente el código de la aplicación se ubicará en una carpeta `app/`.
+El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audio/` y `storage/`) está documentado en `app/README.md`.
 
 ## Calendario de entregas
 
@@ -187,4 +189,4 @@ Próximamente el código de la aplicación se ubicará en una carpeta `app/`.
 
 ## Estado
 
-Fase de planificación cerrada: la arquitectura del sistema y las decisiones de proceso y entregas quedaron completas y documentadas en este archivo. Próximos pasos: scaffolding del proyecto en `app/` y desarrollo del prototipo de ASR y corrección gramatical para el Avance 1 (27/07/2026 – 01/08/2026). Queda pendiente, como decisión interna del equipo, la asignación de responsables por módulo (ASR, DSP, pipeline de IA, UI).
+Fase de planificación cerrada: la arquitectura del sistema y las decisiones de proceso y entregas quedaron completas y documentadas en este archivo. El scaffolding de `app/` también está completo: proyecto React + TypeScript + Vite con Tailwind, Vitest, PWA, la estructura en capas, el registro de modelos y una primera función DSP con tests, más un pipeline de integración continua con GitHub Actions. Próximo paso: desarrollo del prototipo de ASR y corrección gramatical para el Avance 1 (27/07/2026 – 01/08/2026). Sigue pendiente, como decisión interna del equipo, la asignación de responsables por módulo (ASR, DSP, pipeline de IA, UI).

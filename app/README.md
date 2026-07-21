@@ -64,13 +64,6 @@ completo de todos los scripts está más abajo, en la sección
   proyecto: todo script, documento y lockfile de este repositorio se apoya
   solamente en él.
 
-## Puesta en marcha
-
-```bash
-pnpm install
-pnpm dev
-```
-
 ## Scripts disponibles
 
 | Script              | Descripción                                          |
