@@ -5,6 +5,7 @@ import { concatenateAudioFrames } from './audio/audio-frame-buffer'
 import { resampleToWhisperRate } from './audio/audio-resampler'
 import { createInferenceClient, InferenceClientError } from './ia/inference-client'
 import type { InferenceClient, InferenceClientErrorReason } from './ia/inference-client'
+import { grammarCorrectionMadeNoChanges } from './ia/grammar-correction'
 import { homeScreenInterfaceTexts } from './ui/interface-texts'
 
 /**
@@ -30,6 +31,23 @@ type MicrophoneUiStatus =
  * - `'error'`: la transcripción falló (ver `transcriptionErrorReason`).
  */
 type TranscriptionUiStatus = 'idle' | 'loading-model' | 'transcribing' | 'done' | 'error'
+
+/**
+ * Estados posibles de la corrección gramatical (segunda etapa del pipeline,
+ * post-ASR) desde el punto de vista de la interfaz. Mismo espíritu que
+ * `TranscriptionUiStatus`, encadenado automáticamente después de una
+ * transcripción exitosa (ver `correctTranscribedGrammar`).
+ *
+ * - `'idle'`: todavía no hay texto transcrito para corregir.
+ * - `'loading-model'`: el worker está descargando el modelo T5 de corrección
+ *   gramatical (solo ocurre en el primer uso).
+ * - `'correcting-grammar'`: el modelo ya está listo y la corrección está en
+ *   curso.
+ * - `'done'`: la corrección terminó con éxito (ver `correctedGrammarText`).
+ * - `'error'`: la corrección falló (ver `grammarCorrectionErrorReason`); la
+ *   transcripción ya mostrada NO se borra por este error.
+ */
+type GrammarCorrectionUiStatus = 'idle' | 'loading-model' | 'correcting-grammar' | 'done' | 'error'
 
 const WAVEFORM_BACKGROUND_COLOR = '#1e1e1e'
 const WAVEFORM_LINE_COLOR = '#2ecc71'
@@ -59,7 +77,9 @@ function microphoneStatusMessageFor(status: MicrophoneUiStatus): string {
  * Traduce un motivo de error de transcripción (`InferenceClientErrorReason`)
  * al mensaje correspondiente en `ui/interface-texts.ts`. `null` cubre el caso
  * defensivo en el que el estado es `'error'` pero, por algún motivo, no se
- * registró un motivo tipado.
+ * registró un motivo tipado; `'correction-failed'` también cae en ese mismo
+ * mensaje defensivo, porque no debería surgir nunca de una solicitud de
+ * transcripción (solo de una de corrección gramatical).
  */
 function transcriptionErrorMessageFor(reason: InferenceClientErrorReason | null): string {
   switch (reason) {
@@ -71,6 +91,7 @@ function transcriptionErrorMessageFor(reason: InferenceClientErrorReason | null)
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
     case 'worker-unavailable':
       return homeScreenInterfaceTexts.transcriptionErrorMessages.workerUnavailable
+    case 'correction-failed':
     case null:
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
   }
@@ -101,12 +122,69 @@ function transcriptionStatusMessageFor(
   }
 }
 
+/**
+ * Traduce un motivo de error de corrección gramatical
+ * (`InferenceClientErrorReason`) al mensaje correspondiente en
+ * `ui/interface-texts.ts`. `'invalid-sample-rate'`, `'transcription-failed'`
+ * y `null` caen en el mismo mensaje defensivo genérico: los dos primeros no
+ * deberían surgir nunca de una solicitud de corrección gramatical (solo de
+ * una de transcripción).
+ */
+function grammarCorrectionErrorMessageFor(reason: InferenceClientErrorReason | null): string {
+  switch (reason) {
+    case 'model-load-failed':
+      return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.modelLoadFailed
+    case 'correction-failed':
+      return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
+    case 'worker-unavailable':
+      return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.workerUnavailable
+    case 'invalid-sample-rate':
+    case 'transcription-failed':
+    case null:
+      return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
+  }
+}
+
+/**
+ * Traduce el estado de corrección gramatical al mensaje que debe mostrarse
+ * en el panel de gramática. El mensaje de descarga de modelo interpola el
+ * nombre legible del modelo T5 (`homeScreenInterfaceTexts.modelDisplayNames`)
+ * para que quede claro qué se está descargando, distinto del modelo de ASR.
+ */
+function grammarCorrectionStatusMessageFor(
+  status: GrammarCorrectionUiStatus,
+  modelLoadingProgressPercent: number,
+  grammarCorrectionErrorReason: InferenceClientErrorReason | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.grammarCorrectionStatusMessages.idle
+    case 'loading-model':
+      return homeScreenInterfaceTexts.grammarCorrectionStatusMessages.modelLoadingProgressMessage(
+        homeScreenInterfaceTexts.modelDisplayNames.grammarCorrection,
+        modelLoadingProgressPercent,
+      )
+    case 'correcting-grammar':
+      return homeScreenInterfaceTexts.grammarCorrectionStatusMessages.correcting
+    case 'done':
+      return homeScreenInterfaceTexts.grammarCorrectionStatusMessages.done
+    case 'error':
+      return grammarCorrectionErrorMessageFor(grammarCorrectionErrorReason)
+  }
+}
+
 export function App() {
   const [microphoneStatus, setMicrophoneStatus] = useState<MicrophoneUiStatus>('idle')
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionUiStatus>('idle')
   const [modelLoadingProgressPercent, setModelLoadingProgressPercent] = useState(0)
   const [transcribedText, setTranscribedText] = useState('')
   const [transcriptionErrorReason, setTranscriptionErrorReason] =
+    useState<InferenceClientErrorReason | null>(null)
+  const [grammarCorrectionStatus, setGrammarCorrectionStatus] =
+    useState<GrammarCorrectionUiStatus>('idle')
+  const [grammarModelLoadingProgressPercent, setGrammarModelLoadingProgressPercent] = useState(0)
+  const [correctedGrammarText, setCorrectedGrammarText] = useState('')
+  const [grammarCorrectionErrorReason, setGrammarCorrectionErrorReason] =
     useState<InferenceClientErrorReason | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -140,7 +218,11 @@ export function App() {
    * espíritu que `captureAttemptGenerationRef`: si el usuario detiene una
    * segunda grabación antes de que la transcripción de la primera termine,
    * el resultado (o error) de la primera, que llega tarde, no debe pisar el
-   * estado de la segunda.
+   * estado de la segunda. Se reutiliza también para la corrección gramatical
+   * encadenada (ver `correctTranscribedGrammar`): ambas etapas pertenecen al
+   * mismo intento de "post-utterance" (ASR → gramática, ver "Convenciones y
+   * defaults técnicos" en el README raíz), así que comparten el mismo
+   * contador de generación.
    */
   const transcriptionAttemptGenerationRef = useRef(0)
 
@@ -235,18 +317,64 @@ export function App() {
   }, [])
 
   /**
+   * Corrige la gramática de un texto ya transcrito (segunda etapa del
+   * pipeline, encadenada automáticamente por `transcribeCapturedAudio` al
+   * terminar la transcripción). `attemptGeneration` es la misma generación
+   * de `transcriptionAttemptGenerationRef` capturada por quien llama, para
+   * descartar un resultado (o error) que llega tarde de un intento ya
+   * superado por uno más nuevo.
+   *
+   * Un error en esta etapa NO afecta el estado de la transcripción: el texto
+   * transcrito y su panel permanecen intactos, y el error se muestra
+   * únicamente en el panel de gramática.
+   */
+  const correctTranscribedGrammar = useCallback(
+    async (transcribedTextResult: string, attemptGeneration: number) => {
+      if (!transcribedTextResult.trim() || !inferenceClientRef.current) {
+        setGrammarCorrectionStatus('idle')
+        return
+      }
+
+      setGrammarCorrectionStatus('correcting-grammar')
+      setGrammarCorrectionErrorReason(null)
+
+      try {
+        const correctedText = await inferenceClientRef.current.correctGrammar(transcribedTextResult)
+        if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
+          return
+        }
+        setCorrectedGrammarText(correctedText)
+        setGrammarCorrectionStatus('done')
+      } catch (error) {
+        if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
+          return
+        }
+        const reason = error instanceof InferenceClientError ? error.reason : 'worker-unavailable'
+        setGrammarCorrectionErrorReason(reason)
+        setGrammarCorrectionStatus('error')
+        console.error(error)
+      }
+    },
+    [],
+  )
+
+  /**
    * Transcribe el audio acumulado durante la última captura: lo concatena,
    * lo resamplea a 16 kHz (la tasa que exige Whisper) y lo manda al worker de
    * inferencia a través de `InferenceClient.transcribe`. El cliente de
-   * inferencia se crea perezosamente en la primera llamada.
+   * inferencia se crea perezosamente en la primera llamada. Al terminar con
+   * éxito, encadena automáticamente la corrección gramatical
+   * (`correctTranscribedGrammar`), siguiendo el flujo post-utterance del
+   * curso (ASR → gramática).
    *
-   * Limitación conocida: mientras el modelo se descarga (primer uso), el
-   * estado pasa a `'loading-model'` con el progreso de descarga; una vez que
-   * termina de descargar no hay un evento explícito de "listo", así que el
-   * estado permanece en `'loading-model'` (con el último porcentaje
-   * reportado) durante el tramo de inferencia propiamente dicho, hasta que
-   * llega el resultado. Se acepta como suficiente para el prototipo del
-   * Avance 1: ese tramo es breve comparado con la descarga del modelo.
+   * Limitación conocida: mientras un modelo se descarga (primer uso), el
+   * estado de esa etapa pasa a `'loading-model'` con el progreso de
+   * descarga; una vez que termina de descargar no hay un evento explícito de
+   * "listo", así que el estado permanece en `'loading-model'` (con el
+   * último porcentaje reportado) durante el tramo de inferencia propiamente
+   * dicho, hasta que llega el resultado. Se acepta como suficiente para el
+   * prototipo del Avance 1: ese tramo es breve comparado con la descarga del
+   * modelo.
    */
   const transcribeCapturedAudio = useCallback(
     async (frames: Float32Array[], nativeSampleRate: number) => {
@@ -259,8 +387,13 @@ export function App() {
       if (!inferenceClientRef.current) {
         const inferenceClient = createInferenceClient()
         inferenceClient.subscribeToModelLoadingProgress((progressMessage) => {
-          setTranscriptionStatus('loading-model')
-          setModelLoadingProgressPercent(progressMessage.progressPercent)
+          if (progressMessage.modelKey === 'automaticSpeechRecognition') {
+            setTranscriptionStatus('loading-model')
+            setModelLoadingProgressPercent(progressMessage.progressPercent)
+          } else if (progressMessage.modelKey === 'grammarCorrection') {
+            setGrammarCorrectionStatus('loading-model')
+            setGrammarModelLoadingProgressPercent(progressMessage.progressPercent)
+          }
         })
         inferenceClientRef.current = inferenceClient
       }
@@ -268,6 +401,9 @@ export function App() {
       const attemptGeneration = (transcriptionAttemptGenerationRef.current += 1)
       setTranscriptionStatus('transcribing')
       setTranscriptionErrorReason(null)
+      setGrammarCorrectionStatus('idle')
+      setGrammarCorrectionErrorReason(null)
+      setCorrectedGrammarText('')
 
       try {
         const transcribedTextResult = await inferenceClientRef.current.transcribe(samples16kHz)
@@ -276,6 +412,7 @@ export function App() {
         }
         setTranscribedText(transcribedTextResult)
         setTranscriptionStatus('done')
+        void correctTranscribedGrammar(transcribedTextResult, attemptGeneration)
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
@@ -286,7 +423,7 @@ export function App() {
         console.error(error)
       }
     },
-    [],
+    [correctTranscribedGrammar],
   )
 
   const handleStartButtonClick = useCallback(async () => {
@@ -296,6 +433,10 @@ export function App() {
     setTranscribedText('')
     setTranscriptionErrorReason(null)
     setModelLoadingProgressPercent(0)
+    setGrammarCorrectionStatus('idle')
+    setCorrectedGrammarText('')
+    setGrammarCorrectionErrorReason(null)
+    setGrammarModelLoadingProgressPercent(0)
 
     try {
       const captureSession = await startMicrophoneCapture()
@@ -366,6 +507,19 @@ export function App() {
     modelLoadingProgressPercent,
     transcriptionErrorReason,
   )
+  const grammarCorrectionStatusMessage = grammarCorrectionStatusMessageFor(
+    grammarCorrectionStatus,
+    grammarModelLoadingProgressPercent,
+    grammarCorrectionErrorReason,
+  )
+  /**
+   * Solo tiene sentido mostrar el mensaje de "sin correcciones necesarias"
+   * cuando la corrección terminó con éxito: si todavía está en curso, falló,
+   * o no hay transcripción, no hay nada que comparar todavía.
+   */
+  const grammarCorrectionMadeNoChangesToTranscription =
+    grammarCorrectionStatus === 'done' &&
+    grammarCorrectionMadeNoChanges(transcribedText, correctedGrammarText)
 
   return (
     <div className="mx-auto my-10 max-w-2xl px-5 text-center font-sans">
@@ -416,6 +570,21 @@ export function App() {
         {transcribedText && (
           <p className="mt-2 rounded-md bg-white p-2 text-left font-mono text-slate-900">
             {transcribedText}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+        <strong>{homeScreenInterfaceTexts.grammarCorrectionPanelLabel}:</strong>{' '}
+        {grammarCorrectionStatusMessage}
+        {correctedGrammarText && (
+          <p className="mt-2 rounded-md bg-white p-2 text-left font-mono text-slate-900">
+            {correctedGrammarText}
+          </p>
+        )}
+        {grammarCorrectionMadeNoChangesToTranscription && (
+          <p className="mt-2 text-slate-500 italic">
+            {homeScreenInterfaceTexts.grammarCorrectionStatusMessages.noCorrectionsNeeded}
           </p>
         )}
       </div>

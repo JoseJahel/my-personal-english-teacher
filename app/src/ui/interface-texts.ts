@@ -56,4 +56,45 @@ export const homeScreenInterfaceTexts = {
     transcriptionFailed: 'No fue posible transcribir el audio capturado.',
     workerUnavailable: 'El proceso de reconocimiento de voz dejó de responder inesperadamente.',
   },
+  /** Etiqueta del panel que muestra el resultado de la corrección gramatical (T5). */
+  grammarCorrectionPanelLabel: 'Corrección gramatical',
+  /**
+   * Nombres legibles de cada modelo del registro (`ia/model-registry.ts`),
+   * para interpolar en el mensaje de progreso de descarga
+   * (`modelLoadingProgressMessage`) y que la persona usuaria sepa qué se está
+   * descargando, en vez de un mensaje genérico igual para todos los modelos.
+   */
+  modelDisplayNames: {
+    automaticSpeechRecognition: 'reconocimiento de voz',
+    grammarCorrection: 'corrección gramatical',
+    textToSpeech: 'síntesis de voz',
+    textToSpeechVocoder: 'síntesis de voz',
+    conversationSuggestions: 'sugerencias de conversación',
+  },
+  /**
+   * Mensajes de estado de la corrección gramatical, uno por cada valor
+   * posible del estado de la interfaz (esperando / descargando modelo /
+   * corrigiendo / lista / sin correcciones / error). Mismo espíritu que
+   * `transcriptionStatusMessages`: `modelLoadingProgressMessage` interpola el
+   * nombre del modelo (`modelDisplayNames`) y el porcentaje de descarga.
+   */
+  grammarCorrectionStatusMessages: {
+    idle: 'Esperando la transcripción para corregir la gramática.',
+    modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
+      `Descargando el modelo de ${modelDisplayName}... ${progressPercent}%`,
+    correcting: 'Corrigiendo gramática...',
+    done: 'Corrección lista.',
+    noCorrectionsNeeded:
+      'No se encontraron correcciones: la oración ya es gramaticalmente correcta.',
+  },
+  /**
+   * Mensajes de error de la corrección gramatical, uno por cada motivo
+   * tipado de `InferenceClientErrorReason` que puede surgir en esta etapa
+   * del pipeline (`ia/inference-client.ts`).
+   */
+  grammarCorrectionErrorMessages: {
+    modelLoadFailed: 'No fue posible descargar o inicializar el modelo de corrección gramatical.',
+    correctionFailed: 'No fue posible corregir la gramática del texto transcrito.',
+    workerUnavailable: 'El proceso de corrección gramatical dejó de responder inesperadamente.',
+  },
 } as const

@@ -28,15 +28,33 @@ export interface TranscribeRequestMessage {
   readonly sampleRate: number
 }
 
+/**
+ * Pide corregir la gramática de un texto en inglés ya transcrito (segunda
+ * etapa del pipeline, ver `grammar-correction.ts`). El texto llega tal cual
+ * lo devolvió el ASR, sin el prefijo `'grammar: '` que exige el modelo: ese
+ * prefijo lo antepone `buildGrammarCorrectionInput` dentro del worker, no
+ * quien llama.
+ */
+export interface CorrectGrammarRequestMessage {
+  readonly type: 'correct-grammar'
+  /** Identificador único de esta solicitud, para correlacionar la respuesta. */
+  readonly requestId: string
+  readonly inputText: string
+}
+
 /** Unión de todos los mensajes que el hilo principal puede enviar al worker. */
-export type InferenceWorkerRequestMessage = TranscribeRequestMessage
+export type InferenceWorkerRequestMessage = TranscribeRequestMessage | CorrectGrammarRequestMessage
 
 /**
  * Progreso de descarga de un modelo, reenviado desde el `progress_callback`
- * de `transformers.js` (ver `automatic-speech-recognition.ts`). Solo se
- * emite mientras el modelo se está descargando (típicamente, en el primer
- * uso): las transcripciones siguientes, con el modelo ya en la Cache API del
- * navegador, no generan estos mensajes.
+ * de `transformers.js` (ver `automatic-speech-recognition.ts` y
+ * `grammar-correction.ts`). Solo se emite mientras el modelo se está
+ * descargando (típicamente, en el primer uso de cada etapa del pipeline): las
+ * solicitudes siguientes, con el modelo ya en la Cache API del navegador, no
+ * generan estos mensajes. `modelKey` distingue de cuál de los modelos del
+ * registro (por ejemplo, `'automaticSpeechRecognition'` o
+ * `'grammarCorrection'`) se trata, para que `ui/` pueda nombrarlo en el
+ * mensaje de progreso.
  */
 export interface ModelLoadingProgressMessage {
   readonly type: 'model-loading-progress'
@@ -78,6 +96,35 @@ export interface TranscriptionErrorMessage {
   readonly reason: TranscriptionErrorReason
 }
 
+/** Resultado exitoso de una solicitud `'correct-grammar'`. */
+export interface GrammarCorrectionResultMessage {
+  readonly type: 'grammar-correction-result'
+  readonly requestId: string
+  readonly correctedText: string
+}
+
+/**
+ * Motivos por los que puede fallar una corrección gramatical, mismo espíritu
+ * que `TranscriptionErrorReason`.
+ *
+ * - `'model-load-failed'`: no fue posible descargar o inicializar el
+ *   pipeline de corrección gramatical (ni siquiera con el fallback de WASM).
+ * - `'correction-failed'`: el modelo cargó correctamente, pero la inferencia
+ *   sobre el texto recibido falló.
+ */
+export type GrammarCorrectionErrorReason = 'model-load-failed' | 'correction-failed'
+
+/** Resultado fallido de una solicitud `'correct-grammar'`. */
+export interface GrammarCorrectionErrorMessage {
+  readonly type: 'grammar-correction-error'
+  readonly requestId: string
+  readonly reason: GrammarCorrectionErrorReason
+}
+
 /** Unión de todos los mensajes que el worker puede enviar al hilo principal. */
 export type InferenceWorkerResponseMessage =
-  ModelLoadingProgressMessage | TranscriptionResultMessage | TranscriptionErrorMessage
+  | ModelLoadingProgressMessage
+  | TranscriptionResultMessage
+  | TranscriptionErrorMessage
+  | GrammarCorrectionResultMessage
+  | GrammarCorrectionErrorMessage

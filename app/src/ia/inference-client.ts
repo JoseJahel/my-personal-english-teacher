@@ -8,6 +8,7 @@
  */
 
 import type {
+  GrammarCorrectionErrorReason,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   ModelLoadingProgressMessage,
@@ -16,13 +17,15 @@ import type {
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 
 /**
- * Motivos por los que puede fallar `InferenceClient.transcribe`. Extiende los
- * motivos que reporta el worker (`TranscriptionErrorReason`) con uno propio
- * del hilo principal, `'worker-unavailable'`, para cuando el propio Worker
- * termina inesperadamente (evento `error`) o el cliente ya fue liberado antes
- * de responder.
+ * Motivos por los que puede fallar `InferenceClient.transcribe` o
+ * `InferenceClient.correctGrammar`. Extiende los motivos que reporta el
+ * worker (`TranscriptionErrorReason`, `GrammarCorrectionErrorReason`) con uno
+ * propio del hilo principal, `'worker-unavailable'`, para cuando el propio
+ * Worker termina inesperadamente (evento `error`) o el cliente ya fue
+ * liberado antes de responder.
  */
-export type InferenceClientErrorReason = TranscriptionErrorReason | 'worker-unavailable'
+export type InferenceClientErrorReason =
+  TranscriptionErrorReason | GrammarCorrectionErrorReason | 'worker-unavailable'
 
 /**
  * Error de primera clase para fallos de transcripción, análogo a
@@ -55,20 +58,35 @@ export interface InferenceClient {
    * hilo principal después de llamar a esta función.
    */
   transcribe: (samples16kHz: Float32Array) => Promise<string>
-  /** Suscribe un listener al progreso de descarga del modelo de ASR. */
+  /**
+   * Corrige la gramática de un texto en inglés (segunda etapa del pipeline,
+   * post-ASR: ver `ia/grammar-correction.ts`).
+   */
+  correctGrammar: (englishText: string) => Promise<string>
+  /**
+   * Suscribe un listener al progreso de descarga de cualquiera de los
+   * modelos del worker (ASR o corrección gramatical); el propio mensaje trae
+   * `modelKey` para distinguir de cuál se trata.
+   */
   subscribeToModelLoadingProgress: (
     listener: ModelLoadingProgressListener,
   ) => UnsubscribeFromModelLoadingProgress
   /**
-   * Termina el Worker y rechaza cualquier transcripción pendiente con
-   * `InferenceClientError('worker-unavailable', ...)`. Es idempotente:
-   * llamarla más de una vez no tiene efecto adicional.
+   * Termina el Worker y rechaza cualquier solicitud pendiente (transcripción
+   * o corrección gramatical) con `InferenceClientError('worker-unavailable',
+   * ...)`. Es idempotente: llamarla más de una vez no tiene efecto adicional.
    */
   dispose: () => void
 }
 
-interface PendingTranscriptionRequest {
-  resolve: (transcribedText: string) => void
+/**
+ * Solicitud pendiente de respuesta del worker, correlacionada por
+ * `requestId`. Se reutiliza tanto para `'transcribe'` como para
+ * `'correct-grammar'`: ambas resuelven con un texto plano (transcrito o
+ * corregido, respectivamente), así que comparten la misma forma.
+ */
+interface PendingInferenceRequest {
+  resolve: (resultText: string) => void
   reject: (error: InferenceClientError) => void
 }
 
@@ -82,7 +100,7 @@ export function createInferenceClient(): InferenceClient {
     type: 'module',
   })
 
-  const pendingRequests = new Map<string, PendingTranscriptionRequest>()
+  const pendingRequests = new Map<string, PendingInferenceRequest>()
   const progressListeners = new Set<ModelLoadingProgressListener>()
   let isDisposed = false
 
@@ -106,6 +124,21 @@ export function createInferenceClient(): InferenceClient {
             new InferenceClientError(
               message.reason,
               `La transcripción falló con el motivo '${message.reason}'.`,
+            ),
+          )
+        pendingRequests.delete(message.requestId)
+        break
+      case 'grammar-correction-result':
+        pendingRequests.get(message.requestId)?.resolve(message.correctedText)
+        pendingRequests.delete(message.requestId)
+        break
+      case 'grammar-correction-error':
+        pendingRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `La corrección gramatical falló con el motivo '${message.reason}'.`,
             ),
           )
         pendingRequests.delete(message.requestId)
@@ -154,6 +187,31 @@ export function createInferenceClient(): InferenceClient {
     })
   }
 
+  function correctGrammar(englishText: string): Promise<string> {
+    if (isDisposed) {
+      return Promise.reject(
+        new InferenceClientError(
+          'worker-unavailable',
+          'El cliente de inferencia ya fue liberado (dispose()).',
+        ),
+      )
+    }
+
+    const requestId = crypto.randomUUID()
+
+    return new Promise<string>((resolve, reject) => {
+      pendingRequests.set(requestId, { resolve, reject })
+
+      const message: InferenceWorkerRequestMessage = {
+        type: 'correct-grammar',
+        requestId,
+        inputText: englishText,
+      }
+
+      worker.postMessage(message)
+    })
+  }
+
   function subscribeToModelLoadingProgress(
     listener: ModelLoadingProgressListener,
   ): UnsubscribeFromModelLoadingProgress {
@@ -171,7 +229,7 @@ export function createInferenceClient(): InferenceClient {
 
     const disposalError = new InferenceClientError(
       'worker-unavailable',
-      'El cliente de inferencia fue liberado con solicitudes de transcripción pendientes.',
+      'El cliente de inferencia fue liberado con solicitudes pendientes.',
     )
     for (const pendingRequest of pendingRequests.values()) {
       pendingRequest.reject(disposalError)
@@ -182,5 +240,5 @@ export function createInferenceClient(): InferenceClient {
     worker.terminate()
   }
 
-  return { transcribe, subscribeToModelLoadingProgress, dispose }
+  return { transcribe, correctGrammar, subscribeToModelLoadingProgress, dispose }
 }
