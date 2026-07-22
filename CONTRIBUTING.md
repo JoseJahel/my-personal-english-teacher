@@ -5,24 +5,32 @@ Este documento define las reglas de trabajo colaborativo para el repositorio
 
 ## Equipo y ramas
 
-Cada integrante trabaja en dos ramas propias, sin tildes en el nombre:
+Cada integrante trabaja en una única rama propia, sin tildes en el nombre:
 
-| Integrante | Rama frontend    | Rama backend    |
-|------------|------------------|-----------------|
-| Jahel      | `jahel-frontend` | `jahel-backend` |
-| Rebeca     | `rebeca-frontend`| `rebeca-backend`|
-| Luna       | `luna-frontend`  | `luna-backend`  |
-| Saúl       | `saul-frontend`  | `saul-backend`  |
-| César      | `cesar-frontend` | `cesar-backend` |
+| Integrante | Rama             |
+|------------|------------------|
+| Jahel      | `jahel-frontend` |
+| Rebeca     | `rebeca-frontend`|
+| Luna       | `luna-frontend`  |
+| Saúl       | `saul-frontend`  |
+| César      | `cesar-frontend` |
 
 Cada persona trabaja únicamente en sus propias ramas. No se realizan cambios
 en las ramas de otro integrante sin coordinarlo primero.
 
-La aplicación es 100% client-side, así que en este proyecto «backend» no
-significa servidor: las ramas `*-backend` cubren el motor no visual de la
-app (captura y procesamiento de audio, DSP, pipeline de IA y almacenamiento
-— carpetas `audio/`, `dsp/`, `ia/`, `storage/`), y las ramas `*-frontend`
-cubren la interfaz React (`ui/`).
+Cada integrante integra a `main`, desde esa única rama personal, todo su
+trabajo: tanto el de interfaz (`ui/`) como el del motor no visual de la app
+(`audio/`, `dsp/`, `ia/`, `storage/`). El sufijo «-frontend» en los nombres
+de las ramas es histórico y no limita el alcance del trabajo que se integra
+desde cada una.
+
+## Trabajo por módulos
+
+La construcción de la aplicación es modular, siguiendo las capas de
+`app/src` (`audio/`, `dsp/`, `ia/`, `ui/`, `storage/`). Cada Pull Request
+debe enfocarse idealmente en un solo módulo, para que cada uno pueda
+desarrollarse y ajustarse de forma independiente. Esto no implica una
+asignación fija de módulos por persona.
 
 ## Flujo de integración
 
