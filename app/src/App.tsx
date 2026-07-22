@@ -14,7 +14,7 @@ export function App() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
 
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new AudioContext();
       audioCtxRef.current = audioContext;
 
       const analyser = audioContext.createAnalyser();
