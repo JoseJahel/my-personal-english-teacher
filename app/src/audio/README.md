@@ -24,6 +24,9 @@ Implementado:
 - `audio-resampler.ts`: resampleo por interpolación lineal de la tasa nativa
   a 16 kHz mono, la tasa que exige Whisper (`resampleAudioSamples`,
   `resampleToWhisperRate`), con tests en `audio-resampler.test.ts`.
+- `audio-frame-buffer.ts`: función pura `concatenateAudioFrames` que junta los
+  frames acumulados durante una captura en una única señal, previo al
+  resampleo camino a Whisper; con tests en `audio-frame-buffer.test.ts`.
 
 Archivos previstos a futuro:
 

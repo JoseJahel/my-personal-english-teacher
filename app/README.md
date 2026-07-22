@@ -5,13 +5,16 @@ voz, corrección gramatical, sugerencias de conversación y síntesis de voz
 corren en el propio navegador mediante `transformers.js`, sin backend ni envío
 de datos a servidores externos.
 
-La estructura y las herramientas del proyecto están configuradas, y ya existe
-una primera demo funcional de captura de micrófono con visualización de
-waveform en tiempo real: la captura vive en la capa `audio/`
-(`audio/microphone-capture.ts`) y `App.tsx` solo presenta, pero las
-funcionalidades de práctica (reconocimiento de voz, corrección gramatical,
-síntesis de voz, comparación de pronunciación) todavía no están
-implementadas.
+La estructura y las herramientas del proyecto están configuradas. Ya existe
+una demo funcional de captura de micrófono con visualización de waveform en
+tiempo real (la captura vive en la capa `audio/`,
+`audio/microphone-capture.ts`) y un primer prototipo de reconocimiento de voz
+(ASR) funcionando de punta a punta: al detener la captura, el audio se
+transcribe con Whisper (`Xenova/whisper-tiny.en` vía `transformers.js`) en un
+Web Worker dedicado (`ia/inference-worker.ts`) y el resultado se muestra en
+pantalla. `App.tsx` solo presenta y orquesta esos flujos; el resto de las
+funcionalidades de práctica (corrección gramatical, síntesis de voz,
+comparación de pronunciación) todavía no están implementadas.
 
 ## Puesta en marcha (Windows)
 
