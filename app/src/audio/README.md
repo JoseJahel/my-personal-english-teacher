@@ -8,6 +8,10 @@ el resto del sistema (16 kHz mono) y exponerlo como datos crudos (`Float32Array`
 No contiene lógica de análisis de señal ni de modelos: solo captura y adaptación.
 Depende únicamente hacia adentro (`dsp/`), nunca al revés.
 
+**Estado actual:** `microphone.ts` existe como placeholder vacío. La lógica de
+captura de micrófono y visualización de waveform vive temporalmente en
+`App.tsx` y debe migrarse a esta capa.
+
 Archivos previstos a futuro:
 
 - `microphone-capture.ts`: apertura del micrófono y obtención del stream.

@@ -5,9 +5,12 @@ voz, corrección gramatical, sugerencias de conversación y síntesis de voz
 corren en el propio navegador mediante `transformers.js`, sin backend ni envío
 de datos a servidores externos.
 
-Este repositorio está actualmente en **fase de scaffolding**: la estructura y
-las herramientas del proyecto están configuradas, pero las funcionalidades de
-práctica todavía no están implementadas.
+La estructura y las herramientas del proyecto están configuradas, y ya existe
+una primera demo funcional de captura de micrófono con visualización de
+waveform en tiempo real (implementada por ahora en `App.tsx`, pendiente de
+migrar a la capa `audio/`), pero las funcionalidades de práctica
+(reconocimiento de voz, corrección gramatical, síntesis de voz, comparación
+de pronunciación) todavía no están implementadas.
 
 ## Puesta en marcha (Windows)
 

@@ -163,7 +163,7 @@ La presentación en vivo corre desde localhost, que no depende de la red del aul
 
 ### Metodología iterativa por avances
 
-La documentación del curso fija metodología iterativa (Agile-like); el trabajo se organiza en ciclos alineados a los tres hitos (Avance 1, Avance 2, Entrega Final), con integración continua a `main` vía Pull Requests conforme el equipo esté activo. Los enfoques en cascada quedan descartados por la propia documentación.
+La documentación del curso fija metodología iterativa (Agile-like); el trabajo se organiza en ciclos alineados a los tres hitos (Avance 1, Avance 2, Entrega Final), con integración continua a `main` vía Pull Requests conforme el equipo esté activo. Los enfoques en cascada quedan descartados por la propia documentación. Siguiendo ese mismo lineamiento, la construcción de la aplicación es modular: cada capa de `app/` (`audio/`, `dsp/`, `ia/`, `ui/`, `storage/`) se desarrolla y se ajusta como un módulo independiente que se integra a `main` de forma incremental, lo que permite acotar el alcance de cada módulo por separado en cada iteración.
 
 ## Estructura actual del repositorio
 
@@ -189,4 +189,4 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 
 ## Estado
 
-Fase de planificación cerrada: la arquitectura del sistema y las decisiones de proceso y entregas quedaron completas y documentadas en este archivo. El scaffolding de `app/` también está completo: proyecto React + TypeScript + Vite con Tailwind, Vitest, PWA, la estructura en capas, el registro de modelos y una primera función DSP con tests, más un pipeline de integración continua con GitHub Actions. Próximo paso: desarrollo del prototipo de ASR y corrección gramatical para el Avance 1 (27/07/2026 – 01/08/2026). Sigue pendiente, como decisión interna del equipo, la asignación de responsables por módulo (ASR, DSP, pipeline de IA, UI).
+Fase de planificación cerrada: la arquitectura del sistema y las decisiones de proceso y entregas quedaron completas y documentadas en este archivo. El scaffolding de `app/` también está completo: proyecto React + TypeScript + Vite con Tailwind, Vitest, PWA, la estructura en capas, el registro de modelos y una primera función DSP con tests, más un pipeline de integración continua con GitHub Actions. Ya está integrada en `main` una primera captura de micrófono con visualización de waveform en tiempo real, como demo inicial de la capa de audio; por ahora está implementada en `App.tsx` y queda pendiente refactorizarla hacia la capa `audio/` conforme a la arquitectura definida. Próximo paso: desarrollo del prototipo de ASR y corrección gramatical para el Avance 1 (27/07/2026 – 01/08/2026). Sigue pendiente, como decisión interna del equipo, la asignación de responsables por módulo (ASR, DSP, pipeline de IA, UI).
