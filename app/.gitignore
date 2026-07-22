@@ -19,3 +19,9 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+# Lockfiles de otros gestores de paquetes: pnpm es el único gestor admitido
+# en este proyecto, así que un package-lock.json o yarn.lock nunca debería
+# generarse aquí; se ignoran para no subirlos por accidente.
+package-lock.json
+yarn.lock
