@@ -19,6 +19,8 @@ jobs:
 
       - name: Configurar pnpm
         uses: pnpm/action-setup@v4
+        with:
+          package_json_file: app/package.json
 
       - name: Configurar Node.js 22 con caché de pnpm
         uses: actions/setup-node@v4
