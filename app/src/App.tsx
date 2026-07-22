@@ -1,177 +1,241 @@
-import { useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MicrophoneCaptureError, startMicrophoneCapture } from './audio/microphone-capture'
+import type { MicrophoneCaptureSession } from './audio/microphone-capture'
+import { homeScreenInterfaceTexts } from './ui/interface-texts'
+
+/**
+ * Estados posibles de la captura de micrófono desde el punto de vista de la
+ * interfaz. Cada uno tiene un mensaje propio en
+ * `homeScreenInterfaceTexts.microphoneStatusMessages`. `'starting'` cubre la
+ * espera de `startMicrophoneCapture()` (incluye el tiempo que el navegador
+ * tarda en mostrar y resolver el diálogo de permiso).
+ */
+type MicrophoneUiStatus =
+  'idle' | 'starting' | 'listening' | 'stopped' | 'permission-denied' | 'error'
+
+const WAVEFORM_BACKGROUND_COLOR = '#1e1e1e'
+const WAVEFORM_LINE_COLOR = '#2ecc71'
+
+/**
+ * Traduce el estado de captura al mensaje de estado que debe mostrarse,
+ * usando exclusivamente los textos centralizados en `ui/interface-texts.ts`.
+ */
+function microphoneStatusMessageFor(status: MicrophoneUiStatus): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.idle
+    case 'starting':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.starting
+    case 'listening':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.listening
+    case 'stopped':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.stopped
+    case 'permission-denied':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.permissionDenied
+    case 'error':
+      return homeScreenInterfaceTexts.microphoneStatusMessages.genericError
+  }
+}
 
 export function App() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState('Esperando interacción...');
-  
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number | null>(null);
+  const [microphoneStatus, setMicrophoneStatus] = useState<MicrophoneUiStatus>('idle')
 
-  const startAudio = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      streamRef.current = stream;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const captureSessionRef = useRef<MicrophoneCaptureSession | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  /**
+   * Contador de generación del intento de arranque en curso. Se incrementa
+   * tanto al iniciar un nuevo intento como al detener la captura (incluido el
+   * cleanup de desmontaje). Cuando el `await startMicrophoneCapture()` de un
+   * intento se resuelve, compara su propia generación contra el valor actual
+   * de esta ref: si cambió, significa que hubo un `stop()` (o un nuevo
+   * intento) mientras se esperaba el permiso, así que la sesión que llega
+   * tarde se cierra de inmediato en vez de adoptarse.
+   */
+  const captureAttemptGenerationRef = useRef(0)
 
-      const audioContext = new AudioContext();
-      audioCtxRef.current = audioContext;
+  const isStarting = microphoneStatus === 'starting'
+  const isListening = microphoneStatus === 'listening'
 
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
+  /**
+   * Dibuja el waveform en el canvas leyendo, cuadro a cuadro, del
+   * `analyserNode` de la sesión de captura activa. Es responsabilidad de la
+   * capa de presentación: `audio/` solo entrega el `AnalyserNode`, nunca
+   * dibuja nada.
+   */
+  const drawWaveform = useCallback(() => {
+    const captureSession = captureSessionRef.current
+    const canvas = canvasRef.current
+    if (!captureSession || !canvas) {
+      return
+    }
 
-      const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
+    const canvasContext = canvas.getContext('2d')
+    if (!canvasContext) {
+      return
+    }
 
-      setIsRecording(true);
-      setStatus('Escuchando voz y procesando señal en tiempo real...');
+    const { analyserNode } = captureSession
+    const timeDomainBufferLength = analyserNode.frequencyBinCount
+    const timeDomainData = new Uint8Array(timeDomainBufferLength)
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      const canvas = canvasRef.current;
+    const renderFrame = () => {
+      animationFrameRef.current = requestAnimationFrame(renderFrame)
+      analyserNode.getByteTimeDomainData(timeDomainData)
 
-      if (!canvas) return;
-      const canvasCtx = canvas.getContext('2d');
+      canvasContext.fillStyle = WAVEFORM_BACKGROUND_COLOR
+      canvasContext.fillRect(0, 0, canvas.width, canvas.height)
 
-      const draw = () => {
-        animFrameRef.current = requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(dataArray);
+      canvasContext.lineWidth = 2
+      canvasContext.strokeStyle = WAVEFORM_LINE_COLOR
+      canvasContext.beginPath()
 
-        if (canvasCtx) {
-          canvasCtx.fillStyle = '#1e1e1e';
-          canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+      const sliceWidth = canvas.width / timeDomainBufferLength
+      let xPosition = 0
 
-          canvasCtx.lineWidth = 2;
-          canvasCtx.strokeStyle = '#2ecc71';
-          canvasCtx.beginPath();
+      for (let sampleIndex = 0; sampleIndex < timeDomainBufferLength; sampleIndex += 1) {
+        const normalizedValue = timeDomainData[sampleIndex] / 128.0
+        const yPosition = (normalizedValue * canvas.height) / 2
 
-          const sliceWidth = (canvas.width * 1.0) / bufferLength;
-          let x = 0;
-
-          for (let i = 0; i < bufferLength; i++) {
-            const v = dataArray[i] / 128.0;
-            const y = (v * canvas.height) / 2;
-
-            if (i === 0) {
-              canvasCtx.moveTo(x, y);
-            } else {
-              canvasCtx.lineTo(x, y);
-            }
-
-            x += sliceWidth;
-          }
-
-          canvasCtx.lineTo(canvas.width, canvas.height / 2);
-          canvasCtx.stroke();
+        if (sampleIndex === 0) {
+          canvasContext.moveTo(xPosition, yPosition)
+        } else {
+          canvasContext.lineTo(xPosition, yPosition)
         }
-      };
 
-      draw();
-    } catch (err) {
-      console.error(err);
-      setStatus('Error al acceder al micrófono.');
-    }
-  };
-
-  const stopAudio = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close();
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-    }
-
-    setIsRecording(false);
-    setStatus('Captura detenida.');
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const canvasCtx = canvas.getContext('2d');
-      if (canvasCtx) {
-        canvasCtx.fillStyle = '#1e1e1e';
-        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+        xPosition += sliceWidth
       }
+
+      canvasContext.lineTo(canvas.width, canvas.height / 2)
+      canvasContext.stroke()
     }
-  };
+
+    renderFrame()
+  }, [])
+
+  const clearWaveformCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    const canvasContext = canvas?.getContext('2d')
+    if (!canvas || !canvasContext) {
+      return
+    }
+
+    canvasContext.fillStyle = WAVEFORM_BACKGROUND_COLOR
+    canvasContext.fillRect(0, 0, canvas.width, canvas.height)
+  }, [])
+
+  /**
+   * Detiene la sesión de captura activa (si la hay) y cancela cualquier
+   * `requestAnimationFrame` pendiente. Es segura de llamar varias veces
+   * seguidas (idempotente), incluyendo el doble montaje/desmontaje que
+   * StrictMode hace en desarrollo.
+   */
+  const stopMicrophoneCapture = useCallback(() => {
+    // Invalida cualquier intento de arranque pendiente: si su promesa se
+    // resuelve después de esto, se detectará como "atrasado" y no se adoptará.
+    captureAttemptGenerationRef.current += 1
+
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+
+    captureSessionRef.current?.stop()
+    captureSessionRef.current = null
+  }, [])
+
+  const handleStartButtonClick = useCallback(async () => {
+    const attemptGeneration = (captureAttemptGenerationRef.current += 1)
+    setMicrophoneStatus('starting')
+
+    try {
+      const captureSession = await startMicrophoneCapture()
+
+      if (attemptGeneration !== captureAttemptGenerationRef.current) {
+        // Este intento llegó tarde: hubo un stop() (detener o desmontaje) o
+        // un intento de arranque más nuevo mientras se esperaba el permiso.
+        // No se adopta la sesión: se cierra de inmediato para no filtrar el
+        // micrófono ni el AudioContext.
+        captureSession.stop()
+        return
+      }
+
+      captureSessionRef.current = captureSession
+      setMicrophoneStatus('listening')
+      drawWaveform()
+    } catch (error) {
+      if (attemptGeneration !== captureAttemptGenerationRef.current) {
+        return
+      }
+
+      const isPermissionDenied =
+        error instanceof MicrophoneCaptureError && error.reason === 'permission-denied'
+      setMicrophoneStatus(isPermissionDenied ? 'permission-denied' : 'error')
+      console.error(error)
+    }
+  }, [drawWaveform])
+
+  const handleStopButtonClick = useCallback(() => {
+    stopMicrophoneCapture()
+    clearWaveformCanvas()
+    setMicrophoneStatus('stopped')
+  }, [stopMicrophoneCapture, clearWaveformCanvas])
+
+  // Cleanup al desmontar el componente: detiene la sesión de captura y
+  // cancela el rAF pendiente, evitando fugas si el usuario navega fuera
+  // mientras el micrófono sigue activo.
+  useEffect(() => {
+    return () => {
+      stopMicrophoneCapture()
+    }
+  }, [stopMicrophoneCapture])
+
+  const statusMessage = microphoneStatusMessageFor(microphoneStatus)
 
   return (
-    <div style={{ maxWidth: '650px', margin: '40px auto', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px' }}>
-      <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '4px 12px', borderRadius: '16px', fontSize: '0.85rem' }}>
-        Fase: Avance Procesamiento de Señales
+    <div className="mx-auto my-10 max-w-2xl px-5 text-center font-sans">
+      <span className="rounded-2xl bg-indigo-100 px-3 py-1 text-sm text-indigo-800">
+        {homeScreenInterfaceTexts.projectPhaseBadgeLabel}
       </span>
-      <h1 style={{ color: '#1e293b', marginTop: '15px' }}>My Personal English Teacher</h1>
-      <p style={{ color: '#64748b' }}>
-        Procesamiento de Señales de Voz (Tiempo Real) & IA Client-Side
-      </p>
 
-      {/* Visualización Waveform */}
-      <div style={{ margin: '25px 0' }}>
+      <h1 className="mt-4 text-3xl font-bold text-slate-800">
+        {homeScreenInterfaceTexts.applicationTitle}
+      </h1>
+      <p className="text-slate-500">{homeScreenInterfaceTexts.applicationSubtitle}</p>
+
+      <div className="my-6">
         <canvas
           ref={canvasRef}
           width={600}
           height={150}
-          style={{ background: '#1e1e1e', borderRadius: '8px', width: '100%', height: '150px' }}
+          className="h-[150px] w-full rounded-lg bg-[#1e1e1e]"
         />
       </div>
 
-      {/* Controles */}
-      <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', margin: '25px 0' }}>
+      <div className="my-6 flex justify-center gap-4">
         <button
-          onClick={startAudio}
-          disabled={isRecording}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            border: 'none',
-            background: isRecording ? '#cbd5e1' : '#166534', // Un verde oscuro más formal
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '1rem',
-            cursor: isRecording ? 'not-allowed' : 'pointer',
-            opacity: isRecording ? 0.7 : 1,
-            transition: 'background 0.2s',
-            minWidth: '200px', // Asegura el ancho
-            justifyContent: 'center'
-          }}
+          type="button"
+          onClick={handleStartButtonClick}
+          disabled={isStarting || isListening}
+          className="min-w-[200px] justify-center rounded-lg bg-green-800 px-6 py-3 text-base font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
-          <span>🎤</span> Iniciar Micrófono
+          {homeScreenInterfaceTexts.startMicrophoneButtonLabel}
         </button>
         <button
-          onClick={stopAudio}
-          disabled={!isRecording}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            border: 'none',
-            background: !isRecording ? '#cbd5e1' : '#b91c1c', // Un rojo formal
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '1rem',
-            cursor: !isRecording ? 'not-allowed' : 'pointer',
-            opacity: !isRecording ? 0.7 : 1,
-            transition: 'background 0.2s',
-            minWidth: '200px', // Asegura el ancho
-            justifyContent: 'center'
-          }}
+          type="button"
+          onClick={handleStopButtonClick}
+          disabled={!isListening}
+          className="min-w-[200px] justify-center rounded-lg bg-red-700 px-6 py-3 text-base font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
-          <span>⏹️</span> Detener Micrófono
+          {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
         </button>
       </div>
-      {/* Estado */}
-      <div style={{ background: '#f1f5f9', padding: '12px', borderRadius: '6px', color: '#334155', fontSize: '0.9rem' }}>
-        <strong>Estado:</strong> {status}
+
+      <div className="rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+        <strong>{homeScreenInterfaceTexts.statusFieldLabel}:</strong> {statusMessage}
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

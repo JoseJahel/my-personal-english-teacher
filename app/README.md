@@ -7,10 +7,11 @@ de datos a servidores externos.
 
 La estructura y las herramientas del proyecto están configuradas, y ya existe
 una primera demo funcional de captura de micrófono con visualización de
-waveform en tiempo real (implementada por ahora en `App.tsx`, pendiente de
-migrar a la capa `audio/`), pero las funcionalidades de práctica
-(reconocimiento de voz, corrección gramatical, síntesis de voz, comparación
-de pronunciación) todavía no están implementadas.
+waveform en tiempo real: la captura vive en la capa `audio/`
+(`audio/microphone-capture.ts`) y `App.tsx` solo presenta, pero las
+funcionalidades de práctica (reconocimiento de voz, corrección gramatical,
+síntesis de voz, comparación de pronunciación) todavía no están
+implementadas.
 
 ## Puesta en marcha (Windows)
 

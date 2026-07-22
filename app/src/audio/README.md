@@ -8,13 +8,24 @@ el resto del sistema (16 kHz mono) y exponerlo como datos crudos (`Float32Array`
 No contiene lógica de análisis de señal ni de modelos: solo captura y adaptación.
 Depende únicamente hacia adentro (`dsp/`), nunca al revés.
 
-**Estado actual:** `microphone.ts` existe como placeholder vacío. La lógica de
-captura de micrófono y visualización de waveform vive temporalmente en
-`App.tsx` y debe migrarse a esta capa.
+**Estado actual:** la migración desde `App.tsx` ya se hizo. `App.tsx` ahora
+solo presenta (dibuja el waveform en canvas a partir del `AnalyserNode` que
+expone esta capa); toda la apertura de micrófono y el manejo del grafo de Web
+Audio vive aquí.
+
+Implementado:
+
+- `microphone-capture.ts`: apertura del micrófono (`getUserMedia`, mono) y
+  armado del grafo de Web Audio — expone un `AnalyserNode` a tasa nativa para
+  visualización y una rama de frames crudos vía `AudioWorkletNode`
+  (`subscribeToAudioFrames`), con `stop()` idempotente y errores de primera
+  clase (`MicrophoneCaptureError`, con motivo `'permission-denied'` o
+  `'unknown'`).
+- `audio-resampler.ts`: resampleo por interpolación lineal de la tasa nativa
+  a 16 kHz mono, la tasa que exige Whisper (`resampleAudioSamples`,
+  `resampleToWhisperRate`), con tests en `audio-resampler.test.ts`.
 
 Archivos previstos a futuro:
 
-- `microphone-capture.ts`: apertura del micrófono y obtención del stream.
-- `audio-resampler.ts`: conversión de la tasa de muestreo nativa del navegador a 16 kHz.
 - `voice-activity-monitor.ts`: adaptador que conecta la captura en vivo con el
   detector de actividad de voz definido en `dsp/`.
