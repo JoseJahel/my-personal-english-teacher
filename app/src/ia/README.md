@@ -15,34 +15,24 @@ Implementado:
 
 - `model-registry.ts`: catálogo tipado de modelos e IDs del Hub (ASR y
   gramática en uso; TTS y sugerencias registrados para avances futuros).
-- `automatic-speech-recognition.ts`: adaptador del pipeline ASR de
-  `transformers.js` sobre el modelo Whisper de `model-registry.ts`, con
-  WebGPU oportunista y fallback automático a WASM. Pensado para ejecutarse
-  dentro del worker.
-- `grammar-correction.ts`: adaptador del pipeline `text2text-generation` de
-  `transformers.js` sobre el modelo T5 de `model-registry.ts`
-  (`Xenova/t5-base-grammar-correction`), segunda etapa del pipeline
-  (ASR → gramática). Mismo patrón WebGPU→WASM que el ASR. Expone
-  `buildGrammarCorrectionInput` (función pura que antepone el prefijo
-  `'grammar: '` que exige el modelo) y `grammarCorrectionMadeNoChanges`
-  (función pura que compara, normalizada, el texto transcrito contra el
-  corregido, para que `ui/` sepa cuándo mostrar "sin correcciones
-  necesarias").
-- `inference-worker-protocol.ts`: tipos de los mensajes que intercambian el
-  hilo principal y el worker:
-  - entradas: `'transcribe'`, `'correct-grammar'`
-  - salidas: `'model-loading-progress'`, `'model-ready'`,
-    `'transcription-result'`, `'transcription-error'`,
-    `'grammar-correction-result'`, `'grammar-correction-error'`
-- `inference-worker.ts`: Web Worker orquestador. Cubre ASR y corrección
-  gramatical (carga perezosa y memoizada por separado de cada pipeline, en
-  su primer mensaje respectivo, reutilizados después); emite `model-ready`
-  al terminar cada carga. Sugerencias → TTS se integran sobre este mismo
-  worker en avances futuros.
-- `inference-client.ts`: cliente del worker para el hilo principal (sin
-  React), con correlación de solicitudes por `requestId`, progreso de
-  descarga por modelo (`modelKey`), evento `model-ready` y errores tipados
-  (`InferenceClientError`). Expone `transcribe` y `correctGrammar`.
+- `automatic-speech-recognition.ts`: adaptador ASR Whisper. Por defecto
+  **WASM + q8** (fiable); WebGPU solo con `VITE_INFERENCE_DEVICE=webgpu` y
+  entonces **fp32** (q8+WebGPU produjo basura tipo bucles de tokens).
+  `max_new_tokens` acotado por duración del audio.
+- `grammar-correction.ts`: adaptador T5 con el mismo criterio de device/dtype.
+  Si la salida es degenerada, devuelve el texto original.
+- `transcription-text.ts`: filtra tags no-habla y texto degenerado (bucles).
+- `model-download-progress.ts`: agrega el progreso **por archivo** de
+  transformers.js a un % global monotónico (evita 30% → 18% → 45%).
+- `resolve-inference-device.ts`: elige WebGPU vs WASM una sola vez.
+- `inference-worker-protocol.ts`: mensajes
+  - entradas: `'transcribe'`, `'correct-grammar'`, `'preload-models'`
+  - salidas: progreso, `model-ready`, resultados/errores ASR y gramática,
+    resultado/error de preload.
+- `inference-worker.ts`: orquestador; carga memoizada; preload en serie
+  (Whisper luego T5); progreso agregado por modelo.
+- `inference-client.ts`: API de hilo principal (`transcribe`,
+  `correctGrammar`, `preloadModels`) + listeners de progreso/ready.
 - `transcription-text.ts`: helpers puros post-ASR (p. ej.
   `isNonSpeechTranscript` para descartar etiquetas tipo `[Music]` /
   `(dramatic music)` que Whisper inventa sin habla real). La UI no muestra

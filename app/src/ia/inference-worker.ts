@@ -1,6 +1,6 @@
 /**
  * Inference Web Worker: ASR then grammar outside the main thread.
- * Lazy-loads and memoizes each pipeline on first use.
+ * Lazy-loads and memoizes each pipeline; supports warm preload.
  */
 
 import type {
@@ -10,44 +10,98 @@ import type {
 import { loadSpeechRecognizer, transcribeAudioSamples } from './automatic-speech-recognition'
 import type { ModelDownloadProgressEvent as SpeechRecognitionProgressEvent } from './automatic-speech-recognition'
 import { correctEnglishGrammar, loadGrammarCorrector } from './grammar-correction'
-import type { ModelDownloadProgressCallback as GrammarCorrectionProgressCallback } from './grammar-correction'
+import { AggregateModelDownloadProgress } from './model-download-progress'
 import type {
   CorrectGrammarRequestMessage,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
+  PreloadModelsRequestMessage,
   TranscribeRequestMessage,
 } from './inference-worker-protocol'
 import type { ModelRegistryKey } from './model-registry'
+import { resolvePreferredOnnxDevice } from './resolve-inference-device'
+import type { OnnxInferenceDevice } from './resolve-inference-device'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 
 function postResponse(message: InferenceWorkerResponseMessage): void {
   self.postMessage(message)
 }
 
+const progressByModel = new Map<ModelRegistryKey, AggregateModelDownloadProgress>()
+
+function progressTrackerFor(modelKey: ModelRegistryKey): AggregateModelDownloadProgress {
+  let tracker = progressByModel.get(modelKey)
+  if (!tracker) {
+    tracker = new AggregateModelDownloadProgress()
+    progressByModel.set(modelKey, tracker)
+  }
+  return tracker
+}
+
 function handleModelDownloadProgress(
   modelKey: ModelRegistryKey,
   event: SpeechRecognitionProgressEvent,
 ): void {
-  if (event.status !== 'progress') {
+  const tracker = progressTrackerFor(modelKey)
+  const progressPercent = tracker.handleEvent(event)
+  if (progressPercent === null) {
     return
   }
+
+  const fileName = 'file' in event && typeof event.file === 'string' ? event.file : ''
 
   postResponse({
     type: 'model-loading-progress',
     modelKey,
-    progressPercent: Math.round(event.progress),
-    fileName: event.file,
+    progressPercent,
+    fileName,
   })
+}
+
+function emitModelReady(modelKey: ModelRegistryKey): void {
+  progressTrackerFor(modelKey).markComplete()
+  postResponse({
+    type: 'model-loading-progress',
+    modelKey,
+    progressPercent: 100,
+    fileName: '',
+  })
+  postResponse({ type: 'model-ready', modelKey })
+}
+
+let preferredDevicePromise: Promise<OnnxInferenceDevice> | null = null
+
+function getPreferredDevice(): Promise<OnnxInferenceDevice> {
+  if (!preferredDevicePromise) {
+    preferredDevicePromise = resolvePreferredOnnxDevice()
+  }
+  return preferredDevicePromise
 }
 
 let speechRecognizerPromise: Promise<AutomaticSpeechRecognitionPipeline> | null = null
 
+async function loadSpeechRecognizerWithFallback(): Promise<AutomaticSpeechRecognitionPipeline> {
+  const device = await getPreferredDevice()
+  const onProgress = (event: SpeechRecognitionProgressEvent) =>
+    handleModelDownloadProgress('automaticSpeechRecognition', event)
+  progressTrackerFor('automaticSpeechRecognition').reset()
+  try {
+    return await loadSpeechRecognizer(device, onProgress)
+  } catch (error) {
+    if (device === 'wasm') {
+      throw error
+    }
+    // Adapter existed but ONNX WebGPU session failed: one WASM retry (cache hits).
+    console.warn('ASR WebGPU load failed; retrying with WASM.', error)
+    progressTrackerFor('automaticSpeechRecognition').reset()
+    preferredDevicePromise = Promise.resolve('wasm')
+    return loadSpeechRecognizer('wasm', onProgress)
+  }
+}
+
 function getSpeechRecognizer(): Promise<AutomaticSpeechRecognitionPipeline> {
   if (!speechRecognizerPromise) {
-    speechRecognizerPromise = loadSpeechRecognizer((event) =>
-      handleModelDownloadProgress('automaticSpeechRecognition', event),
-    ).catch((error: unknown) => {
-      // Clear memo so the next request can retry a failed download.
+    speechRecognizerPromise = loadSpeechRecognizerWithFallback().catch((error: unknown) => {
       speechRecognizerPromise = null
       throw error
     })
@@ -57,11 +111,27 @@ function getSpeechRecognizer(): Promise<AutomaticSpeechRecognitionPipeline> {
 
 let grammarCorrectorPromise: Promise<Text2TextGenerationPipeline> | null = null
 
+async function loadGrammarCorrectorWithFallback(): Promise<Text2TextGenerationPipeline> {
+  const device = await getPreferredDevice()
+  const onProgress = (event: SpeechRecognitionProgressEvent) =>
+    handleModelDownloadProgress('grammarCorrection', event)
+  progressTrackerFor('grammarCorrection').reset()
+  try {
+    return await loadGrammarCorrector(device, onProgress)
+  } catch (error) {
+    if (device === 'wasm') {
+      throw error
+    }
+    console.warn('Grammar WebGPU load failed; retrying with WASM.', error)
+    progressTrackerFor('grammarCorrection').reset()
+    preferredDevicePromise = Promise.resolve('wasm')
+    return loadGrammarCorrector('wasm', onProgress)
+  }
+}
+
 function getGrammarCorrector(): Promise<Text2TextGenerationPipeline> {
   if (!grammarCorrectorPromise) {
-    const onProgress: GrammarCorrectionProgressCallback = (event) =>
-      handleModelDownloadProgress('grammarCorrection', event)
-    grammarCorrectorPromise = loadGrammarCorrector(onProgress).catch((error: unknown) => {
+    grammarCorrectorPromise = loadGrammarCorrectorWithFallback().catch((error: unknown) => {
       grammarCorrectorPromise = null
       throw error
     })
@@ -80,7 +150,7 @@ async function handleTranscribeMessage(message: TranscribeRequestMessage): Promi
   let recognizer: AutomaticSpeechRecognitionPipeline
   try {
     recognizer = await getSpeechRecognizer()
-    postResponse({ type: 'model-ready', modelKey: 'automaticSpeechRecognition' })
+    emitModelReady('automaticSpeechRecognition')
   } catch (error) {
     console.error('Failed to load the speech recognition model.', error)
     postResponse({ type: 'transcription-error', requestId, reason: 'model-load-failed' })
@@ -102,7 +172,7 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
   let corrector: Text2TextGenerationPipeline
   try {
     corrector = await getGrammarCorrector()
-    postResponse({ type: 'model-ready', modelKey: 'grammarCorrection' })
+    emitModelReady('grammarCorrection')
   } catch (error) {
     console.error('Failed to load the grammar correction model.', error)
     postResponse({ type: 'grammar-correction-error', requestId, reason: 'model-load-failed' })
@@ -118,6 +188,24 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
   }
 }
 
+/**
+ * Load ASR then grammar in series (memory-friendly) so the first utterance
+ * only pays inference latency when the user has already been on the page a bit.
+ */
+async function handlePreloadModelsMessage(message: PreloadModelsRequestMessage): Promise<void> {
+  const { requestId } = message
+  try {
+    await getSpeechRecognizer()
+    emitModelReady('automaticSpeechRecognition')
+    await getGrammarCorrector()
+    emitModelReady('grammarCorrection')
+    postResponse({ type: 'preload-models-result', requestId })
+  } catch (error) {
+    console.error('Model preload failed.', error)
+    postResponse({ type: 'preload-models-error', requestId, reason: 'model-load-failed' })
+  }
+}
+
 self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMessage>) => {
   const message = event.data
   switch (message.type) {
@@ -126,6 +214,9 @@ self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMess
       break
     case 'correct-grammar':
       void handleCorrectGrammarMessage(message)
+      break
+    case 'preload-models':
+      void handlePreloadModelsMessage(message)
       break
   }
 })

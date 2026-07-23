@@ -9,6 +9,7 @@ import type {
   InferenceWorkerResponseMessage,
   ModelLoadingProgressMessage,
   ModelReadyMessage,
+  PreloadModelsErrorReason,
   TranscriptionErrorReason,
 } from './inference-worker-protocol'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
@@ -16,6 +17,7 @@ import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 export type InferenceClientErrorReason =
   | TranscriptionErrorReason
   | GrammarCorrectionErrorReason
+  | PreloadModelsErrorReason
   | 'worker-unavailable'
 
 /** First-class client error; UI maps `reason`, not free-form message text. */
@@ -38,6 +40,8 @@ export interface InferenceClient {
   /** Transfers `samples16kHz` buffer to the worker (do not read it after). */
   transcribe: (samples16kHz: Float32Array) => Promise<string>
   correctGrammar: (englishText: string) => Promise<string>
+  /** Warm-load Whisper + T5 in the worker (progress events still fire). */
+  preloadModels: () => Promise<void>
   subscribeToModelLoadingProgress: (
     listener: ModelLoadingProgressListener,
   ) => UnsubscribeFromModelLoadingProgress
@@ -51,6 +55,11 @@ interface PendingInferenceRequest {
   reject: (error: InferenceClientError) => void
 }
 
+interface PendingVoidRequest {
+  resolve: () => void
+  reject: (error: InferenceClientError) => void
+}
+
 /** Creates a module worker backed inference client. */
 export function createInferenceClient(): InferenceClient {
   const worker = new Worker(new URL('./inference-worker.ts', import.meta.url), {
@@ -58,6 +67,7 @@ export function createInferenceClient(): InferenceClient {
   })
 
   const pendingRequests = new Map<string, PendingInferenceRequest>()
+  const pendingVoidRequests = new Map<string, PendingVoidRequest>()
   const progressListeners = new Set<ModelLoadingProgressListener>()
   const modelReadyListeners = new Set<ModelReadyListener>()
   let isDisposed = false
@@ -106,6 +116,21 @@ export function createInferenceClient(): InferenceClient {
           )
         pendingRequests.delete(message.requestId)
         break
+      case 'preload-models-result':
+        pendingVoidRequests.get(message.requestId)?.resolve()
+        pendingVoidRequests.delete(message.requestId)
+        break
+      case 'preload-models-error':
+        pendingVoidRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `Model preload failed with reason '${message.reason}'.`,
+            ),
+          )
+        pendingVoidRequests.delete(message.requestId)
+        break
     }
   })
 
@@ -120,16 +145,26 @@ export function createInferenceClient(): InferenceClient {
       pendingRequest.reject(workerError)
     }
     pendingRequests.clear()
+    for (const pendingRequest of pendingVoidRequests.values()) {
+      pendingRequest.reject(workerError)
+    }
+    pendingVoidRequests.clear()
   })
 
+  function rejectIfDisposed(): InferenceClientError | null {
+    if (!isDisposed) {
+      return null
+    }
+    return new InferenceClientError(
+      'worker-unavailable',
+      'Inference client was already disposed.',
+    )
+  }
+
   function transcribe(samples16kHz: Float32Array): Promise<string> {
-    if (isDisposed) {
-      return Promise.reject(
-        new InferenceClientError(
-          'worker-unavailable',
-          'Inference client was already disposed.',
-        ),
-      )
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
     }
 
     const requestId = crypto.randomUUID()
@@ -149,13 +184,9 @@ export function createInferenceClient(): InferenceClient {
   }
 
   function correctGrammar(englishText: string): Promise<string> {
-    if (isDisposed) {
-      return Promise.reject(
-        new InferenceClientError(
-          'worker-unavailable',
-          'Inference client was already disposed.',
-        ),
-      )
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
     }
 
     const requestId = crypto.randomUUID()
@@ -167,6 +198,26 @@ export function createInferenceClient(): InferenceClient {
         type: 'correct-grammar',
         requestId,
         inputText: englishText,
+      }
+
+      worker.postMessage(message)
+    })
+  }
+
+  function preloadModels(): Promise<void> {
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
+    }
+
+    const requestId = crypto.randomUUID()
+
+    return new Promise<void>((resolve, reject) => {
+      pendingVoidRequests.set(requestId, { resolve, reject })
+
+      const message: InferenceWorkerRequestMessage = {
+        type: 'preload-models',
+        requestId,
       }
 
       worker.postMessage(message)
@@ -203,6 +254,10 @@ export function createInferenceClient(): InferenceClient {
       pendingRequest.reject(disposalError)
     }
     pendingRequests.clear()
+    for (const pendingRequest of pendingVoidRequests.values()) {
+      pendingRequest.reject(disposalError)
+    }
+    pendingVoidRequests.clear()
     progressListeners.clear()
     modelReadyListeners.clear()
 
@@ -212,6 +267,7 @@ export function createInferenceClient(): InferenceClient {
   return {
     transcribe,
     correctGrammar,
+    preloadModels,
     subscribeToModelLoadingProgress,
     subscribeToModelReady,
     dispose,
