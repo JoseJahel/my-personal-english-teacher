@@ -1,34 +1,28 @@
 # audio/
 
-Capa de **infraestructura de audio**: todo el código que toca APIs del navegador
-(Web Audio API, `MediaDevices.getUserMedia`) vive aquí. Es la única capa que sabe
-cómo capturar sonido del micrófono, convertirlo a la tasa de muestreo que espera
-el resto del sistema (16 kHz mono) y exponerlo como datos crudos (`Float32Array`).
+Capa de **infraestructura de audio**: APIs del navegador (`getUserMedia`,
+Web Audio, `MediaRecorder`). Solo captura y adaptación; sin React ni modelos.
 
-No contiene lógica de análisis de señal ni de modelos: solo captura y adaptación.
-Depende únicamente hacia adentro (`dsp/`), nunca al revés.
+## Captura actual (ver CAPTURE-INVARIANTS.md)
 
-**Estado actual:** la migración desde `App.tsx` ya se hizo. `App.tsx` ahora
-solo presenta (dibuja el waveform en canvas a partir del `AnalyserNode` que
-expone esta capa); toda la apertura de micrófono y el manejo del grafo de Web
-Audio vive aquí.
+```
+MediaStream track
+  ├─ MediaStreamTrackProcessor → PCM en vivo → onda + nivel + backup ASR
+  │    (fallback ScriptProcessor si no hay TrackProcessor)
+  └─ MediaRecorder → blob → decode → ASR principal
+```
 
-Implementado:
+La UI **no** usa `AnalyserNode` para la onda (daba una traza “viva” que no
+seguía el mic). Onda y nivel leen el mismo PCM del track.
 
-- `microphone-capture.ts`: apertura del micrófono (`getUserMedia`, mono) y
-  armado del grafo de Web Audio — expone un `AnalyserNode` a tasa nativa para
-  visualización y una rama de frames crudos vía `AudioWorkletNode`
-  (`subscribeToAudioFrames`), con `stop()` idempotente y errores de primera
-  clase (`MicrophoneCaptureError`, con motivo `'permission-denied'` o
-  `'unknown'`).
-- `audio-resampler.ts`: resampleo por interpolación lineal de la tasa nativa
-  a 16 kHz mono, la tasa que exige Whisper (`resampleAudioSamples`,
-  `resampleToWhisperRate`), con tests en `audio-resampler.test.ts`.
-- `audio-frame-buffer.ts`: función pura `concatenateAudioFrames` que junta los
-  frames acumulados durante una captura en una única señal, previo al
-  resampleo camino a Whisper; con tests en `audio-frame-buffer.test.ts`.
+**No tocar sin leer `CAPTURE-INVARIANTS.md`.**
 
-Archivos previstos a futuro:
+## Implementado
 
-- `voice-activity-monitor.ts`: adaptador que conecta la captura en vivo con el
-  detector de actividad de voz definido en `dsp/`.
+- `microphone-capture.ts`, `live-pcm-from-track.ts`, `media-recorder-utterance.ts`
+- `capture-diagnostics.ts`, `choose-utterance.ts`, `microphone-capture-errors.ts`
+- `normalize-peak.ts`, `mix-to-mono.ts`, `audio-resampler.ts`, `audio-frame-buffer.ts`
+
+## Previsto
+
+- `voice-activity-monitor.ts` (VAD con dominio en `dsp/`).

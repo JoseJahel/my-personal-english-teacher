@@ -1,10 +1,6 @@
 /**
- * Cliente del worker de inferencia para el hilo principal: crea el Web
- * Worker orquestador (`inference-worker.ts`), correlaciona pedidos y
- * respuestas por `requestId`, y expone una API basada en promesas sin ningún
- * import de React. Esta capa es infraestructura pura de `ia/`, tal como
- * `audio/microphone-capture.ts` lo es de `audio/`: nada de aquí sabe que
- * existe `ui/`.
+ * Main-thread client for the inference worker: promise API, requestId
+ * correlation, model progress/ready listeners. No React imports.
  */
 
 import type {
@@ -17,23 +13,12 @@ import type {
 } from './inference-worker-protocol'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 
-/**
- * Motivos por los que puede fallar `InferenceClient.transcribe` o
- * `InferenceClient.correctGrammar`. Extiende los motivos que reporta el
- * worker (`TranscriptionErrorReason`, `GrammarCorrectionErrorReason`) con uno
- * propio del hilo principal, `'worker-unavailable'`, para cuando el propio
- * Worker termina inesperadamente (evento `error`) o el cliente ya fue
- * liberado antes de responder.
- */
 export type InferenceClientErrorReason =
-  TranscriptionErrorReason | GrammarCorrectionErrorReason | 'worker-unavailable'
+  | TranscriptionErrorReason
+  | GrammarCorrectionErrorReason
+  | 'worker-unavailable'
 
-/**
- * Error de primera clase para fallos de transcripción, análogo a
- * `MicrophoneCaptureError` de `audio/microphone-capture.ts`: `ui/` inspecciona
- * `reason` (tipado) en vez de interpretar mensajes de texto libre para
- * decidir qué mostrar.
- */
+/** First-class client error; UI maps `reason`, not free-form message text. */
 export class InferenceClientError extends Error {
   readonly reason: InferenceClientErrorReason
 
@@ -44,71 +29,29 @@ export class InferenceClientError extends Error {
   }
 }
 
-/** Función que recibe cada evento de progreso de descarga de un modelo. */
 export type ModelLoadingProgressListener = (message: ModelLoadingProgressMessage) => void
-
-/** Función que cancela una suscripción previa a `subscribeToModelLoadingProgress`. */
 export type UnsubscribeFromModelLoadingProgress = () => void
-
-/** Función que recibe el aviso de que un modelo ya terminó de cargar. */
 export type ModelReadyListener = (message: ModelReadyMessage) => void
-
-/** Función que cancela una suscripción previa a `subscribeToModelReady`. */
 export type UnsubscribeFromModelReady = () => void
 
-/** Cliente del worker de inferencia, devuelto por `createInferenceClient`. */
 export interface InferenceClient {
-  /**
-   * Transcribe un segmento de audio mono a 16 kHz (ver
-   * `resampleToWhisperRate` en `audio/audio-resampler.ts`). El `Float32Array`
-   * se transfiere al worker (no se copia): no debe volver a leerse desde el
-   * hilo principal después de llamar a esta función.
-   */
+  /** Transfers `samples16kHz` buffer to the worker (do not read it after). */
   transcribe: (samples16kHz: Float32Array) => Promise<string>
-  /**
-   * Corrige la gramática de un texto en inglés (segunda etapa del pipeline,
-   * post-ASR: ver `ia/grammar-correction.ts`).
-   */
   correctGrammar: (englishText: string) => Promise<string>
-  /**
-   * Suscribe un listener al progreso de descarga de cualquiera de los
-   * modelos del worker (ASR o corrección gramatical); el propio mensaje trae
-   * `modelKey` para distinguir de cuál se trata.
-   */
   subscribeToModelLoadingProgress: (
     listener: ModelLoadingProgressListener,
   ) => UnsubscribeFromModelLoadingProgress
-  /**
-   * Suscribe un listener al evento de "modelo listo" (descarga e
-   * inicialización terminadas). Sirve para que la UI pase de
-   * "Descargando..." a "Transcribiendo..." / "Corrigiendo..." sin quedarse
-   * congelada en el último porcentaje de descarga.
-   */
   subscribeToModelReady: (listener: ModelReadyListener) => UnsubscribeFromModelReady
-  /**
-   * Termina el Worker y rechaza cualquier solicitud pendiente (transcripción
-   * o corrección gramatical) con `InferenceClientError('worker-unavailable',
-   * ...)`. Es idempotente: llamarla más de una vez no tiene efecto adicional.
-   */
+  /** Terminates the worker and rejects pending requests. Idempotent. */
   dispose: () => void
 }
 
-/**
- * Solicitud pendiente de respuesta del worker, correlacionada por
- * `requestId`. Se reutiliza tanto para `'transcribe'` como para
- * `'correct-grammar'`: ambas resuelven con un texto plano (transcrito o
- * corregido, respectivamente), así que comparten la misma forma.
- */
 interface PendingInferenceRequest {
   resolve: (resultText: string) => void
   reject: (error: InferenceClientError) => void
 }
 
-/**
- * Crea un nuevo cliente del worker de inferencia. Arma el Worker como módulo
- * ES (`type: 'module'`) para poder usar `import`/`export` dentro de
- * `inference-worker.ts`, tal como requiere `@huggingface/transformers`.
- */
+/** Creates a module worker backed inference client. */
 export function createInferenceClient(): InferenceClient {
   const worker = new Worker(new URL('./inference-worker.ts', import.meta.url), {
     type: 'module',
@@ -143,7 +86,7 @@ export function createInferenceClient(): InferenceClient {
           ?.reject(
             new InferenceClientError(
               message.reason,
-              `La transcripción falló con el motivo '${message.reason}'.`,
+              `Transcription failed with reason '${message.reason}'.`,
             ),
           )
         pendingRequests.delete(message.requestId)
@@ -158,7 +101,7 @@ export function createInferenceClient(): InferenceClient {
           ?.reject(
             new InferenceClientError(
               message.reason,
-              `La corrección gramatical falló con el motivo '${message.reason}'.`,
+              `Grammar correction failed with reason '${message.reason}'.`,
             ),
           )
         pendingRequests.delete(message.requestId)
@@ -167,12 +110,10 @@ export function createInferenceClient(): InferenceClient {
   })
 
   worker.addEventListener('error', (event: ErrorEvent) => {
-    // Un error no capturado dentro del worker (por ejemplo, al inicializar
-    // ONNX Runtime Web) no trae un requestId: se rechazan todas las
-    // solicitudes pendientes, porque no hay forma de saber a cuál pertenece.
+    // Worker-level failures have no requestId: reject every pending request.
     const workerError = new InferenceClientError(
       'worker-unavailable',
-      'El worker de inferencia terminó inesperadamente.',
+      'Inference worker terminated unexpectedly.',
       { cause: event.error },
     )
     for (const pendingRequest of pendingRequests.values()) {
@@ -186,7 +127,7 @@ export function createInferenceClient(): InferenceClient {
       return Promise.reject(
         new InferenceClientError(
           'worker-unavailable',
-          'El cliente de inferencia ya fue liberado (dispose()).',
+          'Inference client was already disposed.',
         ),
       )
     }
@@ -212,7 +153,7 @@ export function createInferenceClient(): InferenceClient {
       return Promise.reject(
         new InferenceClientError(
           'worker-unavailable',
-          'El cliente de inferencia ya fue liberado (dispose()).',
+          'Inference client was already disposed.',
         ),
       )
     }
@@ -256,7 +197,7 @@ export function createInferenceClient(): InferenceClient {
 
     const disposalError = new InferenceClientError(
       'worker-unavailable',
-      'El cliente de inferencia fue liberado con solicitudes pendientes.',
+      'Inference client disposed while requests were still pending.',
     )
     for (const pendingRequest of pendingRequests.values()) {
       pendingRequest.reject(disposalError)

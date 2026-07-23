@@ -6,13 +6,13 @@ import {
 } from './audio-resampler'
 
 describe('resampleAudioSamples', () => {
-  it('devuelve un arreglo vacío cuando la entrada está vacía', () => {
+  it('returns an empty array when input is empty', () => {
     const emptySamples = new Float32Array(0)
 
     expect(resampleAudioSamples(emptySamples, 48000, 16000).length).toBe(0)
   })
 
-  it('devuelve las mismas muestras cuando la tasa de entrada y de salida coinciden', () => {
+  it('returns the same samples when input and output rates match', () => {
     const samples = new Float32Array([0.1, -0.2, 0.3, -0.4, 0.5])
 
     const resampled = resampleAudioSamples(samples, 44100, 44100)
@@ -20,7 +20,7 @@ describe('resampleAudioSamples', () => {
     expect(Array.from(resampled)).toEqual(Array.from(samples))
   })
 
-  it('produce aproximadamente un tercio de las muestras al pasar de 48 kHz a 16 kHz', () => {
+  it('produces roughly one third of the samples from 48 kHz to 16 kHz', () => {
     const durationInSeconds = 0.1
     const inputSampleRate = 48000
     const samples = new Float32Array(inputSampleRate * durationInSeconds)
@@ -30,7 +30,7 @@ describe('resampleAudioSamples', () => {
     expect(resampled.length).toBe(samples.length / 3)
   })
 
-  it('preserva el valor de una señal constante', () => {
+  it('preserves the value of a constant signal', () => {
     const constantAmplitude = 0.42
     const constantSamples = new Float32Array(480).fill(constantAmplitude)
 
@@ -38,13 +38,12 @@ describe('resampleAudioSamples', () => {
 
     expect(resampled.length).toBeGreaterThan(0)
     for (const sampleValue of resampled) {
-      // Precisión 5 (no más): las muestras están en Float32Array, con solo
-      // ~7 dígitos decimales significativos de precisión.
+      // Float32 has ~7 significant digits; precision 5 is enough here.
       expect(sampleValue).toBeCloseTo(constantAmplitude, 5)
     }
   })
 
-  it('conserva la frecuencia de una senoidal de 440 Hz al pasar de 48 kHz a 16 kHz', () => {
+  it('keeps a 440 Hz sine frequency when going from 48 kHz to 16 kHz', () => {
     const inputSampleRate = 48000
     const outputSampleRate = 16000
     const frequencyInHertz = 440
@@ -63,8 +62,7 @@ describe('resampleAudioSamples', () => {
       outputSampleRate,
     )
 
-    // La frecuencia se estima contando cruces por cero ascendentes: una
-    // senoidal de f Hz cruza el cero de negativo a positivo f veces por segundo.
+    // Estimate frequency via rising zero crossings.
     let positiveGoingZeroCrossingCount = 0
     for (let sampleIndex = 1; sampleIndex < resampledSamples.length; sampleIndex += 1) {
       const previousSample = resampledSamples[sampleIndex - 1]
@@ -82,7 +80,7 @@ describe('resampleAudioSamples', () => {
 })
 
 describe('resampleToWhisperRate', () => {
-  it('fija la tasa de salida en 16 kHz', () => {
+  it('fixes the output rate at 16 kHz', () => {
     const samples = new Float32Array(4800)
 
     const resampled = resampleToWhisperRate(samples, 48000)

@@ -1,14 +1,6 @@
 /**
- * Catálogo tipado de los modelos de inteligencia artificial usados por la
- * aplicación. Es la única fuente de verdad para los identificadores del
- * Hub de Hugging Face que consumirá `transformers.js`: nada en `ia/` ni en
- * capas superiores debería escribir un ID de modelo "a mano" fuera de aquí.
- *
- * `revision` está fijado a 'main' durante el scaffolding para poder iterar
- * rápido con el equipo. Antes de la Entrega Final se debe anclar cada modelo
- * a un commit SHA específico del Hub (en vez de 'main') para garantizar que
- * la build sea reproducible y no cambie si el autor del modelo sube una
- * actualización sin previo aviso.
+ * Single source of truth for Hugging Face model IDs used by transformers.js.
+ * Keep `revision: 'main'` only during development; pin SHAs before final delivery.
  */
 
 export type SupportedInferenceTask =
@@ -19,15 +11,9 @@ export type SupportedInferenceTask =
   | 'conversationSuggestions'
 
 export interface RegisteredModelDescriptor {
-  /** Identificador exacto del modelo en el Hub de Hugging Face. */
   readonly huggingFaceModelId: string
-  /** Tarea de inferencia para la que se usa este modelo dentro del pipeline. */
   readonly task: SupportedInferenceTask
-  /**
-   * Revisión del modelo a descargar. 'main' durante el desarrollo del
-   * scaffolding; se debe reemplazar por un commit SHA fijo antes de la
-   * Entrega Final.
-   */
+  /** Hub revision; replace `'main'` with a commit SHA before final release. */
   readonly revision: 'main'
 }
 

@@ -33,6 +33,14 @@ $RECYCLE.BIN/
 # Logs generales de la aplicación o de herramientas de build.
 *.log
 
+# Artefactos locales de pruebas de UI / automatización del navegador.
+# No son del producto; cada quien los genera al probar y no deben ir al repo.
+.playwright-mcp/
+/test-*.png
+/ui-initial.png
+/functional-test-*.png
+/app-ready-for-test.png
+
 # Cache/modelos de IA descargados localmente para pruebas.
 # Los modelos de Hugging Face (Whisper, SpeechT5, T5) se descargan
 # en tiempo de ejecución en el navegador del usuario final, así que
