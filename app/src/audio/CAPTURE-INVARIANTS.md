@@ -1,5 +1,7 @@
 # Microphone capture invariants
 
+Canonical capture design for this repo. Layer overview: `README.md` in this folder.
+
 ## Design (keep it this simple)
 
 ```
@@ -7,6 +9,9 @@ openRealMicrophoneStream()  → real OS mic MediaStream
   ├─ MediaStreamSource → Analyser → Gain(0) → destination   // live wave + RMS/peak
   └─ MediaRecorder on same MediaStream                      // ASR after stop
 ```
+
+Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
+`media-recorder-utterance.ts`. UI waveform: `ui/waveform-canvas.ts` (AnalyserNode).
 
 ## Never do
 
@@ -17,6 +22,8 @@ openRealMicrophoneStream()  → real OS mic MediaStream
 3. Force `{ sampleRate }` on the capture `AudioContext`.
 4. Skip `audioContext.resume()` after `getUserMedia`.
 5. Peak-normalize near-silence into Whisper (causes music/phone tags).
+6. Reintroduce MediaStreamTrackProcessor / live-PCM rings as the primary ASR path
+   without a full mic regression on real Chrome/Windows hardware.
 
 ## Manual check
 
