@@ -14,9 +14,12 @@ con Whisper (`Xenova/whisper-tiny.en` vía `transformers.js`) y el texto
 transcrito se corrige gramaticalmente con un modelo T5
 (`Xenova/t5-base-grammar-correction`), ambos en un Web Worker dedicado
 (`ia/inference-worker.ts`), y los dos resultados se muestran en pantalla en
-paneles separados. `App.tsx` solo presenta y orquesta esos flujos; el resto de
-las funcionalidades de práctica (síntesis de voz, sugerencias de conversación,
-comparación de pronunciación) todavía no están implementadas.
+paneles separados. `App.tsx` es un shell fino: la sesión vive en
+`ui/use-home-screen-session.ts` y la presentación en `ui/HomeScreen.tsx`
+(onda + barra de nivel en vivo). La captura de voz usa `MediaRecorder` sobre
+el micrófono real; el grafo Web Audio solo alimenta la visualización. El
+resto de las funcionalidades de práctica (síntesis de voz, sugerencias de
+conversación, comparación de pronunciación) todavía no están implementadas.
 
 ## Puesta en marcha (Windows)
 
@@ -91,8 +94,9 @@ completo de todos los scripts está más abajo, en la sección
 El código de `src/` está organizado en capas con dependencia únicamente hacia
 adentro, dejando el dominio libre de detalles de infraestructura:
 
-- **`ui/`** — presentación en React. Los textos visibles de la interfaz viven
-  centralizados en `ui/interface-texts.ts`.
+- **`ui/`** — presentación React y orquestación de pantalla (sin I/O de
+  micrófono ni `transformers.js` directos). Textos en español en
+  `ui/interface-texts.ts`; ver `ui/README.md`.
 - **`ia/`** — dominio y orquestación de modelos de `transformers.js` (ASR →
   corrección gramatical → sugerencias → TTS). Ver `ia/model-registry.ts`.
 - **`dsp/`** — dominio puro de procesamiento de señales (funciones puras,

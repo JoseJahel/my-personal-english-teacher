@@ -1,11 +1,6 @@
 /**
- * Textos de interfaz de la pantalla inicial de la aplicación.
- *
- * Este es el ÚNICO lugar del código donde deben vivir cadenas de texto
- * visibles para la persona usuaria. Ningún componente de `ui/` debería
- * escribir texto en español directamente en su JSX: en su lugar, importa
- * los valores de este objeto. Esto facilita mantener el idioma consistente
- * y, más adelante, extraer estos textos a un sistema de traducción si hiciera falta.
+ * All user-visible Spanish copy for the home screen.
+ * Components must import strings from here — never hardcode product text in JSX.
  */
 export const homeScreenInterfaceTexts = {
   applicationTitle: 'My Personal English Teacher',
@@ -15,62 +10,65 @@ export const homeScreenInterfaceTexts = {
   startMicrophoneButtonLabel: 'Iniciar micrófono',
   stopMicrophoneButtonLabel: 'Detener micrófono',
   statusFieldLabel: 'Estado',
-  /**
-   * Mensajes de estado de la captura de micrófono, uno por cada valor posible
-   * del estado de la interfaz (esperando / arrancando / escuchando / detenido
-   * / permiso denegado / error genérico).
-   */
   microphoneStatusMessages: {
     idle: 'Esperando interacción...',
     starting: 'Solicitando acceso al micrófono...',
-    listening: 'Escuchando voz y procesando señal en tiempo real...',
+    listening: 'Escuchando… la barra de nivel y la onda deben reaccionar cuando hables.',
     stopped: 'Captura detenida.',
     permissionDenied:
       'Permiso de micrófono denegado. Habilítalo en la configuración del navegador para poder practicar.',
     genericError: 'No fue posible acceder al micrófono por un error inesperado.',
+    detailedError: (detail: string) =>
+      `No fue posible acceder al micrófono. Detalle: ${detail}`,
   },
-  /** Etiqueta del panel que muestra el resultado de la transcripción (ASR). */
+  inputLevelLabel: 'Nivel de entrada',
+  inputLevelHintSilent:
+    'Pico casi 0: no llega señal del mic. Revisa dispositivo de Windows y permisos de Chrome.',
+  inputLevelHintActive: 'Habla y calla: el % y los números RMS/pico deben cambiar contigo.',
+  inputLevelMeters: (rms: number, peak: number) =>
+    `RMS ${rms.toFixed(4)} · pico ${peak.toFixed(4)}`,
+  activeMicrophoneLabel: (deviceLabel: string) =>
+    `Micrófono en uso: ${deviceLabel || 'desconocido (revisa la entrada de Windows)'}`,
+  environmentDiagnostics: (nativeGum: boolean, devicesSummary: string) =>
+    `Entorno: getUserMedia nativo ${nativeGum ? 'SÍ' : 'NO (hay un mock/parche)'}. ${devicesSummary}`,
   transcriptionPanelLabel: 'Transcripción',
-  /**
-   * Mensajes de estado de la transcripción, uno por cada valor posible del
-   * estado de la interfaz (esperando / descargando modelo / transcribiendo /
-   * lista / error). `modelLoadingProgressMessage` es una función en vez de un
-   * texto fijo porque necesita interpolar el porcentaje de descarga que
-   * reenvía `inference-worker.ts`; sigue centralizando aquí la parte fija del
-   * mensaje, como exige la convención del proyecto para los textos visibles.
-   */
   transcriptionStatusMessages: {
     idle: 'Detén el micrófono para transcribir lo que dijiste.',
-    /**
-     * Se muestra cuando la captura se detuvo pero no hubo muestras de audio
-     * para enviar al reconocedor (por ejemplo, stop inmediato antes de que
-     * el worklet entregue el primer frame).
-     */
+    noAudioEmptyRecording:
+      'La grabación salió vacía: el navegador no recibió muestras del micrófono. Revisa el micrófono predeterminado de Windows y el permiso del sitio.',
+    noAudioLowEnergy: (rmsEnergy: number, peakAmplitude: number, deviceLabel: string) =>
+      `La señal es demasiado débil para ser habla clara (RMS ${rmsEnergy.toFixed(4)}, pico ${peakAmplitude.toFixed(4)}, mic: "${deviceLabel || 'desconocido'}"). Acércate al micrófono, habla más alto 3–5 segundos en inglés y revisa el dispositivo de entrada de Windows.`,
+    noAudioNonSpeech: (whisperRawText: string) =>
+      `El modelo oyó audio pero no lo interpretó como habla en inglés (respondió: "${whisperRawText}"). Suele pasar con ruido/ambiente o si la voz llega muy distorsionada. Habla más cerca, en inglés, 3–5 segundos, sin música de fondo.`,
     noAudioCaptured:
-      'No se detectó voz en la captura. Habla más cerca del micrófono (o comprueba que no esté silenciado) e inténtalo de nuevo.',
+      'No se reconoció habla clara en inglés. Habla cerca del micrófono (comprueba que Windows use el micrófono correcto y que no esté silenciado) e inténtalo de nuevo.',
     modelLoadingProgressMessage: (progressPercent: number) =>
       `Descargando el modelo de reconocimiento de voz... ${progressPercent}%`,
     transcribing: 'Transcribiendo audio...',
     done: 'Transcripción lista.',
   },
-  /**
-   * Mensajes de error de la transcripción, uno por cada motivo tipado de
-   * `InferenceClientErrorReason` (`ia/inference-client.ts`).
-   */
+  /** Technical capture stats shown under the transcription panel when capture fails. */
+  captureDiagnosticsLabel: 'Diagnóstico de captura',
+  captureDiagnosticsMessage: (details: {
+    sampleCount: number
+    durationSeconds: number
+    rmsEnergy: number
+    peakAmplitude: number
+    deviceLabel: string
+    source: string
+    mediaRecorderBlobBytes: number
+    trackReadyState: string
+    trackMuted: boolean
+    audioContextState: string
+  }) =>
+    `${details.sampleCount} muestras · ${details.durationSeconds.toFixed(2)} s · RMS ${details.rmsEnergy.toFixed(5)} · pico ${details.peakAmplitude.toFixed(5)} · fuente ${details.source} · blob ${details.mediaRecorderBlobBytes} B · track ${details.trackReadyState}${details.trackMuted ? ' (muted)' : ''} · ctx ${details.audioContextState} · mic "${details.deviceLabel || 'desconocido'}"`,
   transcriptionErrorMessages: {
     invalidSampleRate: 'El audio capturado no está a la tasa que espera el modelo de voz.',
     modelLoadFailed: 'No fue posible descargar o inicializar el modelo de reconocimiento de voz.',
     transcriptionFailed: 'No fue posible transcribir el audio capturado.',
     workerUnavailable: 'El proceso de reconocimiento de voz dejó de responder inesperadamente.',
   },
-  /** Etiqueta del panel que muestra el resultado de la corrección gramatical (T5). */
   grammarCorrectionPanelLabel: 'Corrección gramatical',
-  /**
-   * Nombres legibles de cada modelo del registro (`ia/model-registry.ts`),
-   * para interpolar en el mensaje de progreso de descarga
-   * (`modelLoadingProgressMessage`) y que la persona usuaria sepa qué se está
-   * descargando, en vez de un mensaje genérico igual para todos los modelos.
-   */
   modelDisplayNames: {
     automaticSpeechRecognition: 'reconocimiento de voz',
     grammarCorrection: 'corrección gramatical',
@@ -78,13 +76,6 @@ export const homeScreenInterfaceTexts = {
     textToSpeechVocoder: 'síntesis de voz',
     conversationSuggestions: 'sugerencias de conversación',
   },
-  /**
-   * Mensajes de estado de la corrección gramatical, uno por cada valor
-   * posible del estado de la interfaz (esperando / descargando modelo /
-   * corrigiendo / lista / sin correcciones / error). Mismo espíritu que
-   * `transcriptionStatusMessages`: `modelLoadingProgressMessage` interpola el
-   * nombre del modelo (`modelDisplayNames`) y el porcentaje de descarga.
-   */
   grammarCorrectionStatusMessages: {
     idle: 'Esperando la transcripción para corregir la gramática.',
     modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
@@ -94,11 +85,6 @@ export const homeScreenInterfaceTexts = {
     noCorrectionsNeeded:
       'No se encontraron correcciones: la oración ya es gramaticalmente correcta.',
   },
-  /**
-   * Mensajes de error de la corrección gramatical, uno por cada motivo
-   * tipado de `InferenceClientErrorReason` que puede surgir en esta etapa
-   * del pipeline (`ia/inference-client.ts`).
-   */
   grammarCorrectionErrorMessages: {
     modelLoadFailed: 'No fue posible descargar o inicializar el modelo de corrección gramatical.',
     correctionFailed: 'No fue posible corregir la gramática del texto transcrito.',
