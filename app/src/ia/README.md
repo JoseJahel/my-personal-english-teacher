@@ -40,6 +40,9 @@ Implementado:
   React), con correlación de solicitudes por `requestId`, progreso de
   descarga por modelo (`modelKey`) y errores tipados
   (`InferenceClientError`). Expone `transcribe` y `correctGrammar`.
+- `transcription-text.ts`: helpers puros post-ASR (p. ej.
+  `isNonSpeechTranscript` para descartar etiquetas tipo `[Music]` /
+  `(dramatic music)` que Whisper inventa sin habla real).
 
 Archivos previstos a futuro:
 
