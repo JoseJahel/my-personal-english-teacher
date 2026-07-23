@@ -1,8 +1,12 @@
 # storage/
 
-Capa de **infraestructura de persistencia**: guarda localmente el progreso del
+Capa de **infraestructura de persistencia**: guardará localmente el progreso del
 usuario (sesiones de práctica, puntuaciones, historial) usando IndexedDB para
 que la aplicación funcione completamente offline.
+
+**Estado actual:** carpeta reservada; no hay implementación de IndexedDB aún.
+Los pesos de modelos los cachea `transformers.js` vía Cache API del navegador
+(fuera de esta capa). No hay repositorio de sesiones en el código de la app.
 
 El esquema de la base de datos debe ser **versionado desde el inicio**, con
 migraciones explícitas entre versiones, para poder evolucionar la forma de los

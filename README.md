@@ -4,47 +4,61 @@ Proyecto universitario del curso **Señales y Sistemas**. Una PWA (Progressive W
 
 ## Descripción
 
-La aplicación permite practicar conversación en inglés sin depender de servidores externos: reconocimiento de voz, corrección gramatical, síntesis de voz y retroalimentación de pronunciación corren localmente usando modelos de Hugging Face ejecutados con `transformers.js` sobre ONNX Runtime Web.
+La aplicación permite practicar conversación en inglés sin depender de servidores externos: reconocimiento de voz, corrección gramatical, síntesis de voz y retroalimentación de pronunciación deben correr localmente usando modelos de Hugging Face ejecutados con `transformers.js` sobre ONNX Runtime Web.
 
-El componente de Procesamiento Digital de Señales (DSP) es central al proyecto: se extraen features acústicas (pitch mediante el algoritmo YIN, energía, formantes, MFCC) en tiempo real con la Web Audio API, se generan visualizaciones (waveform, espectrograma, pitch tracking) y se compara la pronunciación del usuario contra una referencia mediante análisis de esas señales.
+El componente de Procesamiento Digital de Señales (DSP) es central al **diseño del curso**: pitch (YIN), energía, formantes, MFCC, visualizaciones (waveform, espectrograma, pitch tracking) y comparación de pronunciación contra una referencia. **Hoy** el núcleo DSP en código es la energía de señal (gate post-captura) y la visualización de waveform/nivel en vivo; el resto está planificado para Avance 2 y Entrega Final (ver [Estado](#estado)).
 
-## Características principales
+## Características
 
-- Reconocimiento de voz (ASR) client-side con Whisper (`Xenova/whisper-tiny.en`).
-- Síntesis de voz (TTS) client-side con SpeechT5 (`Xenova/speecht5_tts`).
-- Corrección gramatical con un modelo T5 cuantizado (`vennify/t5-base-grammar-correction`, consumido vía su port ONNX `Xenova/t5-base-grammar-correction`).
-- Generación de sugerencias conversacionales con SmolLM2-360M-Instruct (a integrarse en el Avance 2).
-- Extracción de features acústicas: pitch (algoritmo YIN), energía, formantes, MFCC.
-- Detección de actividad de voz (VAD) por energía para el corte automático de captura.
-- Visualizaciones en tiempo real: waveform, espectrograma, pitch tracking.
-- Corrección de pronunciación por comparación de señales contra una referencia.
-- Funcionamiento 100% offline una vez cargados los modelos (PWA).
+### Implementado (estado del repositorio)
 
-**Extensiones planificadas (innovación):**
+- Captura de micrófono real (`getUserMedia`) con `MediaRecorder` para el audio de ASR y grafo Web Audio (`AnalyserNode`) para onda y nivel en vivo.
+- Reconocimiento de voz (ASR) client-side con Whisper (`Xenova/whisper-tiny.en`) en un Web Worker.
+- Corrección gramatical post-utterance con T5 (`Xenova/t5-base-grammar-correction`) en el mismo worker.
+- Filtro de etiquetas no-habla que Whisper inventa (p. ej. `[Music]`) antes de mostrar texto o corregir gramática.
+- Gate de energía/pico/duración (`dsp/signal-energy.ts`) para no enviar silencio a Whisper.
+- UI modular en español: `HomeScreen` + hook de sesión + textos centralizados.
+- PWA con `vite-plugin-pwa` (app shell); pesos de modelos gestionados por `transformers.js` / Cache API.
+- CI con GitHub Actions (lint, typecheck, tests, build).
 
-- Análisis de progreso con señales: evolución del pitch y de los puntajes de pronunciación por sesión, persistido en IndexedDB.
-- Features DSP adicionales: filtrado adaptativo de ruido y análisis de formantes más fino.
-- Gamificación: rachas y logros.
+### Planificado (diseño del curso / próximos avances)
+
+- Síntesis de voz (TTS) con SpeechT5 (`Xenova/speecht5_tts` + vocoder).
+- Sugerencias conversacionales con SmolLM2-360M-Instruct (Avance 2).
+- Features acústicas: pitch (YIN), formantes, MFCC; VAD en vivo para auto-corte de captura.
+- Visualizaciones adicionales: espectrograma, pitch tracking.
+- Corrección de pronunciación (DTW + distancia de features) contra referencia TTS.
+- Persistencia de sesiones y progreso en IndexedDB.
+- Extensiones de innovación: evolución de pitch/puntajes por sesión, filtrado adaptativo de ruido, gamificación.
 
 El soporte multi-idioma se descartó explícitamente por ser incompatible con la elección de `Xenova/whisper-tiny.en`, que solo reconoce inglés.
 
 ## Stack tecnológico
 
-- **Frontend:** React + TypeScript, con Vite como build tool y Tailwind CSS para estilos.
-- **IA en navegador:** transformers.js (`@huggingface/transformers`) sobre ONNX Runtime Web.
-- **Modelos:**
-  - ASR: `Xenova/whisper-tiny.en` (~40 MB cuantizado).
-  - TTS: `Xenova/speecht5_tts`.
-  - Corrección gramatical: `vennify/t5-base-grammar-correction`, consumido vía su port ONNX `Xenova/t5-base-grammar-correction`.
-  - Sugerencias conversacionales: `SmolLM2-360M-Instruct` (ONNX, ~250 MB cuantizado; se integra en el Avance 2).
-- **DSP / Audio:** Web Audio API mediante AudioWorklet; detección de pitch con el algoritmo YIN; extracción de MFCC de implementación propia del equipo (FFT → banco de filtros mel → DCT), energía y formantes.
-- **Comparación de pronunciación:** alineación DTW (Dynamic Time Warping) + distancia euclidiana de features frame a frame, contra una referencia generada con el propio TTS (SpeechT5).
+### En uso hoy
+
+- **Frontend:** React + TypeScript, Vite, Tailwind CSS.
+- **IA en navegador:** `@huggingface/transformers` (ONNX Runtime Web); WebGPU oportunista con fallback a WASM.
+- **Modelos activos:** `Xenova/whisper-tiny.en` (ASR), `Xenova/t5-base-grammar-correction` (gramática).
+- **Audio:** Web Audio API (`MediaStreamSource` + `AnalyserNode` para visualización) + `MediaRecorder` para ASR; resample a 16 kHz mono en `audio/`.
+- **DSP en código:** energía RMS/pico y gate de habla usable (`dsp/signal-energy.ts`).
+- **Estado de UI:** hooks de React en `ui/use-home-screen-session.ts` (sin store global todavía).
 - **Testing:** Vitest.
-- **Almacenamiento offline:** Cache API para los pesos de los modelos + IndexedDB para sesiones y progreso del usuario.
-- **Demo/despliegue:** localhost para la demo en vivo; deploy estático en Vercel (HTTPS, plan gratuito) para pruebas de la PWA instalable durante el desarrollo.
-- **Tipo de aplicación:** PWA (Progressive Web App) offline-first, con Service Workers.
+- **Package manager:** pnpm; Node 22 LTS.
+- **Tipo de aplicación:** PWA offline-first (`vite-plugin-pwa` + Service Worker del app shell).
+- **Demo:** localhost (`pnpm dev` en `app/`).
+
+### Registrado / previsto (aún no cableado en la UI)
+
+- **Modelos en `ia/model-registry.ts` sin adaptador de uso:** SpeechT5 + HiFi-GAN, SmolLM2-360M-Instruct.
+- **DSP futuro:** YIN, MFCC (implementación propia; Meyda solo como referencia de tests cuando exista), formantes; opcionalmente AudioWorklet para DSP en tiempo real.
+- **Pronunciación:** DTW + distancia euclidiana frame a frame vs referencia TTS.
+- **Almacenamiento de app:** IndexedDB versionado (sesiones/progreso); los pesos ya usan Cache API vía transformers.js.
+- **Deploy de desarrollo (plan):** sitio estático en Vercel con HTTPS para probar la PWA instalable (aún no hay configuración de deploy en el repo).
 
 ## Decisiones de arquitectura
+
+> Las subsecciones siguientes son **decisiones de diseño del proyecto** (qué se eligió y por qué). No todas están implementadas todavía; el inventario real está en [Características → Implementado](#implementado-estado-del-repositorio) y en [Estado](#estado).
 
 ### React sobre Vanilla JS
 
@@ -72,7 +86,7 @@ YIN es un refinamiento del método de autocorrelación clásico que incorpora un
 
 ### MFCC de implementación propia sobre librería (Meyda)
 
-La extracción de MFCC (FFT, banco de filtros mel, DCT) es contenido nuclear del curso y del marco teórico, y la calidad técnica pondera un 40% de la evaluación; delegarla a una librería dejaría el corazón DSP del proyecto en una caja negra. Meyda se usa únicamente en los tests unitarios, como referencia para validar que la implementación propia produce coeficientes correctos.
+La extracción de MFCC (FFT, banco de filtros mel, DCT) es contenido nuclear del curso y del marco teórico, y la calidad técnica pondera un 40% de la evaluación; delegarla a una librería dejaría el corazón DSP del proyecto en una caja negra. Cuando se implemente, Meyda se usará solo en tests unitarios como referencia de coeficientes — **aún no hay MFCC ni dependencia Meyda en el repo**.
 
 ### Caché híbrida (Cache API + IndexedDB) sobre una sola tecnología
 
@@ -96,7 +110,7 @@ La señal de referencia contra la que se compara al usuario se sintetiza con el 
 
 ### Arquitectura en capas con núcleo de dominio puro
 
-El código de `app/` se organiza en cuatro capas con regla de dependencia hacia adentro: presentación (`ui/`, componentes React y visualizaciones), orquestación (workers: el pipeline de IA y la coordinación de audio), dominio (`dsp/` e `ia/`: algoritmos como funciones puras — YIN, MFCC, VAD, DTW, prompts y reglas de escenarios) e infraestructura (adaptadores de Web Audio, transformers.js, Cache API e IndexedDB en `audio/` y `storage/`). El dominio no importa nada de las capas externas, lo que ya estaba implícito en la convención de funciones puras testeables y aquí se vuelve regla explícita. Se eligió sobre MVC (encaje artificial con React y workers) y sobre hexagonal estricta (ceremonia de puertos innecesaria para 7 semanas); además el diagrama de bloques que exige la documentación del curso (frontend, motor de audio, pipeline de IA, almacenamiento, módulos de señales) mapea directamente sobre estas capas.
+El código de `app/` se organiza por carpetas de capa con dependencia hacia adentro: presentación y orquestación de pantalla (`ui/`), dominio/orquestación de modelos (`ia/` + worker), dominio DSP puro (`dsp/`), infraestructura de audio (`audio/`) y persistencia (`storage/`). El dominio no importa React ni DOM. Hoy `dsp/` solo tiene energía; YIN, MFCC, VAD y DTW son el objetivo del dominio, no inventario actual. Se eligió sobre MVC (encaje artificial con React y workers) y sobre hexagonal estricta (ceremonia de puertos innecesaria para 7 semanas); el diagrama de bloques del curso (frontend, motor de audio, pipeline de IA, almacenamiento, módulos de señales) mapea sobre estas carpetas.
 
 ## Decisiones de producto
 
@@ -110,7 +124,9 @@ La práctica se estructura en escenarios curados por el equipo (por ejemplo, res
 
 ### Micrófono con toggle y auto-stop por VAD
 
-Un clic inicia la escucha, y un detector de actividad de voz (VAD) basado en energía corta la captura al detectar el silencio de fin de frase. El esquema es manos libres y natural para conversar, y el VAD es un módulo más de procesamiento de señales que suma al marco teórico del curso.
+**Hoy:** un clic inicia la escucha y otro la detiene (half-duplex manual). Tras el stop, un gate de energía/pico/duración decide si hay habla usable antes de Whisper.
+
+**Objetivo de producto:** un detector de actividad de voz (VAD) basado en energía cortará la captura al silencio de fin de frase (manos libres). El VAD suma contenido de señales al marco teórico del curso; aún no está cableado en vivo.
 
 ### Tailwind CSS para estilos
 
@@ -118,34 +134,34 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 
 ## Convenciones y defaults técnicos
 
-- Inferencia con WebGPU y fallback automático a WASM (ONNX Runtime Web).
-- Pipeline de IA (ASR → gramática → sugerencias → TTS) en un Web Worker orquestador; DSP en AudioWorklet; nada de inferencia en el hilo principal.
-- Captura de audio a la tasa nativa del dispositivo y resampleo a 16 kHz mono (requerido por Whisper y el pipeline DSP).
-- MFCC: ventana Hann de 25 ms, hop de 10 ms, 13 coeficientes, 40 filtros mel (parámetros estándar de ASR, justificados en el marco teórico).
-- Corrección gramatical y de pronunciación disparada al finalizar cada frase (post-utterance): Whisper no opera en streaming en el navegador.
-- Estado global con React Context + hooks; se migrará a Zustand solo si la complejidad lo exige.
-- Package manager: pnpm en todo el proyecto (instalación más rápida, node_modules estricto que evita dependencias fantasma y menor uso de disco); npm y yarn quedan descartados.
-- PWA con vite-plugin-pwa (Workbox).
-- Calidad de código: ESLint + Prettier con configuración compartida en el repo.
-- Estructura de `app/` por dominios: `audio/`, `dsp/`, `ia/`, `ui/`, `storage/`.
-- Voz de referencia de SpeechT5 con el speaker embedding (x-vector) oficial de ejemplo.
-- Exportación del documento técnico Markdown → PDF con pandoc.
-- Persistencia de sesiones: solo features acústicas y puntajes, nunca audio crudo (espacio y privacidad); la fórmula del puntaje de pronunciación se calibrará con pruebas reales en el Avance 2.
-- Navegador objetivo: Chrome/Chromium (recomendado por la documentación del curso para Web Audio).
-- Audio de doble rama: las visualizaciones (espectrograma, formantes) trabajan a la tasa nativa del dispositivo (44.1/48 kHz); la rama de 16 kHz mono alimenta solo a Whisper y al MFCC del comparador. Evita que el resampleo recorte la información sobre 8 kHz de sibilantes y fricativas del inglés.
-- El MFCC propio no alimenta a Whisper (que extrae sus features internamente): el pipeline DSP del equipo es paralelo y sirve al comparador de pronunciación y a las visualizaciones.
-- Workbox precachea solo el app shell: los pesos de los modelos se excluyen del precache (globIgnores) y quedan exclusivamente en la Cache API que gestiona transformers.js, evitando doble caché y un service worker que nunca termina de instalar.
-- Carga de modelos bajo demanda con indicador de progreso por modelo: Whisper al primer uso del micrófono, TTS al generar la primera referencia, T5 en la primera corrección; SmolLM2 se difiere al Avance 2.
-- Half-duplex explícito: el micrófono se suspende (stop del track o suspend del AudioContext) mientras se reproduce el TTS, y se reactiva con el siguiente clic del usuario. Evita eco y auto-captura.
-- Presupuesto de latencia medido sobre WASM como caso base; WebGPU se trata como aceleración oportunista (su soporte para modelos seq2seq con KV-cache aún es inmaduro), no como supuesto de diseño.
-- Toda la lógica DSP (YIN, MFCC, VAD, DTW) se escribe como funciones puras sin dependencias de AudioWorklet ni postMessage, importables por igual desde el worklet, los workers y los tests de Vitest.
-- El pipeline Markdown→PDF pre-renderiza los diagramas Mermaid a SVG con mermaid-cli antes de pandoc (pandoc no renderiza Mermaid nativo).
-- Revisión fija de modelos: cada modelo del Hub se consume con una revision anclada en un registro central (ia/model-registry.ts); antes de la Entrega Final se fija a un commit exacto para que una actualización upstream no cambie el comportamiento offline.
-- IndexedDB con esquema versionado y migraciones explícitas: los datos de progreso deben sobrevivir los cambios de esquema entre avances sin perder sesiones.
-- Nomenclatura: identificadores de código (archivos, funciones, variables) descriptivos y en inglés, sin abreviaturas crípticas ni nombres genéricos (utils, misc); los textos visibles de la interfaz viven en español, centralizados en ui/interface-texts.ts.
-- Integración continua con GitHub Actions: lint, typecheck, tests y build en cada Pull Request y push a main (gratuito en el plan del repo privado); un PR no se mergea con el CI en rojo.
-- Versión de Node fijada con .nvmrc y campo engines (Node 22 LTS) y pnpm declarado en packageManager, para que las cinco máquinas del equipo y el CI usen el mismo entorno.
-- Estados de error de primera clase para las operaciones frágiles: permiso de micrófono denegado, descarga de modelo fallida o incompleta, espacio de almacenamiento insuficiente y ausencia de WebGPU (cae a WASM); cada uno con mensaje en español definido en ui/interface-texts.ts.
+### Ya aplicados en el código
+
+- Inferencia con WebGPU oportunista y fallback automático a WASM (ONNX Runtime Web); nada de inferencia en el hilo principal (Web Worker `ia/inference-worker.ts`).
+- Pipeline activo post-utterance: **ASR → (filtro no-habla) → gramática**. Sugerencias y TTS se añadirán al mismo worker más adelante.
+- Captura a tasa nativa del dispositivo; resample a 16 kHz mono antes de Whisper (`audio/audio-resampler.ts`).
+- Grafo de visualización: `MediaStreamSource → Analyser → Gain(0) → destination`. ASR: `MediaRecorder` sobre el mismo `MediaStream` real. Invariantes en `app/src/audio/CAPTURE-INVARIANTS.md`.
+- Estado de pantalla con hooks (`use-home-screen-session.ts`); se migrará a Context o Zustand solo si la complejidad lo exige.
+- Package manager: solo pnpm; Node 22 (`.nvmrc` + `engines` + `packageManager`).
+- PWA con `vite-plugin-pwa` (Workbox precachea el app shell; pesos de modelos fuera del precache, Cache API de transformers.js).
+- Calidad de código: ESLint + Prettier; reglas en `Documentacion general/REGLAS-DE-CODIGO.md`.
+- Estructura de `app/src` por capas: `audio/`, `dsp/`, `ia/`, `ui/`, `storage/`.
+- Navegador objetivo: Chrome/Chromium.
+- Carga perezosa de modelos en el primer uso (Whisper al transcribir, T5 al corregir) con progreso y `model-ready` hacia la UI.
+- Revisión de modelos en `ia/model-registry.ts` (`revision: 'main'` en desarrollo; anclar SHA antes de la Entrega Final).
+- Nomenclatura en inglés en código; textos de UI en español en `ui/interface-texts.ts`.
+- CI en GitHub Actions: lint, typecheck, tests y build en PR y push a `main`.
+- Errores de mic e inferencia tipados y mapeados a mensajes en español.
+
+### Defaults de diseño (aún no implementados o parciales)
+
+- Pipeline completo en worker: ASR → gramática → sugerencias → TTS.
+- DSP en tiempo real vía AudioWorklet cuando haga falta; algoritmos YIN, MFCC, VAD, DTW como funciones puras en `dsp/`.
+- MFCC: ventana Hann 25 ms, hop 10 ms, 13 coeficientes, 40 filtros mel (cuando se implemente).
+- Audio de doble rama: visualizaciones avanzadas a tasa nativa; 16 kHz mono para Whisper y MFCC del comparador.
+- Half-duplex con TTS: suspender mic mientras suena la síntesis.
+- IndexedDB versionado para sesiones (solo features/puntajes, nunca audio crudo).
+- Documento técnico Markdown → PDF (pandoc + Mermaid pre-renderizado).
+- Deploy estático en Vercel para previews HTTPS de la PWA.
 
 ## Decisiones de proceso y entregas
 
@@ -189,4 +205,24 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 
 ## Estado
 
-Fase de planificación cerrada: la arquitectura del sistema y las decisiones de proceso y entregas quedaron completas y documentadas en este archivo. El scaffolding de `app/` también está completo: proyecto React + TypeScript + Vite con Tailwind, Vitest, PWA, la estructura en capas, el registro de modelos y una primera función DSP con tests, más un pipeline de integración continua con GitHub Actions. Ya está integrada en `main` una primera captura de micrófono con visualización de waveform en tiempo real, como demo inicial de la capa de audio; la captura y el resampleo a 16 kHz ya viven en la capa `audio/` (`audio/microphone-capture.ts`, `audio/audio-resampler.ts`), conforme a la arquitectura definida. La UI está partida por responsabilidad en `ui/` (`HomeScreen.tsx` presentación, `use-home-screen-session.ts` sesión mic→ASR→gramática, `waveform-canvas.ts`, `home-screen-status.ts`, textos en `interface-texts.ts`); `App.tsx` solo ensambla el hook con la vista. Además, ya está integrado el prototipo de ASR y corrección gramatical con el que el alcance técnico del Avance 1 queda cubierto: la transcripción con Whisper (`Xenova/whisper-tiny.en`) se encadena automáticamente, post-utterance, con la corrección gramatical de un modelo T5 (`Xenova/t5-base-grammar-correction`), ambas etapas de inferencia corriendo en el mismo Web Worker orquestador (`ia/inference-worker.ts`, con un cliente sin React en `ia/inference-client.ts` y un protocolo de mensajes tipado en `ia/inference-worker-protocol.ts`), con WebGPU oportunista y fallback automático a WASM, y cada modelo descargándose bajo demanda en su primer uso con indicador de progreso propio; la sesión de `ui/` graba con MediaRecorder el track del micrófono, resamplea a 16 kHz, transcribe, corrige la gramática y muestra ambos textos; la onda y la barra de nivel leen el AnalyserNode en vivo. Hay reglas de código del equipo en `Documentacion general/REGLAS-DE-CODIGO.md`. Sigue pendiente la asignación de responsables por módulo (ASR, DSP, pipeline de IA, UI).
+**Fase:** prototipo de Avance 1 integrado (arquitectura documentada + demo punta a punta mic → ASR → gramática).
+
+| Capa | Qué hay hoy | Qué falta |
+|------|-------------|-----------|
+| `ui/` | `HomeScreen`, sesión mic→ASR→gramática, onda/nivel, textos ES | Escenarios, chat, paneles de pronunciación |
+| `audio/` | Mic real, Analyser en vivo, MediaRecorder, resample 16 kHz, diagnósticos | VAD auto-stop, worklets si se necesitan |
+| `ia/` | Registry, Whisper, T5, worker + client, filtro no-habla | TTS, sugerencias SmolLM2 |
+| `dsp/` | Energía / gate de habla usable | YIN, MFCC, DTW, VAD en vivo |
+| `storage/` | Solo README | IndexedDB de sesiones |
+
+Detalle operativo de la demo actual:
+
+1. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
+2. Onda y % de nivel desde `AnalyserNode` (`waveform-canvas.ts`).
+3. Al detener → decode mono → gate de energía → resample 16 kHz → Whisper en worker.
+4. Si el texto es habla real → T5 corrige gramática; si es tag no-habla → mensaje honesto sin gramática.
+5. `App.tsx` es un shell fino; la orquestación vive en `ui/use-home-screen-session.ts`.
+
+Invariantes de mic: `app/src/audio/CAPTURE-INVARIANTS.md`. Reglas de equipo: `Documentacion general/REGLAS-DE-CODIGO.md`. Guía de capas: `app/README.md`.
+
+Pendiente de proceso: asignación de responsables por módulo y trabajo de Avance 2 (conversación + pronunciación/DSP).

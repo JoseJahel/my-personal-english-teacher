@@ -1,25 +1,28 @@
 # My Personal English Teacher
 
-PWA offline de práctica de inglés, 100% del lado del cliente: reconocimiento de
-voz, corrección gramatical, sugerencias de conversación y síntesis de voz
-corren en el propio navegador mediante `transformers.js`, sin backend ni envío
-de datos a servidores externos.
+PWA offline de práctica de inglés, 100% del lado del cliente: el reconocimiento
+de voz y la corrección gramatical corren en el propio navegador mediante
+`transformers.js`, sin backend ni envío de audio a servidores externos.
+Síntesis de voz, sugerencias conversacionales y comparación de pronunciación
+están en el diseño del proyecto pero **aún no implementadas** en esta carpeta.
 
-La estructura y las herramientas del proyecto están configuradas. Ya existe
-una demo funcional de captura de micrófono con visualización de waveform en
-tiempo real (la captura vive en la capa `audio/`,
-`audio/microphone-capture.ts`) y un primer prototipo del pipeline de práctica
-funcionando de punta a punta: al detener la captura, el audio se transcribe
-con Whisper (`Xenova/whisper-tiny.en` vía `transformers.js`) y el texto
-transcrito se corrige gramaticalmente con un modelo T5
-(`Xenova/t5-base-grammar-correction`), ambos en un Web Worker dedicado
-(`ia/inference-worker.ts`), y los dos resultados se muestran en pantalla en
-paneles separados. `App.tsx` es un shell fino: la sesión vive en
-`ui/use-home-screen-session.ts` y la presentación en `ui/HomeScreen.tsx`
-(onda + barra de nivel en vivo). La captura de voz usa `MediaRecorder` sobre
-el micrófono real; el grafo Web Audio solo alimenta la visualización. El
-resto de las funcionalidades de práctica (síntesis de voz, sugerencias de
-conversación, comparación de pronunciación) todavía no están implementadas.
+## Estado de la app (código actual)
+
+Demo funcional de punta a punta:
+
+1. Captura de micrófono real (`audio/open-microphone-stream.ts` +
+   `audio/microphone-capture.ts`).
+2. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
+3. Al detener: MediaRecorder → decode mono → gate de energía (`dsp/`) →
+   resample 16 kHz → Whisper → filtro de tags no-habla → T5 gramática.
+4. Resultados en paneles de transcripción y corrección.
+
+Orquestación en `ui/use-home-screen-session.ts`; presentación en
+`ui/HomeScreen.tsx`; `App.tsx` solo ensambla el hook con la vista.
+
+Captura: **MediaRecorder** sobre el `MediaStream` del SO para ASR; grafo Web
+Audio solo para visualización. Detalle e invariantes:
+`src/audio/CAPTURE-INVARIANTS.md`.
 
 ## Puesta en marcha (Windows)
 
@@ -94,26 +97,23 @@ completo de todos los scripts está más abajo, en la sección
 El código de `src/` está organizado en capas con dependencia únicamente hacia
 adentro, dejando el dominio libre de detalles de infraestructura:
 
-- **`ui/`** — presentación React y orquestación de pantalla (sin I/O de
-  micrófono ni `transformers.js` directos). Textos en español en
-  `ui/interface-texts.ts`; ver `ui/README.md`.
-- **`ia/`** — dominio y orquestación de modelos de `transformers.js` (ASR →
-  corrección gramatical → sugerencias → TTS). Ver `ia/model-registry.ts`.
-- **`dsp/`** — dominio puro de procesamiento de señales (funciones puras,
-  sin dependencias externas). Ver `dsp/signal-energy.ts`.
-- **`audio/`** — infraestructura de captura y adaptación de audio del
-  navegador (Web Audio API).
-- **`storage/`** — infraestructura de persistencia local con IndexedDB.
+| Capa | Rol hoy | README de capa |
+|------|---------|----------------|
+| **`ui/`** | Presentación React + orquestación de sesión (mic → ASR → gramática). Textos ES en `interface-texts.ts`. | `ui/README.md` |
+| **`ia/`** | Registry, Whisper, T5, Web Worker y cliente tipado. | `ia/README.md` |
+| **`dsp/`** | Energía / gate de habla (puro). YIN/MFCC/DTW previstos. | `dsp/README.md` |
+| **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample. | `audio/README.md` |
+| **`storage/`** | Reservado; IndexedDB aún no implementado. | `storage/README.md` |
 
-Cada carpeta incluye un `README.md` con el detalle de su responsabilidad y los
-archivos previstos a futuro.
+Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO.md`.
 
 ## Nota sobre versiones de modelos
 
 `ia/model-registry.ts` fija la revisión de cada modelo en `'main'` durante el
 desarrollo. Antes de la Entrega Final del proyecto, cada modelo debe anclarse a
 un commit específico del Hub de Hugging Face para asegurar una build
-reproducible.
+reproducible. Hoy solo ASR y gramática tienen adaptadores en el worker; TTS y
+sugerencias están registrados pero no cableados.
 
 ## PWA y caché de modelos
 
