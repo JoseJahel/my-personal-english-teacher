@@ -119,6 +119,10 @@ async function handleTranscribeMessage(message: TranscribeRequestMessage): Promi
   let recognizer: AutomaticSpeechRecognitionPipeline
   try {
     recognizer = await getSpeechRecognizer()
+    // Avisa al hilo principal de que la descarga/inicialización ya terminó,
+    // para que la UI deje de mostrar "Descargando... 100%" y pase a
+    // "Transcribiendo..." durante la inferencia propiamente dicha.
+    postResponse({ type: 'model-ready', modelKey: 'automaticSpeechRecognition' })
   } catch (error) {
     console.error('No fue posible cargar el modelo de reconocimiento de voz.', error)
     postResponse({ type: 'transcription-error', requestId, reason: 'model-load-failed' })
@@ -140,6 +144,9 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
   let corrector: Text2TextGenerationPipeline
   try {
     corrector = await getGrammarCorrector()
+    // Mismo aviso que en ASR: la UI puede salir de "Descargando..." y mostrar
+    // "Corrigiendo gramática..." mientras corre la inferencia del T5.
+    postResponse({ type: 'model-ready', modelKey: 'grammarCorrection' })
   } catch (error) {
     console.error('No fue posible cargar el modelo de corrección gramatical.', error)
     postResponse({ type: 'grammar-correction-error', requestId, reason: 'model-load-failed' })

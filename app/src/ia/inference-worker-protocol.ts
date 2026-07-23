@@ -66,6 +66,19 @@ export interface ModelLoadingProgressMessage {
   readonly fileName: string
 }
 
+/**
+ * El modelo indicado ya terminó de descargarse e inicializarse y está listo
+ * para inferir. Se emite una sola vez por etapa (justo después de que resuelve
+ * la carga perezosa en el worker), para que `ui/` pueda salir del estado
+ * "Descargando... X%" y pasar a "Transcribiendo..." / "Corrigiendo..." en
+ * lugar de quedarse congelado en el último porcentaje mientras corre la
+ * inferencia.
+ */
+export interface ModelReadyMessage {
+  readonly type: 'model-ready'
+  readonly modelKey: ModelRegistryKey
+}
+
 /** Resultado exitoso de una solicitud `'transcribe'`. */
 export interface TranscriptionResultMessage {
   readonly type: 'transcription-result'
@@ -124,6 +137,7 @@ export interface GrammarCorrectionErrorMessage {
 /** Unión de todos los mensajes que el worker puede enviar al hilo principal. */
 export type InferenceWorkerResponseMessage =
   | ModelLoadingProgressMessage
+  | ModelReadyMessage
   | TranscriptionResultMessage
   | TranscriptionErrorMessage
   | GrammarCorrectionResultMessage
