@@ -1,325 +1,296 @@
 /**
- * Captura de micrófono: apertura del dispositivo de entrada de audio y
- * publicación de sus datos crudos hacia el resto de la aplicación.
+ * Microphone capture — minimal reliable path (Chrome / Windows).
  *
- * Esta capa es infraestructura pura de Web Audio API: no importa nada de
- * `ui/` (cero React) y solo depende hacia adentro, hacia `dsp/`, si en algún
- * momento necesitara una función de análisis. Expone dos ramas de audio a
- * partir de un mismo `MediaStreamAudioSourceNode`:
+ * ⚠️ CAPTURE-INVARIANTS.md
  *
- * - Una rama de **visualización**, vía `analyserNode`, a la tasa nativa del
- *   dispositivo (44.1/48 kHz) y con `fftSize` 2048, pensada para dibujar el
- *   waveform en tiempo real desde `ui/`.
- * - Una rama de **frames crudos**, entregados con `subscribeToAudioFrames`,
- *   también a la tasa nativa. Estos frames alimentarán más adelante a
- *   `audio-resampler.ts` (conversión a 16 kHz mono) camino a Whisper y al
- *   extractor de MFCC del comparador de pronunciación.
+ * LIVE wave/level: AnalyserNode on MediaStreamSource (float samples each frame).
+ * ASR: MediaRecorder on the SAME MediaStream only (no ScriptProcessor for live).
  *
- * La entrega de frames usa un `AudioWorkletNode` (no `ScriptProcessorNode`,
- * que está obsoleto y corre en el hilo principal) cuyo procesador se registra
- * desde un módulo generado en memoria con `Blob` + `URL.createObjectURL`, para
- * no depender de un archivo de worklet servido aparte.
+ * Why no ScriptProcessor for visualization: it repeatedly produced a constant
+ * “alive” oscillation that did not follow the real mic. Analyser + MediaRecorder
+ * on a real OS stream is the path that must stay simple.
  */
 
-const AUDIO_FRAME_WORKLET_PROCESSOR_NAME = 'microphone-audio-frame-publisher'
-const VISUALIZATION_ANALYSER_FFT_SIZE = 2048
+import { buildCaptureDiagnostics } from './capture-diagnostics'
+import type { CaptureDiagnostics } from './capture-diagnostics'
+import {
+  decodeRecordingBlobToMono,
+  startMediaRecorderOnStream,
+  stopMediaRecorderToBlob,
+} from './media-recorder-utterance'
+import {
+  MicrophoneCaptureError,
+  toMicrophoneCaptureError,
+} from './microphone-capture-errors'
+import { normalizePeakAmplitude } from './normalize-peak'
+import { openRealMicrophoneStream } from './open-microphone-stream'
+import { computePeakAmplitude, computeRootMeanSquareEnergy } from '../dsp/signal-energy'
 
-/**
- * Código fuente del `AudioWorkletProcessor` que publica cada bloque de audio
- * (128 muestras por defecto) recibido del micrófono hacia el hilo principal
- * mediante `postMessage`. Vive como una cadena de texto, no como un archivo
- * `.ts` aparte, porque se carga en el navegador como un módulo de worklet
- * independiente vía Blob URL; al ser JavaScript plano ejecutado en el scope
- * global del `AudioWorkletGlobalScope`, TypeScript no lo tipa ni lo compila.
- */
-const audioFrameWorkletProcessorSource = `
-class MicrophoneAudioFramePublisherProcessor extends AudioWorkletProcessor {
-  process(inputs) {
-    const inputChannels = inputs[0]
-    if (!inputChannels || inputChannels.length === 0 || !inputChannels[0]) {
-      // Devolver true mantiene vivo al procesador aunque el bloque venga vacío
-      // (p. ej. el primer callback antes de que el MediaStream entregue audio).
-      return true
-    }
+export type { CaptureDiagnostics, CaptureAudioSource } from './capture-diagnostics'
+export {
+  MicrophoneCaptureError,
+  type MicrophoneCaptureErrorReason,
+} from './microphone-capture-errors'
 
-    // Se copia el bloque porque el buffer que entrega el motor de audio se
-    // reutiliza en cada llamada a process(); transferirlo evita además una
-    // copia adicional en el postMessage (structured clone con transfer list).
-    // Si el mic llega en estéreo (Chrome a veces ignora channelCount: 1), se
-    // promedian los canales a mono para no tirar la mitad de la señal.
-    const channelCount = inputChannels.length
-    const frameLength = inputChannels[0].length
-    let monoFrame
-    if (channelCount === 1) {
-      monoFrame = inputChannels[0].slice()
-    } else {
-      monoFrame = new Float32Array(frameLength)
-      for (let sampleIndex = 0; sampleIndex < frameLength; sampleIndex += 1) {
-        let sampleSum = 0
-        for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
-          const channel = inputChannels[channelIndex]
-          sampleSum += channel ? channel[sampleIndex] : 0
-        }
-        monoFrame[sampleIndex] = sampleSum / channelCount
-      }
-    }
-    this.port.postMessage(monoFrame, [monoFrame.buffer])
-    return true
-  }
+const ANALYSER_FFT_SIZE = 2048
+const KEEPALIVE_MS = 400
+
+export interface CapturedMicrophoneAudio {
+  readonly samples: Float32Array
+  readonly sampleRate: number
+  readonly diagnostics: CaptureDiagnostics
 }
 
-registerProcessor('${AUDIO_FRAME_WORKLET_PROCESSOR_NAME}', MicrophoneAudioFramePublisherProcessor)
-`
-
-/**
- * Motivos por los que puede fallar la apertura del micrófono. Se modela como
- * un discriminante de cadena (no un enum: `erasableSyntaxOnly` los prohíbe en
- * este proyecto) para que `ui/` pueda mapear cada valor a un mensaje propio
- * en `ui/interface-texts.ts` con un simple `switch`.
- *
- * - `'permission-denied'`: la persona usuaria rechazó el permiso, o el
- *   navegador lo bloqueó por política de seguridad (`NotAllowedError` /
- *   `SecurityError`).
- * - `'unknown'`: cualquier otro fallo (dispositivo inexistente, en uso por
- *   otra aplicación, `AudioWorklet` no soportado, etc.).
- */
-export type MicrophoneCaptureErrorReason = 'permission-denied' | 'unknown'
-
-/**
- * Error de primera clase para fallos al capturar el micrófono. Se distingue
- * de un `Error` genérico por su propiedad `reason`, tipada como
- * `MicrophoneCaptureErrorReason`, que `ui/` puede inspeccionar para decidir
- * qué mensaje mostrar sin tener que interpretar mensajes de texto libre.
- */
-export class MicrophoneCaptureError extends Error {
-  readonly reason: MicrophoneCaptureErrorReason
-
-  constructor(reason: MicrophoneCaptureErrorReason, message: string, options?: ErrorOptions) {
-    super(message, options)
-    this.name = 'MicrophoneCaptureError'
-    this.reason = reason
-  }
+/** Live meters from the Analyser (same graph as the waveform). */
+export interface LiveInputMeters {
+  readonly rms: number
+  readonly peak: number
+  /** 0–1 level for the UI bar (peak, clamped). */
+  readonly level01: number
 }
 
-/**
- * Clasifica un error arrojado por `getUserMedia` (o por la inicialización del
- * `AudioWorklet`) en un `MicrophoneCaptureError` con un motivo tipado.
- */
-function toMicrophoneCaptureError(error: unknown): MicrophoneCaptureError {
-  const isPermissionError =
-    error instanceof DOMException &&
-    (error.name === 'NotAllowedError' || error.name === 'SecurityError')
-
-  if (isPermissionError) {
-    return new MicrophoneCaptureError(
-      'permission-denied',
-      'La persona usuaria denegó el permiso de acceso al micrófono, o el navegador lo bloqueó por política de seguridad.',
-      { cause: error },
-    )
-  }
-
-  return new MicrophoneCaptureError(
-    'unknown',
-    'No fue posible acceder al micrófono por un error inesperado.',
-    { cause: error },
-  )
-}
-
-/**
- * Función que recibe un frame mono de audio crudo (`Float32Array`, valores en
- * el rango [-1, 1]) a la tasa nativa del dispositivo.
- */
-export type AudioFrameListener = (frame: Float32Array) => void
-
-/**
- * Función que cancela una suscripción previa a `subscribeToAudioFrames`.
- */
-export type UnsubscribeFromAudioFrames = () => void
-
-/**
- * Sesión de captura de micrófono activa, devuelta por `startMicrophoneCapture`.
- */
 export interface MicrophoneCaptureSession {
-  /** Contexto de audio que gobierna toda la sesión de captura. */
   readonly audioContext: AudioContext
-  /**
-   * Nodo de análisis de la rama de visualización, a la tasa nativa del
-   * dispositivo y con `fftSize` 2048. Pensado para que `ui/` lo lea con
-   * `requestAnimationFrame` y dibuje el waveform; esta capa no dibuja nada.
-   */
   readonly analyserNode: AnalyserNode
-  /** Tasa de muestreo nativa del dispositivo, en Hz (la de `audioContext`). */
-  readonly nativeSampleRate: number
-  /**
-   * Suscribe un listener a los frames crudos de audio (mono, tasa nativa).
-   * Devuelve una función para cancelar la suscripción.
-   */
-  subscribeToAudioFrames: (listener: AudioFrameListener) => UnsubscribeFromAudioFrames
-  /**
-   * Detiene la captura: para las pistas del `MediaStream`, desconecta todos
-   * los nodos de audio y cierra el `AudioContext`. Es idempotente: llamarla
-   * más de una vez no tiene efecto adicional.
-   */
-  stop: () => void
+  readonly deviceLabel: string
+  readonly mediaStream: MediaStream
+  /** Read current input meters (call from rAF). */
+  readLiveMeters: () => LiveInputMeters
+  stop: () => Promise<CapturedMicrophoneAudio>
+  abort: () => void
+}
+
+async function ensureRunning(audioContext: AudioContext): Promise<void> {
+  if (audioContext.state !== 'closed') {
+    await audioContext.resume()
+  }
 }
 
 /**
- * Abre el micrófono del dispositivo y arma el grafo de Web Audio necesario
- * para capturarlo: un `MediaStreamAudioSourceNode` alimenta en paralelo a un
- * `AnalyserNode` (visualización) y a un `AudioWorkletNode` (entrega de frames
- * crudos). La captura es mono (`channelCount: 1`).
+ * Opens a real OS mic. Must be called from a button click.
  *
- * @throws {MicrophoneCaptureError} si la persona usuaria deniega el permiso
- *   de micrófono, o si falla la apertura del dispositivo o la inicialización
- *   del `AudioWorklet` por cualquier otro motivo.
+ * INVARIANTS:
+ * 1) Stream from openRealMicrophoneStream() only (never MediaStreamDestination as source).
+ * 2) resume() after every await on the capture AudioContext.
+ * 3) Never set { sampleRate } on the capture AudioContext.
+ * 4) source → analyser → gain(0) → destination so Chromium pulls the graph.
+ * 5) MediaRecorder on the same MediaStream for ASR.
  */
 export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession> {
-  let mediaStream: MediaStream
+  let opened
   try {
-    // Constraints orientadas a voz: mono preferido, AGC y supresión de ruido
-    // del propio navegador. `echoCancellation` evita realimentación si hay
-    // altavoces; no todos los drivers honran `channelCount: 1`, por eso el
-    // worklet también hace downmix a mono por si llegan 2 canales.
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: { ideal: 1 },
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: false,
-    })
+    opened = await openRealMicrophoneStream()
   } catch (error) {
     throw toMicrophoneCaptureError(error)
   }
 
+  const { mediaStream, deviceLabel, release: releaseOpenedStream } = opened
+  const microphoneTrack = mediaStream.getAudioTracks()[0]
+  if (!microphoneTrack) {
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
+    throw new MicrophoneCaptureError('unknown', 'Opened stream has no audio track.')
+  }
+  microphoneTrack.enabled = true
+
+  // INVARIANT (3): no sampleRate option.
   const audioContext = new AudioContext()
-
   try {
-    // CRÍTICO: tras el await de getUserMedia el gesto de usuario ya se
-    // "gastó". En Chrome/Edge el AudioContext nace en 'suspended' y NO
-    // procesa el grafo (ni AnalyserNode ni AudioWorklet) hasta resume().
-    // Sin esto el waveform queda plano y Whisper recibe silencio: la app
-    // "no detecta la voz" aunque el permiso del mic esté concedido.
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume()
-    }
-
-    const workletModuleBlob = new Blob([audioFrameWorkletProcessorSource], {
-      type: 'application/javascript',
-    })
-    const workletModuleUrl = URL.createObjectURL(workletModuleBlob)
-    try {
-      await audioContext.audioWorklet.addModule(workletModuleUrl)
-    } finally {
-      URL.revokeObjectURL(workletModuleUrl)
-    }
-
-    // Reintentar resume por si addModule u otra operación volvió a suspender
-    // el contexto (política autoplay del navegador en algunos entornos).
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume()
-    }
+    await ensureRunning(audioContext)
   } catch (error) {
-    mediaStream.getTracks().forEach((track) => track.stop())
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
     if (audioContext.state !== 'closed') {
-      await audioContext.close()
+      await audioContext.close().catch(() => undefined)
     }
     throw new MicrophoneCaptureError(
       'unknown',
-      'No fue posible inicializar el procesador de audio (AudioWorklet).',
+      'AudioContext could not start. Click the page and try again.',
       { cause: error },
     )
   }
 
-  // Si tras el resume el contexto sigue sin correr, no tiene sentido devolver
-  // una sesión "sorda": fallar con un error tipado es más claro que un
-  // waveform plano sin explicación.
+  const sourceNode = audioContext.createMediaStreamSource(mediaStream)
+  const analyserNode = audioContext.createAnalyser()
+  analyserNode.fftSize = ANALYSER_FFT_SIZE
+  analyserNode.smoothingTimeConstant = 0
+  analyserNode.minDecibels = -100
+  analyserNode.maxDecibels = -10
+
+  // INVARIANT (4): must reach destination or some builds never process the source.
+  const silentGain = audioContext.createGain()
+  silentGain.gain.value = 0
+  sourceNode.connect(analyserNode)
+  analyserNode.connect(silentGain)
+  silentGain.connect(audioContext.destination)
+
+  await ensureRunning(audioContext)
   if (audioContext.state !== 'running') {
-    mediaStream.getTracks().forEach((track) => track.stop())
-    if (audioContext.state !== 'closed') {
-      await audioContext.close()
-    }
+    sourceNode.disconnect()
+    analyserNode.disconnect()
+    silentGain.disconnect()
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
+    await audioContext.close().catch(() => undefined)
     throw new MicrophoneCaptureError(
       'unknown',
-      'El contexto de audio del navegador no pudo arrancar (sigue suspendido). Prueba de nuevo tras una interacción con la página.',
+      'AudioContext stayed suspended after mic permission.',
     )
   }
 
-  const sourceNode = audioContext.createMediaStreamSource(mediaStream)
-
-  const analyserNode = audioContext.createAnalyser()
-  analyserNode.fftSize = VISUALIZATION_ANALYSER_FFT_SIZE
-  // Suavizado bajo para que el waveform reaccione al instante a la voz.
-  analyserNode.smoothingTimeConstant = 0.3
-
-  // No forzar channelCountMode: 'explicit' en el worklet: con micrófonos
-  // estéreo reales Chrome a veces entrega 2 canales y un nodo en modo
-  // explicit a 1 canal puede recibir silencio o un layout incorrecto.
-  const workletNode = new AudioWorkletNode(audioContext, AUDIO_FRAME_WORKLET_PROCESSOR_NAME, {
-    numberOfInputs: 1,
-    numberOfOutputs: 1,
-    outputChannelCount: [1],
-  })
-
-  // El worklet nunca escribe en su salida (queda en silencio absoluto), pero
-  // necesita estar conectado -aunque sea indirectamente- al destino del
-  // AudioContext para que el motor de audio siga invocando su process(): un
-  // AudioWorkletNode que no llega al destino puede quedar fuera del grafo de
-  // renderizado activo y dejar de procesar. La ganancia en 0 garantiza que,
-  // pase lo que pase, no se escuche nada por este camino.
-  const silentOutputGainNode = audioContext.createGain()
-  silentOutputGainNode.gain.value = 0
-
-  sourceNode.connect(analyserNode)
-  sourceNode.connect(workletNode)
-  workletNode.connect(silentOutputGainNode)
-  silentOutputGainNode.connect(audioContext.destination)
-
-  const audioFrameListeners = new Set<AudioFrameListener>()
-
-  workletNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
-    for (const listener of audioFrameListeners) {
-      listener(event.data)
-    }
-  }
-
-  let isStopped = false
-
-  function subscribeToAudioFrames(listener: AudioFrameListener): UnsubscribeFromAudioFrames {
-    audioFrameListeners.add(listener)
-    return () => {
-      audioFrameListeners.delete(listener)
-    }
-  }
-
-  function stop(): void {
-    if (isStopped) {
-      return
-    }
-    isStopped = true
-
-    workletNode.port.onmessage = null
-    workletNode.port.close()
-    audioFrameListeners.clear()
-
+  let startedRecorder: ReturnType<typeof startMediaRecorderOnStream>
+  try {
+    startedRecorder = startMediaRecorderOnStream(mediaStream)
+  } catch (error) {
     sourceNode.disconnect()
     analyserNode.disconnect()
-    workletNode.disconnect()
-    silentOutputGainNode.disconnect()
+    silentGain.disconnect()
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
+    await audioContext.close().catch(() => undefined)
+    throw error
+  }
 
-    mediaStream.getTracks().forEach((track) => track.stop())
+  const { mediaRecorder, mimeType, recordedChunks } = startedRecorder
+  let isStopped = false
+  let isAborted = false
 
+  const timeDomainFloat = new Float32Array(analyserNode.fftSize)
+
+  const keepAliveId = window.setInterval(() => {
+    if (isStopped || isAborted) {
+      return
+    }
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume()
+    }
+    if (microphoneTrack.readyState === 'live' && !microphoneTrack.enabled) {
+      microphoneTrack.enabled = true
+    }
+  }, KEEPALIVE_MS)
+
+  function readLiveMeters(): LiveInputMeters {
+    analyserNode.getFloatTimeDomainData(timeDomainFloat)
+    const rms = computeRootMeanSquareEnergy(timeDomainFloat)
+    const peak = computePeakAmplitude(timeDomainFloat)
+    return {
+      rms,
+      peak,
+      level01: Math.min(1, peak),
+    }
+  }
+
+  function disconnectGraph(): void {
+    try {
+      sourceNode.disconnect()
+      analyserNode.disconnect()
+      silentGain.disconnect()
+    } catch {
+      // already disconnected
+    }
+  }
+
+  function abort(): void {
+    if (isStopped || isAborted) {
+      return
+    }
+    isAborted = true
+    isStopped = true
+    window.clearInterval(keepAliveId)
+    try {
+      if (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused') {
+        mediaRecorder.stop()
+      }
+    } catch {
+      // ignore
+    }
+    disconnectGraph()
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
     if (audioContext.state !== 'closed') {
       void audioContext.close()
+    }
+  }
+
+  async function stop(): Promise<CapturedMicrophoneAudio> {
+    if (isAborted || isStopped) {
+      const empty = new Float32Array(0)
+      return {
+        samples: empty,
+        sampleRate: audioContext.sampleRate || 48000,
+        diagnostics: buildCaptureDiagnostics({
+          samples: empty,
+          sampleRate: 48000,
+          deviceLabel,
+          source: 'none',
+          mediaRecorderBlobBytes: 0,
+          trackReadyState: microphoneTrack.readyState,
+          trackMuted: microphoneTrack.muted,
+          audioContextState: audioContext.state,
+        }),
+      }
+    }
+    isStopped = true
+    window.clearInterval(keepAliveId)
+
+    const recordingBlob = await stopMediaRecorderToBlob(mediaRecorder, recordedChunks, mimeType)
+    const trackReadyState = microphoneTrack.readyState
+    const trackMuted = microphoneTrack.muted
+    const contextState = audioContext.state
+    disconnectGraph()
+    mediaStream.getTracks().forEach((t) => t.stop())
+    releaseOpenedStream()
+
+    let samples = new Float32Array(0)
+    let sampleRate = audioContext.sampleRate || 48000
+    let source: 'media-recorder' | 'none' = 'none'
+
+    if (recordingBlob.size > 0) {
+      try {
+        const decodeContext = new AudioContext()
+        await ensureRunning(decodeContext)
+        const decoded = await decodeRecordingBlobToMono(decodeContext, recordingBlob)
+        const copied = new Float32Array(decoded.samples.length)
+        copied.set(decoded.samples)
+        const normalized = normalizePeakAmplitude(copied, 0.65)
+        samples = new Float32Array(normalized.length)
+        samples.set(normalized)
+        sampleRate = decoded.sampleRate
+        source = 'media-recorder'
+        await decodeContext.close().catch(() => undefined)
+      } catch {
+        samples = new Float32Array(0)
+        source = 'none'
+      }
+    }
+
+    if (audioContext.state !== 'closed') {
+      await audioContext.close().catch(() => undefined)
+    }
+
+    return {
+      samples,
+      sampleRate,
+      diagnostics: buildCaptureDiagnostics({
+        samples,
+        sampleRate,
+        deviceLabel,
+        source,
+        mediaRecorderBlobBytes: recordingBlob.size,
+        trackReadyState,
+        trackMuted,
+        audioContextState: contextState,
+      }),
     }
   }
 
   return {
     audioContext,
     analyserNode,
-    nativeSampleRate: audioContext.sampleRate,
-    subscribeToAudioFrames,
+    deviceLabel,
+    mediaStream,
+    readLiveMeters,
     stop,
+    abort,
   }
 }

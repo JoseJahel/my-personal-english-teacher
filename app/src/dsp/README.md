@@ -11,8 +11,9 @@ en estas funciones para pre-procesar audio antes de pasarlo a los modelos.
 
 Implementado:
 
-- `signal-energy.ts`: energía RMS de una señal, con tests en
-  `signal-energy.test.ts`, base del futuro VAD.
+- `signal-energy.ts`: energía RMS (`computeRootMeanSquareEnergy`), umbral
+  `MINIMUM_CAPTURE_ENERGY_RMS` y gate `hasUsableSpeechEnergy` para no enviar
+  silencio a Whisper; tests en `signal-energy.test.ts`. Base del futuro VAD.
 
 Archivos previstos a futuro:
 
