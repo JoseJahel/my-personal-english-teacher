@@ -36,14 +36,34 @@ const audioFrameWorkletProcessorSource = `
 class MicrophoneAudioFramePublisherProcessor extends AudioWorkletProcessor {
   process(inputs) {
     const inputChannels = inputs[0]
-    if (inputChannels && inputChannels.length > 0) {
-      // Se copia el bloque porque el buffer que entrega el motor de audio se
-      // reutiliza en cada llamada a process(); transferirlo evita además una
-      // copia adicional en el postMessage (structured clone con transfer list).
-      const monoFrame = inputChannels[0].slice()
-      this.port.postMessage(monoFrame, [monoFrame.buffer])
+    if (!inputChannels || inputChannels.length === 0 || !inputChannels[0]) {
+      // Devolver true mantiene vivo al procesador aunque el bloque venga vacío
+      // (p. ej. el primer callback antes de que el MediaStream entregue audio).
+      return true
     }
-    // Devolver true mantiene vivo al procesador mientras el nodo siga conectado.
+
+    // Se copia el bloque porque el buffer que entrega el motor de audio se
+    // reutiliza en cada llamada a process(); transferirlo evita además una
+    // copia adicional en el postMessage (structured clone con transfer list).
+    // Si el mic llega en estéreo (Chrome a veces ignora channelCount: 1), se
+    // promedian los canales a mono para no tirar la mitad de la señal.
+    const channelCount = inputChannels.length
+    const frameLength = inputChannels[0].length
+    let monoFrame
+    if (channelCount === 1) {
+      monoFrame = inputChannels[0].slice()
+    } else {
+      monoFrame = new Float32Array(frameLength)
+      for (let sampleIndex = 0; sampleIndex < frameLength; sampleIndex += 1) {
+        let sampleSum = 0
+        for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+          const channel = inputChannels[channelIndex]
+          sampleSum += channel ? channel[sampleIndex] : 0
+        }
+        monoFrame[sampleIndex] = sampleSum / channelCount
+      }
+    }
+    this.port.postMessage(monoFrame, [monoFrame.buffer])
     return true
   }
 }
@@ -156,8 +176,17 @@ export interface MicrophoneCaptureSession {
 export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession> {
   let mediaStream: MediaStream
   try {
+    // Constraints orientadas a voz: mono preferido, AGC y supresión de ruido
+    // del propio navegador. `echoCancellation` evita realimentación si hay
+    // altavoces; no todos los drivers honran `channelCount: 1`, por eso el
+    // worklet también hace downmix a mono por si llegan 2 canales.
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1 },
+      audio: {
+        channelCount: { ideal: 1 },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
       video: false,
     })
   } catch (error) {
@@ -167,6 +196,15 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
   const audioContext = new AudioContext()
 
   try {
+    // CRÍTICO: tras el await de getUserMedia el gesto de usuario ya se
+    // "gastó". En Chrome/Edge el AudioContext nace en 'suspended' y NO
+    // procesa el grafo (ni AnalyserNode ni AudioWorklet) hasta resume().
+    // Sin esto el waveform queda plano y Whisper recibe silencio: la app
+    // "no detecta la voz" aunque el permiso del mic esté concedido.
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
+
     const workletModuleBlob = new Blob([audioFrameWorkletProcessorSource], {
       type: 'application/javascript',
     })
@@ -176,9 +214,17 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
     } finally {
       URL.revokeObjectURL(workletModuleUrl)
     }
+
+    // Reintentar resume por si addModule u otra operación volvió a suspender
+    // el contexto (política autoplay del navegador en algunos entornos).
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
   } catch (error) {
     mediaStream.getTracks().forEach((track) => track.stop())
-    await audioContext.close()
+    if (audioContext.state !== 'closed') {
+      await audioContext.close()
+    }
     throw new MicrophoneCaptureError(
       'unknown',
       'No fue posible inicializar el procesador de audio (AudioWorklet).',
@@ -186,16 +232,33 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
     )
   }
 
+  // Si tras el resume el contexto sigue sin correr, no tiene sentido devolver
+  // una sesión "sorda": fallar con un error tipado es más claro que un
+  // waveform plano sin explicación.
+  if (audioContext.state !== 'running') {
+    mediaStream.getTracks().forEach((track) => track.stop())
+    if (audioContext.state !== 'closed') {
+      await audioContext.close()
+    }
+    throw new MicrophoneCaptureError(
+      'unknown',
+      'El contexto de audio del navegador no pudo arrancar (sigue suspendido). Prueba de nuevo tras una interacción con la página.',
+    )
+  }
+
   const sourceNode = audioContext.createMediaStreamSource(mediaStream)
 
   const analyserNode = audioContext.createAnalyser()
   analyserNode.fftSize = VISUALIZATION_ANALYSER_FFT_SIZE
+  // Suavizado bajo para que el waveform reaccione al instante a la voz.
+  analyserNode.smoothingTimeConstant = 0.3
 
+  // No forzar channelCountMode: 'explicit' en el worklet: con micrófonos
+  // estéreo reales Chrome a veces entrega 2 canales y un nodo en modo
+  // explicit a 1 canal puede recibir silencio o un layout incorrecto.
   const workletNode = new AudioWorkletNode(audioContext, AUDIO_FRAME_WORKLET_PROCESSOR_NAME, {
     numberOfInputs: 1,
     numberOfOutputs: 1,
-    channelCount: 1,
-    channelCountMode: 'explicit',
     outputChannelCount: [1],
   })
 
