@@ -14,7 +14,7 @@ import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { createInferenceClient, InferenceClientError } from '../ia/inference-client'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
 import { grammarCorrectionMadeNoChanges } from '../ia/grammar-correction'
-import { isNonSpeechTranscript } from '../ia/transcription-text'
+import { isDegenerateTranscript, isNonSpeechTranscript } from '../ia/transcription-text'
 import {
   captureDiagnosticsMessageFor,
   grammarCorrectionStatusMessageFor,
@@ -30,8 +30,15 @@ import type {
 import { clearWaveformCanvas, startAnalyserWaveformAnimation } from './waveform-canvas'
 import type { HomeScreenProps } from './HomeScreen'
 
+/** Flags so model-ready after preload goes to idle, not "transcribing". */
+type InferenceInFlightFlags = {
+  transcription: boolean
+  grammarCorrection: boolean
+}
+
 function ensureInferenceClient(
   inferenceClientRef: { current: InferenceClient | null },
+  inFlightFlagsRef: { current: InferenceInFlightFlags },
   setTranscriptionStatus: Dispatch<SetStateAction<TranscriptionUiStatus>>,
   setModelLoadingProgressPercent: Dispatch<SetStateAction<number>>,
   setGrammarCorrectionStatus: Dispatch<SetStateAction<GrammarCorrectionUiStatus>>,
@@ -53,13 +60,24 @@ function ensureInferenceClient(
   })
   inferenceClient.subscribeToModelReady((readyMessage) => {
     if (readyMessage.modelKey === 'automaticSpeechRecognition') {
-      setTranscriptionStatus((currentStatus) =>
-        currentStatus === 'loading-model' ? 'transcribing' : currentStatus,
-      )
+      setModelLoadingProgressPercent(100)
+      setTranscriptionStatus((currentStatus) => {
+        if (currentStatus !== 'loading-model') {
+          return currentStatus
+        }
+        // Active stop→ASR path vs warm preload while idle.
+        return inFlightFlagsRef.current.transcription ? 'transcribing' : 'idle'
+      })
     } else if (readyMessage.modelKey === 'grammarCorrection') {
-      setGrammarCorrectionStatus((currentStatus) =>
-        currentStatus === 'loading-model' ? 'correcting-grammar' : currentStatus,
-      )
+      setGrammarModelLoadingProgressPercent(100)
+      setGrammarCorrectionStatus((currentStatus) => {
+        if (currentStatus !== 'loading-model') {
+          return currentStatus
+        }
+        return inFlightFlagsRef.current.grammarCorrection
+          ? 'correcting-grammar'
+          : 'idle'
+      })
     }
   })
   inferenceClientRef.current = inferenceClient
@@ -94,6 +112,10 @@ export function useHomeScreenSession(): HomeScreenProps {
   const captureSessionRef = useRef<MicrophoneCaptureSession | null>(null)
   const stopWaveformAnimationRef = useRef<(() => void) | null>(null)
   const inferenceClientRef = useRef<InferenceClient | null>(null)
+  const inferenceInFlightFlagsRef = useRef<InferenceInFlightFlags>({
+    transcription: false,
+    grammarCorrection: false,
+  })
   const captureAttemptGenerationRef = useRef(0)
   const transcriptionAttemptGenerationRef = useRef(0)
 
@@ -125,6 +147,7 @@ export function useHomeScreenSession(): HomeScreenProps {
         return
       }
 
+      inferenceInFlightFlagsRef.current.grammarCorrection = true
       setGrammarCorrectionStatus('correcting-grammar')
       setGrammarCorrectionErrorReason(null)
 
@@ -143,6 +166,10 @@ export function useHomeScreenSession(): HomeScreenProps {
         setGrammarCorrectionErrorReason(reason)
         setGrammarCorrectionStatus('error')
         console.error(error)
+      } finally {
+        if (attemptGeneration === transcriptionAttemptGenerationRef.current) {
+          inferenceInFlightFlagsRef.current.grammarCorrection = false
+        }
       }
     },
     [],
@@ -179,6 +206,7 @@ export function useHomeScreenSession(): HomeScreenProps {
 
       const inferenceClient = ensureInferenceClient(
         inferenceClientRef,
+        inferenceInFlightFlagsRef,
         setTranscriptionStatus,
         setModelLoadingProgressPercent,
         setGrammarCorrectionStatus,
@@ -186,6 +214,7 @@ export function useHomeScreenSession(): HomeScreenProps {
       )
 
       const attemptGeneration = (transcriptionAttemptGenerationRef.current += 1)
+      inferenceInFlightFlagsRef.current.transcription = true
       setTranscriptionStatus('transcribing')
       setNoAudioReason(null)
       setTranscriptionErrorReason(null)
@@ -199,11 +228,26 @@ export function useHomeScreenSession(): HomeScreenProps {
           return
         }
 
+        const audioDurationSeconds = samples16kHz.length / 16000
         if (isNonSpeechTranscript(transcribedTextResult)) {
           setTranscriptionStatus('no-audio')
           setNoAudioReason({
             kind: 'non-speech',
             whisperRawText: transcribedTextResult || '(vacío)',
+          })
+          setTranscribedText('')
+          setTranscriptionErrorReason(null)
+          setGrammarCorrectionStatus('idle')
+          setCorrectedGrammarText('')
+          setGrammarCorrectionErrorReason(null)
+          return
+        }
+
+        if (isDegenerateTranscript(transcribedTextResult, audioDurationSeconds)) {
+          setTranscriptionStatus('no-audio')
+          setNoAudioReason({
+            kind: 'degenerate',
+            previewText: transcribedTextResult.slice(0, 80),
           })
           setTranscribedText('')
           setTranscriptionErrorReason(null)
@@ -224,6 +268,10 @@ export function useHomeScreenSession(): HomeScreenProps {
         setTranscriptionErrorReason(reason)
         setTranscriptionStatus('error')
         console.error(error)
+      } finally {
+        if (attemptGeneration === transcriptionAttemptGenerationRef.current) {
+          inferenceInFlightFlagsRef.current.transcription = false
+        }
       }
     },
     [correctTranscribedGrammar],
@@ -346,6 +394,30 @@ export function useHomeScreenSession(): HomeScreenProps {
     return () => {
       inferenceClientRef.current?.dispose()
       inferenceClientRef.current = null
+    }
+  }, [])
+
+  // Warm-load Whisper + T5 as soon as the home screen mounts so the first
+  // stop pays inference time (~goal <2s), not the multi-file Hub download.
+  useEffect(() => {
+    const inferenceClient = ensureInferenceClient(
+      inferenceClientRef,
+      inferenceInFlightFlagsRef,
+      setTranscriptionStatus,
+      setModelLoadingProgressPercent,
+      setGrammarCorrectionStatus,
+      setGrammarModelLoadingProgressPercent,
+    )
+
+    let cancelled = false
+    void inferenceClient.preloadModels().catch((error: unknown) => {
+      if (!cancelled) {
+        console.warn('Background model preload failed; will retry on first use.', error)
+      }
+    })
+
+    return () => {
+      cancelled = true
     }
   }, [])
 

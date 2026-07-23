@@ -33,6 +33,7 @@ export type NoAudioReason =
   | { readonly kind: 'empty-recording' }
   | { readonly kind: 'low-energy'; readonly diagnostics: CaptureDiagnostics }
   | { readonly kind: 'non-speech'; readonly whisperRawText: string }
+  | { readonly kind: 'degenerate'; readonly previewText: string }
   | { readonly kind: 'generic' }
 
 /** Grammar-correction status (second pipeline stage, post-ASR). */
@@ -98,6 +99,10 @@ function noAudioStatusMessageFor(noAudioReason: NoAudioReason | null): string {
     case 'non-speech':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.noAudioNonSpeech(
         noAudioReason.whisperRawText,
+      )
+    case 'degenerate':
+      return homeScreenInterfaceTexts.transcriptionStatusMessages.noAudioDegenerate(
+        noAudioReason.previewText,
       )
     case 'generic':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.noAudioCaptured
