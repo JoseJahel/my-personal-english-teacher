@@ -20,11 +20,21 @@ export interface CorrectGrammarRequestMessage {
   readonly inputText: string
 }
 
-export type InferenceWorkerRequestMessage = TranscribeRequestMessage | CorrectGrammarRequestMessage
+/** Warm-load ASR + grammar so first stop does not pay the full download cost. */
+export interface PreloadModelsRequestMessage {
+  readonly type: 'preload-models'
+  readonly requestId: string
+}
+
+export type InferenceWorkerRequestMessage =
+  | TranscribeRequestMessage
+  | CorrectGrammarRequestMessage
+  | PreloadModelsRequestMessage
 
 export interface ModelLoadingProgressMessage {
   readonly type: 'model-loading-progress'
   readonly modelKey: ModelRegistryKey
+  /** Overall 0–100 across all files of this model (monotonic within a load). */
   readonly progressPercent: number
   readonly fileName: string
 }
@@ -66,6 +76,19 @@ export interface GrammarCorrectionErrorMessage {
   readonly reason: GrammarCorrectionErrorReason
 }
 
+export type PreloadModelsErrorReason = 'model-load-failed'
+
+export interface PreloadModelsResultMessage {
+  readonly type: 'preload-models-result'
+  readonly requestId: string
+}
+
+export interface PreloadModelsErrorMessage {
+  readonly type: 'preload-models-error'
+  readonly requestId: string
+  readonly reason: PreloadModelsErrorReason
+}
+
 export type InferenceWorkerResponseMessage =
   | ModelLoadingProgressMessage
   | ModelReadyMessage
@@ -73,3 +96,5 @@ export type InferenceWorkerResponseMessage =
   | TranscriptionErrorMessage
   | GrammarCorrectionResultMessage
   | GrammarCorrectionErrorMessage
+  | PreloadModelsResultMessage
+  | PreloadModelsErrorMessage

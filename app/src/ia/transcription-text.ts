@@ -38,3 +38,61 @@ export function isNonSpeechTranscript(transcribedText: string): boolean {
 
   return false
 }
+
+/**
+ * True when the model emitted pathological garbage (token loops, absurd length).
+ * Seen with broken WebGPU/quantization runs: "biasesVIDEO" × N, etc.
+ */
+export function isDegenerateTranscript(
+  transcribedText: string,
+  audioDurationSeconds?: number,
+): boolean {
+  const trimmed = transcribedText.trim()
+  if (trimmed.length === 0) {
+    return false
+  }
+
+  // Far too long for a short practice utterance (characters vs seconds).
+  if (audioDurationSeconds !== undefined && audioDurationSeconds > 0) {
+    const generousMaxCharacters = Math.max(120, Math.ceil(audioDurationSeconds * 40))
+    if (trimmed.length > generousMaxCharacters) {
+      return true
+    }
+  } else if (trimmed.length > 800) {
+    // Hard cap when duration is unknown (UI safety).
+    return true
+  }
+
+  // Same whitespace-delimited token repeated many times in a row.
+  if (/(\S{1,48})(?:\s+\1){6,}/u.test(trimmed)) {
+    return true
+  }
+
+  // Compact substring loop without spaces: "biasesVIDEO" × N, "bidmie" × N.
+  const compact = trimmed.replace(/\s+/g, '')
+  if (compact.length >= 24 && /(.{3,40})\1{5,}/u.test(compact)) {
+    return true
+  }
+
+  // Many words but almost no vocabulary diversity.
+  const words = trimmed.toLowerCase().match(/[a-z0-9']+/g) ?? []
+  if (words.length >= 24) {
+    const uniqueCount = new Set(words).size
+    if (uniqueCount / words.length < 0.12) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/** Non-speech tags or degenerate generation — do not show or send to grammar. */
+export function isUnusableTranscript(
+  transcribedText: string,
+  audioDurationSeconds?: number,
+): boolean {
+  return (
+    isNonSpeechTranscript(transcribedText) ||
+    isDegenerateTranscript(transcribedText, audioDurationSeconds)
+  )
+}

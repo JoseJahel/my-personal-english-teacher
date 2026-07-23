@@ -1,6 +1,6 @@
 /**
  * T5 grammar-correction adapter for transformers.js (runs inside the worker).
- * WebGPU with WASM fallback, same pattern as ASR.
+ * Device-aware dtype (fp32 WebGPU / q8 WASM), same pattern as ASR.
  */
 
 import { pipeline } from '@huggingface/transformers'
@@ -11,39 +11,37 @@ import type {
   Text2TextGenerationSingle,
 } from '@huggingface/transformers'
 import { modelRegistry } from './model-registry'
+import { onnxDtypeForDevice } from './onnx-dtype'
+import type { OnnxInferenceDevice } from './resolve-inference-device'
+import { isDegenerateTranscript } from './transcription-text'
 
 export type ModelDownloadProgressCallback = NonNullable<PretrainedModelOptions['progress_callback']>
 
-const MAX_NEW_TOKENS_FOR_GRAMMAR_CORRECTION = 128
+/** Loads (or reuses cached) T5 text2text pipeline from the model registry. */
+export async function loadGrammarCorrector(
+  device: OnnxInferenceDevice,
+  onProgress?: ModelDownloadProgressCallback,
+): Promise<Text2TextGenerationPipeline> {
+  const { huggingFaceModelId, revision } = modelRegistry.grammarCorrection
+  const dtype = onnxDtypeForDevice(device)
+
+  return pipeline<'text2text-generation'>('text2text-generation', huggingFaceModelId, {
+    revision,
+    device,
+    dtype,
+    progress_callback: onProgress,
+  })
+}
 
 /** Prefix required by vennify/t5-base-grammar-correction (and its ONNX port). */
 export function buildGrammarCorrectionInput(rawEnglishText: string): string {
   return `grammar: ${rawEnglishText.trim()}`
 }
 
-/** Loads (or reuses cached) T5 text2text pipeline from the model registry. */
-export async function loadGrammarCorrector(
-  onProgress?: ModelDownloadProgressCallback,
-): Promise<Text2TextGenerationPipeline> {
-  const { huggingFaceModelId, revision } = modelRegistry.grammarCorrection
-
-  try {
-    return await pipeline<'text2text-generation'>('text2text-generation', huggingFaceModelId, {
-      revision,
-      device: 'webgpu',
-      progress_callback: onProgress,
-    })
-  } catch (webgpuError) {
-    console.warn(
-      'Grammar pipeline could not start with WebGPU; retrying with WASM.',
-      webgpuError,
-    )
-    return pipeline<'text2text-generation'>('text2text-generation', huggingFaceModelId, {
-      revision,
-      device: 'wasm',
-      progress_callback: onProgress,
-    })
-  }
+/** Scale generation budget with input length; avoid long token loops. */
+export function maxNewTokensForGrammarInput(englishText: string): number {
+  const wordCount = englishText.trim().split(/\s+/).filter(Boolean).length
+  return Math.min(48, Math.max(12, wordCount * 2 + 8))
 }
 
 function firstText2TextGenerationResult(
@@ -53,16 +51,30 @@ function firstText2TextGenerationResult(
   return Array.isArray(firstElement) ? firstElement[0] : firstElement
 }
 
-/** Runs grammar correction on English text with a loaded pipeline. */
+/**
+ * Runs grammar correction on English text with a loaded pipeline.
+ * If the model emits a degenerate loop, returns the original text unchanged.
+ */
 export async function correctEnglishGrammar(
   corrector: Text2TextGenerationPipeline,
   englishText: string,
 ): Promise<string> {
-  const output = await corrector(buildGrammarCorrectionInput(englishText), {
-    max_new_tokens: MAX_NEW_TOKENS_FOR_GRAMMAR_CORRECTION,
+  const trimmedInput = englishText.trim()
+  if (!trimmedInput) {
+    return ''
+  }
+
+  const output = await corrector(buildGrammarCorrectionInput(trimmedInput), {
+    max_new_tokens: maxNewTokensForGrammarInput(trimmedInput),
   })
   const result = firstText2TextGenerationResult(output)
-  return result?.generated_text ?? ''
+  const generatedText = (result?.generated_text ?? '').trim()
+
+  if (!generatedText || isDegenerateTranscript(generatedText)) {
+    return trimmedInput
+  }
+
+  return generatedText
 }
 
 function normalizeEnglishTextForComparison(text: string): string {

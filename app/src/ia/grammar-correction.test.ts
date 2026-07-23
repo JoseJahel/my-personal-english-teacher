@@ -52,12 +52,22 @@ describe('correctEnglishGrammar', () => {
     )
   })
 
-  it('returns an empty string when the pipeline yields no results', async () => {
+  it('returns the original text when the pipeline yields no results', async () => {
     const fakeCorrector = vi.fn().mockResolvedValue([]) as unknown as Text2TextGenerationPipeline
 
     const correctedText = await correctEnglishGrammar(fakeCorrector, 'He go to school')
 
-    expect(correctedText).toBe('')
+    expect(correctedText).toBe('He go to school')
+  })
+
+  it('returns the original text when the model emits a degenerate loop', async () => {
+    const fakeCorrector = vi
+      .fn()
+      .mockResolvedValue([{ generated_text: 'bidmie'.repeat(40) }]) as unknown as Text2TextGenerationPipeline
+
+    const correctedText = await correctEnglishGrammar(fakeCorrector, 'She like apples')
+
+    expect(correctedText).toBe('She like apples')
   })
 })
 

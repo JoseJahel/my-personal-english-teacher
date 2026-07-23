@@ -40,11 +40,13 @@ export const homeScreenInterfaceTexts = {
       `La señal es demasiado débil para ser habla clara (RMS ${rmsEnergy.toFixed(4)}, pico ${peakAmplitude.toFixed(4)}, mic: "${deviceLabel || 'desconocido'}"). Acércate al micrófono, habla más alto 3–5 segundos en inglés y revisa el dispositivo de entrada de Windows.`,
     noAudioNonSpeech: (whisperRawText: string) =>
       `El modelo oyó audio pero no lo interpretó como habla en inglés (respondió: "${whisperRawText}"). Suele pasar con ruido/ambiente o si la voz llega muy distorsionada. Habla más cerca, en inglés, 3–5 segundos, sin música de fondo.`,
+    noAudioDegenerate: (previewText: string) =>
+      `El motor de voz produjo texto inválido (alucinación), no una frase en inglés. Vista previa: "${previewText}…". Recarga la página y vuelve a intentar hablando claro 3–5 s en inglés. Si se repite, borra los datos del sitio en Chrome (caché de modelos) y recarga.`,
     noAudioCaptured:
       'No se reconoció habla clara en inglés. Habla cerca del micrófono (comprueba que Windows use el micrófono correcto y que no esté silenciado) e inténtalo de nuevo.',
     modelLoadingProgressMessage: (progressPercent: number) =>
-      `Descargando el modelo de reconocimiento de voz... ${progressPercent}%`,
-    transcribing: 'Transcribiendo audio...',
+      `Preparando reconocimiento de voz (solo la primera vez o al actualizar el modelo)... ${progressPercent}%`,
+    transcribing: 'Transcribiendo audio (modelo ya cargado)...',
     done: 'Transcripción lista.',
   },
   /** Technical capture stats shown under the transcription panel when capture fails. */
@@ -79,8 +81,8 @@ export const homeScreenInterfaceTexts = {
   grammarCorrectionStatusMessages: {
     idle: 'Esperando la transcripción para corregir la gramática.',
     modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
-      `Descargando el modelo de ${modelDisplayName}... ${progressPercent}%`,
-    correcting: 'Corrigiendo gramática...',
+      `Preparando ${modelDisplayName} (solo la primera vez o al actualizar el modelo)... ${progressPercent}%`,
+    correcting: 'Corrigiendo gramática (modelo ya cargado)...',
     done: 'Corrección lista.',
     noCorrectionsNeeded:
       'No se encontraron correcciones: la oración ya es gramaticalmente correcta.',
