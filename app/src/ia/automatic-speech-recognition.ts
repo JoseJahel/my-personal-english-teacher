@@ -89,7 +89,16 @@ export async function transcribeAudioSamples(
   recognizer: AutomaticSpeechRecognitionPipeline,
   samples16kHz: Float32Array,
 ): Promise<string> {
-  const output = await recognizer(samples16kHz)
+  // El Float32Array ya viene a 16 kHz (ver `resampleToWhisperRate`).
+  // NO se pasan `language` ni `task`: `whisper-tiny.en` es solo-inglés y
+  // transformers.js lanza si se intentan fijar. `chunk_length_s` parte
+  // grabaciones largas en tramos que Whisper maneja bien (~30 s).
+  const output = await recognizer(samples16kHz, {
+    chunk_length_s: 30,
+    stride_length_s: 5,
+  })
   const result = Array.isArray(output) ? output[0] : output
-  return result?.text ?? ''
+  // Whisper a veces devuelve el texto con un espacio inicial; se recorta para
+  // que la UI y la etapa de gramática no trabajen con padding artificial.
+  return (result?.text ?? '').trim()
 }

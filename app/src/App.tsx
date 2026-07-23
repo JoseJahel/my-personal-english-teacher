@@ -3,6 +3,7 @@ import { MicrophoneCaptureError, startMicrophoneCapture } from './audio/micropho
 import type { MicrophoneCaptureSession } from './audio/microphone-capture'
 import { concatenateAudioFrames } from './audio/audio-frame-buffer'
 import { resampleToWhisperRate } from './audio/audio-resampler'
+import { computeRootMeanSquareEnergy } from './dsp/signal-energy'
 import { createInferenceClient, InferenceClientError } from './ia/inference-client'
 import type { InferenceClient, InferenceClientErrorReason } from './ia/inference-client'
 import { grammarCorrectionMadeNoChanges } from './ia/grammar-correction'
@@ -24,13 +25,20 @@ type MicrophoneUiStatus =
  * corriendo en el worker después de que la captura ya se detuvo.
  *
  * - `'idle'`: todavía no se detuvo ninguna captura con audio para transcribir.
+ * - `'no-audio'`: la captura se detuvo pero no llegó ninguna muestra útil.
  * - `'loading-model'`: el worker está descargando el modelo de Whisper (solo
  *   ocurre en el primer uso; los siguientes reutilizan el modelo en caché).
  * - `'transcribing'`: el modelo ya está listo y la inferencia está en curso.
  * - `'done'`: la transcripción terminó con éxito (ver `transcribedText`).
  * - `'error'`: la transcripción falló (ver `transcriptionErrorReason`).
  */
-type TranscriptionUiStatus = 'idle' | 'loading-model' | 'transcribing' | 'done' | 'error'
+type TranscriptionUiStatus =
+  | 'idle'
+  | 'no-audio'
+  | 'loading-model'
+  | 'transcribing'
+  | 'done'
+  | 'error'
 
 /**
  * Estados posibles de la corrección gramatical (segunda etapa del pipeline,
@@ -51,6 +59,13 @@ type GrammarCorrectionUiStatus = 'idle' | 'loading-model' | 'correcting-grammar'
 
 const WAVEFORM_BACKGROUND_COLOR = '#1e1e1e'
 const WAVEFORM_LINE_COLOR = '#2ecc71'
+/**
+ * Umbral de energía RMS por debajo del cual la captura se considera silencio
+ * (mic mudo, AudioContext sin correr, o el usuario no habló). Por debajo de
+ * este valor no tiene sentido mandar el audio a Whisper: solo gasta tiempo de
+ * descarga/inferencia y devuelve basura tipo "[Music]" o vacío.
+ */
+const MINIMUM_CAPTURE_ENERGY_RMS = 0.001
 
 /**
  * Traduce el estado de captura al mensaje de estado que debe mostrarse,
@@ -109,6 +124,8 @@ function transcriptionStatusMessageFor(
   switch (status) {
     case 'idle':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.idle
+    case 'no-audio':
+      return homeScreenInterfaceTexts.transcriptionStatusMessages.noAudioCaptured
     case 'loading-model':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.modelLoadingProgressMessage(
         modelLoadingProgressPercent,
@@ -367,19 +384,26 @@ export function App() {
    * (`correctTranscribedGrammar`), siguiendo el flujo post-utterance del
    * curso (ASR → gramática).
    *
-   * Limitación conocida: mientras un modelo se descarga (primer uso), el
-   * estado de esa etapa pasa a `'loading-model'` con el progreso de
-   * descarga; una vez que termina de descargar no hay un evento explícito de
-   * "listo", así que el estado permanece en `'loading-model'` (con el
-   * último porcentaje reportado) durante el tramo de inferencia propiamente
-   * dicho, hasta que llega el resultado. Se acepta como suficiente para el
-   * prototipo del Avance 1: ese tramo es breve comparado con la descarga del
-   * modelo.
+   * Mientras un modelo se descarga (primer uso), el estado de esa etapa
+   * pasa a `'loading-model'` con el progreso de descarga. Cuando el worker
+   * termina de cargar el modelo emite `'model-ready'` y la UI vuelve a
+   * `'transcribing'` / `'correcting-grammar'` para la inferencia propiamente
+   * dicha (ver `subscribeToModelReady` más abajo).
    */
   const transcribeCapturedAudio = useCallback(
     async (frames: Float32Array[], nativeSampleRate: number) => {
       const concatenatedSamples = concatenateAudioFrames(frames)
-      if (concatenatedSamples.length === 0) {
+      const captureEnergyRms = computeRootMeanSquareEnergy(concatenatedSamples)
+      if (concatenatedSamples.length === 0 || captureEnergyRms < MINIMUM_CAPTURE_ENERGY_RMS) {
+        // Sin muestras o solo silencio (p. ej. AudioContext suspendido antes
+        // del fix de resume, mic mudo, o el usuario no habló). No se llama al
+        // worker: el mensaje de idle "Detén el micrófono..." ya no aplica.
+        setTranscriptionStatus('no-audio')
+        setTranscribedText('')
+        setTranscriptionErrorReason(null)
+        setGrammarCorrectionStatus('idle')
+        setCorrectedGrammarText('')
+        setGrammarCorrectionErrorReason(null)
         return
       }
       const samples16kHz = resampleToWhisperRate(concatenatedSamples, nativeSampleRate)
@@ -393,6 +417,25 @@ export function App() {
           } else if (progressMessage.modelKey === 'grammarCorrection') {
             setGrammarCorrectionStatus('loading-model')
             setGrammarModelLoadingProgressPercent(progressMessage.progressPercent)
+          }
+        })
+        // Cuando el worker termina de cargar un modelo, sale de
+        // "Descargando... X%" y muestra el estado de inferencia activo.
+        // Sin este aviso, la UI se queda en "Descargando... 100%" durante
+        // todo el tramo de inferencia (limitación que antes se aceptaba
+        // como suficiente para el prototipo).
+        inferenceClient.subscribeToModelReady((readyMessage) => {
+          // Solo se actualiza si la UI sigue en 'loading-model': evita pisar
+          // un 'done'/'error' de un intento más reciente si el aviso de
+          // "modelo listo" llega tarde (modelos cacheados o generación nueva).
+          if (readyMessage.modelKey === 'automaticSpeechRecognition') {
+            setTranscriptionStatus((currentStatus) =>
+              currentStatus === 'loading-model' ? 'transcribing' : currentStatus,
+            )
+          } else if (readyMessage.modelKey === 'grammarCorrection') {
+            setGrammarCorrectionStatus((currentStatus) =>
+              currentStatus === 'loading-model' ? 'correcting-grammar' : currentStatus,
+            )
           }
         })
         inferenceClientRef.current = inferenceClient

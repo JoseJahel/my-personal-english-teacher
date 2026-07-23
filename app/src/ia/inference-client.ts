@@ -12,6 +12,7 @@ import type {
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   ModelLoadingProgressMessage,
+  ModelReadyMessage,
   TranscriptionErrorReason,
 } from './inference-worker-protocol'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
@@ -49,6 +50,12 @@ export type ModelLoadingProgressListener = (message: ModelLoadingProgressMessage
 /** Función que cancela una suscripción previa a `subscribeToModelLoadingProgress`. */
 export type UnsubscribeFromModelLoadingProgress = () => void
 
+/** Función que recibe el aviso de que un modelo ya terminó de cargar. */
+export type ModelReadyListener = (message: ModelReadyMessage) => void
+
+/** Función que cancela una suscripción previa a `subscribeToModelReady`. */
+export type UnsubscribeFromModelReady = () => void
+
 /** Cliente del worker de inferencia, devuelto por `createInferenceClient`. */
 export interface InferenceClient {
   /**
@@ -71,6 +78,13 @@ export interface InferenceClient {
   subscribeToModelLoadingProgress: (
     listener: ModelLoadingProgressListener,
   ) => UnsubscribeFromModelLoadingProgress
+  /**
+   * Suscribe un listener al evento de "modelo listo" (descarga e
+   * inicialización terminadas). Sirve para que la UI pase de
+   * "Descargando..." a "Transcribiendo..." / "Corrigiendo..." sin quedarse
+   * congelada en el último porcentaje de descarga.
+   */
+  subscribeToModelReady: (listener: ModelReadyListener) => UnsubscribeFromModelReady
   /**
    * Termina el Worker y rechaza cualquier solicitud pendiente (transcripción
    * o corrección gramatical) con `InferenceClientError('worker-unavailable',
@@ -102,6 +116,7 @@ export function createInferenceClient(): InferenceClient {
 
   const pendingRequests = new Map<string, PendingInferenceRequest>()
   const progressListeners = new Set<ModelLoadingProgressListener>()
+  const modelReadyListeners = new Set<ModelReadyListener>()
   let isDisposed = false
 
   worker.addEventListener('message', (event: MessageEvent<InferenceWorkerResponseMessage>) => {
@@ -110,6 +125,11 @@ export function createInferenceClient(): InferenceClient {
     switch (message.type) {
       case 'model-loading-progress':
         for (const listener of progressListeners) {
+          listener(message)
+        }
+        break
+      case 'model-ready':
+        for (const listener of modelReadyListeners) {
           listener(message)
         }
         break
@@ -221,6 +241,13 @@ export function createInferenceClient(): InferenceClient {
     }
   }
 
+  function subscribeToModelReady(listener: ModelReadyListener): UnsubscribeFromModelReady {
+    modelReadyListeners.add(listener)
+    return () => {
+      modelReadyListeners.delete(listener)
+    }
+  }
+
   function dispose(): void {
     if (isDisposed) {
       return
@@ -236,9 +263,16 @@ export function createInferenceClient(): InferenceClient {
     }
     pendingRequests.clear()
     progressListeners.clear()
+    modelReadyListeners.clear()
 
     worker.terminate()
   }
 
-  return { transcribe, correctGrammar, subscribeToModelLoadingProgress, dispose }
+  return {
+    transcribe,
+    correctGrammar,
+    subscribeToModelLoadingProgress,
+    subscribeToModelReady,
+    dispose,
+  }
 }

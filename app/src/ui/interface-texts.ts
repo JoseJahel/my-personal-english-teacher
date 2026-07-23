@@ -41,6 +41,13 @@ export const homeScreenInterfaceTexts = {
    */
   transcriptionStatusMessages: {
     idle: 'Detén el micrófono para transcribir lo que dijiste.',
+    /**
+     * Se muestra cuando la captura se detuvo pero no hubo muestras de audio
+     * para enviar al reconocedor (por ejemplo, stop inmediato antes de que
+     * el worklet entregue el primer frame).
+     */
+    noAudioCaptured:
+      'No se detectó voz en la captura. Habla más cerca del micrófono (o comprueba que no esté silenciado) e inténtalo de nuevo.',
     modelLoadingProgressMessage: (progressPercent: number) =>
       `Descargando el modelo de reconocimiento de voz... ${progressPercent}%`,
     transcribing: 'Transcribiendo audio...',
