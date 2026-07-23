@@ -3,6 +3,10 @@
 Este documento define las reglas de trabajo colaborativo para el repositorio
 **my-personal-english-teacher**, proyecto del curso Señales y Sistemas.
 
+**Código:** las prácticas, anti-patrones y límites de implementación viven en
+[`Documentacion general/REGLAS-DE-CODIGO.md`](./Documentacion%20general/REGLAS-DE-CODIGO.md).
+Léelas antes de implementar o revisar un PR. Este archivo solo cubre Git, ramas y commits.
+
 ## Equipo y ramas
 
 Cada integrante trabaja en una única rama propia, sin tildes en el nombre:
