@@ -32,11 +32,19 @@ Web Audio. El audio que va a Whisper sale del **MediaRecorder** sobre el
 | `mix-to-mono.ts` | Mezcla de canales de un `AudioBuffer` a mono |
 | `audio-resampler.ts` | Resample lineal a 16 kHz (Whisper) |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
+| `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
 | `CAPTURE-INVARIANTS.md` | Invariantes y checklist manual de mic |
+
+## VAD (Avance 2)
+
+El auto-stop al silencio no vive en un worklet: la UI empuja RMS/pico del
+`AnalyserNode` a `dsp/voice-activity-detection.ts` en cada frame de la onda.
+Tras habla mínima + hangover de silencio (~0.9 s), se invoca el mismo `stop`
+que el botón manual (MediaRecorder → pipeline).
 
 ## Previsto
 
-- `voice-activity-monitor.ts` (VAD en vivo; dominio en `dsp/`) para auto-stop
-  al final de frase.
+- Suspender captura mientras suena TTS de forma más estricta (hoy: UI bloquea
+  “iniciar mic” durante síntesis/reproducción).
 - AudioWorklet solo si el diseño futuro de DSP en tiempo real lo exige; la
   captura ASR actual **no** depende de worklets.

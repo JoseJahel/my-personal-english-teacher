@@ -8,17 +8,22 @@ están en el diseño del proyecto pero **aún no implementadas** en esta carpeta
 
 ## Estado de la app (código actual)
 
-Demo funcional de punta a punta:
+Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 
-1. Captura de micrófono real (`audio/open-microphone-stream.ts` +
+1. Elegir un **escenario guiado** (restaurante, aeropuerto, entrevista).
+2. Captura de micrófono real (`audio/open-microphone-stream.ts` +
    `audio/microphone-capture.ts`).
-2. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
-3. Al detener: MediaRecorder → decode mono → gate de energía (`dsp/`) →
-   resample 16 kHz → Whisper → filtro de tags no-habla → T5 gramática.
-4. Resultados en paneles de transcripción y corrección.
+3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
+4. Al detener: MediaRecorder → decode mono → **espectrograma + pitch track** →
+   gate de energía → resample 16 kHz → Whisper → T5 → SmolLM2 → score → TTS.
+5. **SmolLM2** genera la siguiente línea del tutor (o fallback del escenario).
+6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
+7. **TTS SpeechT5** reproduce la línea del tutor.
+8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación.
 
 Orquestación en `ui/use-home-screen-session.ts`; presentación en
-`ui/HomeScreen.tsx`; `App.tsx` solo ensambla el hook con la vista.
+`ui/HomeScreen.tsx` + `ScenarioPicker` / `PracticeChatPanel`; `App.tsx` solo
+ensambla el hook con la vista.
 
 Captura: **MediaRecorder** sobre el `MediaStream` del SO para ASR; grafo Web
 Audio solo para visualización. Detalle e invariantes:
@@ -99,11 +104,11 @@ adentro, dejando el dominio libre de detalles de infraestructura:
 
 | Capa | Rol hoy | README de capa |
 |------|---------|----------------|
-| **`ui/`** | Presentación React + orquestación de sesión (mic → ASR → gramática). Textos ES en `interface-texts.ts`. | `ui/README.md` |
-| **`ia/`** | Registry, Whisper, T5, Web Worker y cliente tipado. | `ia/README.md` |
-| **`dsp/`** | Energía / gate de habla (puro). YIN/MFCC/DTW previstos. | `dsp/README.md` |
+| **`ui/`** | Presentación React + escenarios/chat + sesión (mic → ASR → gramática → turno de chat). Textos ES en `interface-texts.ts`. | `ui/README.md` |
+| **`ia/`** | Whisper, T5, SpeechT5, SmolLM2, worker y cliente tipado. | `ia/README.md` |
+| **`dsp/`** | Energía + YIN + MFCC + DTW + score de pronunciación. | `dsp/README.md` |
 | **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample. | `audio/README.md` |
-| **`storage/`** | Reservado; IndexedDB aún no implementado. | `storage/README.md` |
+| **`storage/`** | IndexedDB: sesiones y turnos (textos/scores, sin audio). | `storage/README.md` |
 
 Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO.md`.
 
@@ -112,8 +117,7 @@ Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO
 `ia/model-registry.ts` fija la revisión de cada modelo en `'main'` durante el
 desarrollo. Antes de la Entrega Final del proyecto, cada modelo debe anclarse a
 un commit específico del Hub de Hugging Face para asegurar una build
-reproducible. Hoy solo ASR y gramática tienen adaptadores en el worker; TTS y
-sugerencias están registrados pero no cableados.
+reproducible. Hoy ASR, gramática, TTS y SmolLM2 tienen adaptadores en el worker.
 
 ## PWA y caché de modelos
 
