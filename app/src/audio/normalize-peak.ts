@@ -7,10 +7,13 @@
  */
 
 /** Do not boost signals quieter than this peak (noise floor). */
-export const MINIMUM_PEAK_FOR_NORMALIZATION = 0.03
+export const MINIMUM_PEAK_FOR_NORMALIZATION = 0.012
 
 /** Cap amplification so noise cannot be scaled hundreds of times. */
-export const MAXIMUM_NORMALIZATION_GAIN = 6
+export const MAXIMUM_NORMALIZATION_GAIN = 14
+
+/** Default target peak for Whisper (slightly below full scale). */
+export const DEFAULT_TARGET_PEAK = 0.85
 
 /**
  * Scale samples toward `targetPeak` when the current peak is below it,
@@ -19,7 +22,7 @@ export const MAXIMUM_NORMALIZATION_GAIN = 6
  */
 export function normalizePeakAmplitude(
   samples: Float32Array,
-  targetPeak: number = 0.7,
+  targetPeak: number = DEFAULT_TARGET_PEAK,
   options?: {
     readonly minimumPeakForNormalization?: number
     readonly maximumGain?: number
@@ -35,7 +38,7 @@ export function normalizePeakAmplitude(
 
   let peakAmplitude = 0
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex += 1) {
-    const absoluteValue = Math.abs(samples[sampleIndex])
+    const absoluteValue = Math.abs(samples[sampleIndex]!)
     if (absoluteValue > peakAmplitude) {
       peakAmplitude = absoluteValue
     }
@@ -58,7 +61,7 @@ export function normalizePeakAmplitude(
 
   const normalizedSamples = new Float32Array(samples.length)
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex += 1) {
-    normalizedSamples[sampleIndex] = samples[sampleIndex] * gain
+    normalizedSamples[sampleIndex] = samples[sampleIndex]! * gain
   }
   return normalizedSamples
 }
