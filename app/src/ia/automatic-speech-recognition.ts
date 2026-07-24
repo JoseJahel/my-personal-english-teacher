@@ -64,8 +64,12 @@ export async function transcribeAudioSamples(
 
   // Short practice utterances: avoid chunking (helps whisper-tiny.en quality).
   // Only chunk very long clips (>25 s) so stride logic does not mangle short speech.
+  // Greedy decoding (temperature 0, no sampling) is more stable for quiet speech.
   const generationOptions = {
     max_new_tokens: maxNewTokens,
+    temperature: 0,
+    do_sample: false,
+    return_timestamps: false as const,
     ...(durationSeconds > 25
       ? {
           chunk_length_s: 30,

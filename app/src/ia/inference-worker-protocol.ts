@@ -26,10 +26,29 @@ export interface PreloadModelsRequestMessage {
   readonly requestId: string
 }
 
+/** Synthesize speech for English text (SpeechT5). Loaded on first use — not in default preload. */
+export interface SynthesizeSpeechRequestMessage {
+  readonly type: 'synthesize-speech'
+  readonly requestId: string
+  readonly inputText: string
+}
+
+/** SmolLM2 tutor reply (hybrid scenario + generation). Loaded on first use. */
+export interface GenerateTutorReplyRequestMessage {
+  readonly type: 'generate-tutor-reply'
+  readonly requestId: string
+  readonly scenarioContextEn: string
+  readonly lastTutorLineEn: string
+  readonly userUtteranceEn: string
+  readonly fallbackReplyEn: string
+}
+
 export type InferenceWorkerRequestMessage =
   | TranscribeRequestMessage
   | CorrectGrammarRequestMessage
   | PreloadModelsRequestMessage
+  | SynthesizeSpeechRequestMessage
+  | GenerateTutorReplyRequestMessage
 
 export interface ModelLoadingProgressMessage {
   readonly type: 'model-loading-progress'
@@ -89,6 +108,37 @@ export interface PreloadModelsErrorMessage {
   readonly reason: PreloadModelsErrorReason
 }
 
+export interface SynthesizeSpeechResultMessage {
+  readonly type: 'synthesize-speech-result'
+  readonly requestId: string
+  readonly audioSamples: Float32Array
+  readonly sampleRateInHertz: number
+}
+
+export type SynthesizeSpeechErrorReason = 'model-load-failed' | 'synthesis-failed' | 'empty-text'
+
+export interface SynthesizeSpeechErrorMessage {
+  readonly type: 'synthesize-speech-error'
+  readonly requestId: string
+  readonly reason: SynthesizeSpeechErrorReason
+}
+
+export interface GenerateTutorReplyResultMessage {
+  readonly type: 'generate-tutor-reply-result'
+  readonly requestId: string
+  readonly tutorReplyText: string
+  /** True when SmolLM2 failed/empty and the scenario fallback line was used. */
+  readonly usedFallback: boolean
+}
+
+export type GenerateTutorReplyErrorReason = 'model-load-failed' | 'generation-failed'
+
+export interface GenerateTutorReplyErrorMessage {
+  readonly type: 'generate-tutor-reply-error'
+  readonly requestId: string
+  readonly reason: GenerateTutorReplyErrorReason
+}
+
 export type InferenceWorkerResponseMessage =
   | ModelLoadingProgressMessage
   | ModelReadyMessage
@@ -98,3 +148,7 @@ export type InferenceWorkerResponseMessage =
   | GrammarCorrectionErrorMessage
   | PreloadModelsResultMessage
   | PreloadModelsErrorMessage
+  | SynthesizeSpeechResultMessage
+  | SynthesizeSpeechErrorMessage
+  | GenerateTutorReplyResultMessage
+  | GenerateTutorReplyErrorMessage

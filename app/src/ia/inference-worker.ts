@@ -1,26 +1,39 @@
 /**
- * Inference Web Worker: ASR then grammar outside the main thread.
- * Lazy-loads and memoizes each pipeline; supports warm preload.
+ * Inference Web Worker: ASR, grammar, TTS, and SmolLM2 tutor replies.
+ * Lazy-loads and memoizes each pipeline; warm preload covers ASR + grammar only.
  */
 
 import type {
   AutomaticSpeechRecognitionPipeline,
   Text2TextGenerationPipeline,
+  TextGenerationPipeline,
+  TextToAudioPipeline,
 } from '@huggingface/transformers'
 import { loadSpeechRecognizer, transcribeAudioSamples } from './automatic-speech-recognition'
 import type { ModelDownloadProgressEvent as SpeechRecognitionProgressEvent } from './automatic-speech-recognition'
+import {
+  generateTutorReply,
+  loadConversationSuggestionGenerator,
+} from './conversation-suggestions'
 import { correctEnglishGrammar, loadGrammarCorrector } from './grammar-correction'
 import { AggregateModelDownloadProgress } from './model-download-progress'
 import type {
   CorrectGrammarRequestMessage,
+  GenerateTutorReplyRequestMessage,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   PreloadModelsRequestMessage,
+  SynthesizeSpeechRequestMessage,
   TranscribeRequestMessage,
 } from './inference-worker-protocol'
 import type { ModelRegistryKey } from './model-registry'
 import { resolvePreferredOnnxDevice } from './resolve-inference-device'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
+import {
+  loadTextToSpeechSynthesizer,
+  prepareTextForSpeechSynthesis,
+  synthesizeSpeechFromText,
+} from './text-to-speech-synthesis'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 
 function postResponse(message: InferenceWorkerResponseMessage): void {
@@ -139,6 +152,70 @@ function getGrammarCorrector(): Promise<Text2TextGenerationPipeline> {
   return grammarCorrectorPromise
 }
 
+let textToSpeechSynthesizerPromise: Promise<TextToAudioPipeline> | null = null
+
+async function loadTextToSpeechSynthesizerWithFallback(): Promise<TextToAudioPipeline> {
+  const device = await getPreferredDevice()
+  const onProgress = (event: SpeechRecognitionProgressEvent) =>
+    handleModelDownloadProgress('textToSpeech', event)
+  progressTrackerFor('textToSpeech').reset()
+  try {
+    return await loadTextToSpeechSynthesizer(device, onProgress)
+  } catch (error) {
+    if (device === 'wasm') {
+      throw error
+    }
+    console.warn('TTS WebGPU load failed; retrying with WASM.', error)
+    progressTrackerFor('textToSpeech').reset()
+    preferredDevicePromise = Promise.resolve('wasm')
+    return loadTextToSpeechSynthesizer('wasm', onProgress)
+  }
+}
+
+function getTextToSpeechSynthesizer(): Promise<TextToAudioPipeline> {
+  if (!textToSpeechSynthesizerPromise) {
+    textToSpeechSynthesizerPromise = loadTextToSpeechSynthesizerWithFallback().catch(
+      (error: unknown) => {
+        textToSpeechSynthesizerPromise = null
+        throw error
+      },
+    )
+  }
+  return textToSpeechSynthesizerPromise
+}
+
+let conversationGeneratorPromise: Promise<TextGenerationPipeline> | null = null
+
+async function loadConversationGeneratorWithFallback(): Promise<TextGenerationPipeline> {
+  const device = await getPreferredDevice()
+  const onProgress = (event: SpeechRecognitionProgressEvent) =>
+    handleModelDownloadProgress('conversationSuggestions', event)
+  progressTrackerFor('conversationSuggestions').reset()
+  try {
+    return await loadConversationSuggestionGenerator(device, onProgress)
+  } catch (error) {
+    if (device === 'wasm') {
+      throw error
+    }
+    console.warn('SmolLM2 WebGPU load failed; retrying with WASM.', error)
+    progressTrackerFor('conversationSuggestions').reset()
+    preferredDevicePromise = Promise.resolve('wasm')
+    return loadConversationSuggestionGenerator('wasm', onProgress)
+  }
+}
+
+function getConversationGenerator(): Promise<TextGenerationPipeline> {
+  if (!conversationGeneratorPromise) {
+    conversationGeneratorPromise = loadConversationGeneratorWithFallback().catch(
+      (error: unknown) => {
+        conversationGeneratorPromise = null
+        throw error
+      },
+    )
+  }
+  return conversationGeneratorPromise
+}
+
 async function handleTranscribeMessage(message: TranscribeRequestMessage): Promise<void> {
   const { requestId, audioSamples, sampleRate } = message
 
@@ -199,10 +276,117 @@ async function handlePreloadModelsMessage(message: PreloadModelsRequestMessage):
     emitModelReady('automaticSpeechRecognition')
     await getGrammarCorrector()
     emitModelReady('grammarCorrection')
+    // TTS and SmolLM2 are intentionally not preloaded (heavy); load on first use.
     postResponse({ type: 'preload-models-result', requestId })
   } catch (error) {
     console.error('Model preload failed.', error)
     postResponse({ type: 'preload-models-error', requestId, reason: 'model-load-failed' })
+  }
+}
+
+async function handleGenerateTutorReplyMessage(
+  message: GenerateTutorReplyRequestMessage,
+): Promise<void> {
+  const {
+    requestId,
+    scenarioContextEn,
+    lastTutorLineEn,
+    userUtteranceEn,
+    fallbackReplyEn,
+  } = message
+
+  let generator: TextGenerationPipeline
+  try {
+    generator = await getConversationGenerator()
+    emitModelReady('conversationSuggestions')
+  } catch (error) {
+    console.error('Failed to load SmolLM2 conversation model.', error)
+    // Soft-fail: still return the curated scenario line so the demo continues.
+    const fallback = fallbackReplyEn.trim()
+    if (fallback) {
+      postResponse({
+        type: 'generate-tutor-reply-result',
+        requestId,
+        tutorReplyText: fallback,
+        usedFallback: true,
+      })
+      return
+    }
+    postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'model-load-failed' })
+    return
+  }
+
+  try {
+    const result = await generateTutorReply(generator, {
+      scenarioContextEn,
+      lastTutorLineEn,
+      userUtteranceEn,
+      fallbackReplyEn,
+    })
+    postResponse({
+      type: 'generate-tutor-reply-result',
+      requestId,
+      tutorReplyText: result.tutorReplyText,
+      usedFallback: result.usedFallback,
+    })
+  } catch (error) {
+    console.error('Tutor reply generation failed.', error)
+    const fallback = fallbackReplyEn.trim()
+    if (fallback) {
+      postResponse({
+        type: 'generate-tutor-reply-result',
+        requestId,
+        tutorReplyText: fallback,
+        usedFallback: true,
+      })
+      return
+    }
+    postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'generation-failed' })
+  }
+}
+
+async function handleSynthesizeSpeechMessage(
+  message: SynthesizeSpeechRequestMessage,
+): Promise<void> {
+  const { requestId, inputText } = message
+  const preparedText = prepareTextForSpeechSynthesis(inputText)
+  if (!preparedText) {
+    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'empty-text' })
+    return
+  }
+
+  let synthesizer: TextToAudioPipeline
+  try {
+    synthesizer = await getTextToSpeechSynthesizer()
+    emitModelReady('textToSpeech')
+  } catch (error) {
+    console.error('Failed to load the text-to-speech model.', error)
+    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'model-load-failed' })
+    return
+  }
+
+  try {
+    const synthesized = await synthesizeSpeechFromText(synthesizer, preparedText)
+    if (synthesized.samples.length === 0) {
+      postResponse({ type: 'synthesize-speech-error', requestId, reason: 'synthesis-failed' })
+      return
+    }
+
+    const audioSamples = synthesized.samples
+    const response: InferenceWorkerResponseMessage = {
+      type: 'synthesize-speech-result',
+      requestId,
+      audioSamples,
+      sampleRateInHertz: synthesized.sampleRateInHertz,
+    }
+    // Transfer PCM buffer to the main thread (worker postMessage transfer list).
+    const workerScope = self as unknown as {
+      postMessage: (message: unknown, transfer: Transferable[]) => void
+    }
+    workerScope.postMessage(response, [audioSamples.buffer])
+  } catch (error) {
+    console.error('Speech synthesis failed.', error)
+    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'synthesis-failed' })
   }
 }
 
@@ -217,6 +401,12 @@ self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMess
       break
     case 'preload-models':
       void handlePreloadModelsMessage(message)
+      break
+    case 'synthesize-speech':
+      void handleSynthesizeSpeechMessage(message)
+      break
+    case 'generate-tutor-reply':
+      void handleGenerateTutorReplyMessage(message)
       break
   }
 })

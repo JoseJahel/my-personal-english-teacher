@@ -4,12 +4,14 @@
  */
 
 import type {
+  GenerateTutorReplyErrorReason,
   GrammarCorrectionErrorReason,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   ModelLoadingProgressMessage,
   ModelReadyMessage,
   PreloadModelsErrorReason,
+  SynthesizeSpeechErrorReason,
   TranscriptionErrorReason,
 } from './inference-worker-protocol'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
@@ -18,7 +20,26 @@ export type InferenceClientErrorReason =
   | TranscriptionErrorReason
   | GrammarCorrectionErrorReason
   | PreloadModelsErrorReason
+  | SynthesizeSpeechErrorReason
+  | GenerateTutorReplyErrorReason
   | 'worker-unavailable'
+
+export interface SynthesizedSpeechResult {
+  readonly samples: Float32Array
+  readonly sampleRateInHertz: number
+}
+
+export interface TutorReplyResult {
+  readonly tutorReplyText: string
+  readonly usedFallback: boolean
+}
+
+export interface GenerateTutorReplyInput {
+  readonly scenarioContextEn: string
+  readonly lastTutorLineEn: string
+  readonly userUtteranceEn: string
+  readonly fallbackReplyEn: string
+}
 
 /** First-class client error; UI maps `reason`, not free-form message text. */
 export class InferenceClientError extends Error {
@@ -40,6 +61,10 @@ export interface InferenceClient {
   /** Transfers `samples16kHz` buffer to the worker (do not read it after). */
   transcribe: (samples16kHz: Float32Array) => Promise<string>
   correctGrammar: (englishText: string) => Promise<string>
+  /** SpeechT5 TTS; loads on first call (not part of warm preload). */
+  synthesizeSpeech: (englishText: string) => Promise<SynthesizedSpeechResult>
+  /** SmolLM2 tutor reply; loads on first call; falls back to scenario line on soft failure. */
+  generateTutorReply: (input: GenerateTutorReplyInput) => Promise<TutorReplyResult>
   /** Warm-load Whisper + T5 in the worker (progress events still fire). */
   preloadModels: () => Promise<void>
   subscribeToModelLoadingProgress: (
@@ -50,8 +75,18 @@ export interface InferenceClient {
   dispose: () => void
 }
 
-interface PendingInferenceRequest {
+interface PendingTextRequest {
   resolve: (resultText: string) => void
+  reject: (error: InferenceClientError) => void
+}
+
+interface PendingSpeechRequest {
+  resolve: (result: SynthesizedSpeechResult) => void
+  reject: (error: InferenceClientError) => void
+}
+
+interface PendingTutorReplyRequest {
+  resolve: (result: TutorReplyResult) => void
   reject: (error: InferenceClientError) => void
 }
 
@@ -66,7 +101,9 @@ export function createInferenceClient(): InferenceClient {
     type: 'module',
   })
 
-  const pendingRequests = new Map<string, PendingInferenceRequest>()
+  const pendingTextRequests = new Map<string, PendingTextRequest>()
+  const pendingSpeechRequests = new Map<string, PendingSpeechRequest>()
+  const pendingTutorReplyRequests = new Map<string, PendingTutorReplyRequest>()
   const pendingVoidRequests = new Map<string, PendingVoidRequest>()
   const progressListeners = new Set<ModelLoadingProgressListener>()
   const modelReadyListeners = new Set<ModelReadyListener>()
@@ -87,11 +124,11 @@ export function createInferenceClient(): InferenceClient {
         }
         break
       case 'transcription-result':
-        pendingRequests.get(message.requestId)?.resolve(message.transcribedText)
-        pendingRequests.delete(message.requestId)
+        pendingTextRequests.get(message.requestId)?.resolve(message.transcribedText)
+        pendingTextRequests.delete(message.requestId)
         break
       case 'transcription-error':
-        pendingRequests
+        pendingTextRequests
           .get(message.requestId)
           ?.reject(
             new InferenceClientError(
@@ -99,14 +136,14 @@ export function createInferenceClient(): InferenceClient {
               `Transcription failed with reason '${message.reason}'.`,
             ),
           )
-        pendingRequests.delete(message.requestId)
+        pendingTextRequests.delete(message.requestId)
         break
       case 'grammar-correction-result':
-        pendingRequests.get(message.requestId)?.resolve(message.correctedText)
-        pendingRequests.delete(message.requestId)
+        pendingTextRequests.get(message.requestId)?.resolve(message.correctedText)
+        pendingTextRequests.delete(message.requestId)
         break
       case 'grammar-correction-error':
-        pendingRequests
+        pendingTextRequests
           .get(message.requestId)
           ?.reject(
             new InferenceClientError(
@@ -114,7 +151,43 @@ export function createInferenceClient(): InferenceClient {
               `Grammar correction failed with reason '${message.reason}'.`,
             ),
           )
-        pendingRequests.delete(message.requestId)
+        pendingTextRequests.delete(message.requestId)
+        break
+      case 'synthesize-speech-result':
+        pendingSpeechRequests.get(message.requestId)?.resolve({
+          samples: message.audioSamples,
+          sampleRateInHertz: message.sampleRateInHertz,
+        })
+        pendingSpeechRequests.delete(message.requestId)
+        break
+      case 'synthesize-speech-error':
+        pendingSpeechRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `Speech synthesis failed with reason '${message.reason}'.`,
+            ),
+          )
+        pendingSpeechRequests.delete(message.requestId)
+        break
+      case 'generate-tutor-reply-result':
+        pendingTutorReplyRequests.get(message.requestId)?.resolve({
+          tutorReplyText: message.tutorReplyText,
+          usedFallback: message.usedFallback,
+        })
+        pendingTutorReplyRequests.delete(message.requestId)
+        break
+      case 'generate-tutor-reply-error':
+        pendingTutorReplyRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `Tutor reply generation failed with reason '${message.reason}'.`,
+            ),
+          )
+        pendingTutorReplyRequests.delete(message.requestId)
         break
       case 'preload-models-result':
         pendingVoidRequests.get(message.requestId)?.resolve()
@@ -135,16 +208,23 @@ export function createInferenceClient(): InferenceClient {
   })
 
   worker.addEventListener('error', (event: ErrorEvent) => {
-    // Worker-level failures have no requestId: reject every pending request.
     const workerError = new InferenceClientError(
       'worker-unavailable',
       'Inference worker terminated unexpectedly.',
       { cause: event.error },
     )
-    for (const pendingRequest of pendingRequests.values()) {
+    for (const pendingRequest of pendingTextRequests.values()) {
       pendingRequest.reject(workerError)
     }
-    pendingRequests.clear()
+    pendingTextRequests.clear()
+    for (const pendingRequest of pendingSpeechRequests.values()) {
+      pendingRequest.reject(workerError)
+    }
+    pendingSpeechRequests.clear()
+    for (const pendingRequest of pendingTutorReplyRequests.values()) {
+      pendingRequest.reject(workerError)
+    }
+    pendingTutorReplyRequests.clear()
     for (const pendingRequest of pendingVoidRequests.values()) {
       pendingRequest.reject(workerError)
     }
@@ -170,7 +250,7 @@ export function createInferenceClient(): InferenceClient {
     const requestId = crypto.randomUUID()
 
     return new Promise<string>((resolve, reject) => {
-      pendingRequests.set(requestId, { resolve, reject })
+      pendingTextRequests.set(requestId, { resolve, reject })
 
       const message: InferenceWorkerRequestMessage = {
         type: 'transcribe',
@@ -192,12 +272,57 @@ export function createInferenceClient(): InferenceClient {
     const requestId = crypto.randomUUID()
 
     return new Promise<string>((resolve, reject) => {
-      pendingRequests.set(requestId, { resolve, reject })
+      pendingTextRequests.set(requestId, { resolve, reject })
 
       const message: InferenceWorkerRequestMessage = {
         type: 'correct-grammar',
         requestId,
         inputText: englishText,
+      }
+
+      worker.postMessage(message)
+    })
+  }
+
+  function synthesizeSpeech(englishText: string): Promise<SynthesizedSpeechResult> {
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
+    }
+
+    const requestId = crypto.randomUUID()
+
+    return new Promise<SynthesizedSpeechResult>((resolve, reject) => {
+      pendingSpeechRequests.set(requestId, { resolve, reject })
+
+      const message: InferenceWorkerRequestMessage = {
+        type: 'synthesize-speech',
+        requestId,
+        inputText: englishText,
+      }
+
+      worker.postMessage(message)
+    })
+  }
+
+  function generateTutorReply(input: GenerateTutorReplyInput): Promise<TutorReplyResult> {
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
+    }
+
+    const requestId = crypto.randomUUID()
+
+    return new Promise<TutorReplyResult>((resolve, reject) => {
+      pendingTutorReplyRequests.set(requestId, { resolve, reject })
+
+      const message: InferenceWorkerRequestMessage = {
+        type: 'generate-tutor-reply',
+        requestId,
+        scenarioContextEn: input.scenarioContextEn,
+        lastTutorLineEn: input.lastTutorLineEn,
+        userUtteranceEn: input.userUtteranceEn,
+        fallbackReplyEn: input.fallbackReplyEn,
       }
 
       worker.postMessage(message)
@@ -250,10 +375,18 @@ export function createInferenceClient(): InferenceClient {
       'worker-unavailable',
       'Inference client disposed while requests were still pending.',
     )
-    for (const pendingRequest of pendingRequests.values()) {
+    for (const pendingRequest of pendingTextRequests.values()) {
       pendingRequest.reject(disposalError)
     }
-    pendingRequests.clear()
+    pendingTextRequests.clear()
+    for (const pendingRequest of pendingSpeechRequests.values()) {
+      pendingRequest.reject(disposalError)
+    }
+    pendingSpeechRequests.clear()
+    for (const pendingRequest of pendingTutorReplyRequests.values()) {
+      pendingRequest.reject(disposalError)
+    }
+    pendingTutorReplyRequests.clear()
     for (const pendingRequest of pendingVoidRequests.values()) {
       pendingRequest.reject(disposalError)
     }
@@ -267,6 +400,8 @@ export function createInferenceClient(): InferenceClient {
   return {
     transcribe,
     correctGrammar,
+    synthesizeSpeech,
+    generateTutorReply,
     preloadModels,
     subscribeToModelLoadingProgress,
     subscribeToModelReady,
