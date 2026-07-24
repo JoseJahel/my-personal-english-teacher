@@ -44,6 +44,18 @@ export type GrammarCorrectionUiStatus =
   | 'done'
   | 'error'
 
+/** Tutor TTS status (SpeechT5; loads on first speak). */
+export type SpeechSynthesisUiStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'synthesizing'
+  | 'playing'
+  | 'done'
+  | 'error'
+
+/** Pronunciation score status (MFCC/YIN + DTW vs TTS reference). */
+export type PronunciationUiStatus = 'idle' | 'scoring' | 'done' | 'unavailable'
+
 export function microphoneStatusMessageFor(
   status: MicrophoneUiStatus,
   errorDetail: string | null = null,
@@ -77,8 +89,7 @@ function transcriptionErrorMessageFor(reason: InferenceClientErrorReason | null)
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
     case 'worker-unavailable':
       return homeScreenInterfaceTexts.transcriptionErrorMessages.workerUnavailable
-    case 'correction-failed':
-    case null:
+    default:
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
   }
 }
@@ -141,9 +152,7 @@ function grammarCorrectionErrorMessageFor(reason: InferenceClientErrorReason | n
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
     case 'worker-unavailable':
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.workerUnavailable
-    case 'invalid-sample-rate':
-    case 'transcription-failed':
-    case null:
+    default:
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
   }
 }
@@ -167,6 +176,61 @@ export function grammarCorrectionStatusMessageFor(
       return homeScreenInterfaceTexts.grammarCorrectionStatusMessages.done
     case 'error':
       return grammarCorrectionErrorMessageFor(grammarCorrectionErrorReason)
+  }
+}
+
+function speechSynthesisErrorMessageFor(reason: InferenceClientErrorReason | null): string {
+  switch (reason) {
+    case 'model-load-failed':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.modelLoadFailed
+    case 'synthesis-failed':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.synthesisFailed
+    case 'empty-text':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.emptyText
+    case 'worker-unavailable':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.workerUnavailable
+    default:
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.synthesisFailed
+  }
+}
+
+export function speechSynthesisStatusMessageFor(
+  status: SpeechSynthesisUiStatus,
+  modelLoadingProgressPercent: number,
+  speechSynthesisErrorReason: InferenceClientErrorReason | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.idle
+    case 'loading-model':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.modelLoadingProgressMessage(
+        homeScreenInterfaceTexts.modelDisplayNames.textToSpeech,
+        modelLoadingProgressPercent,
+      )
+    case 'synthesizing':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.synthesizing
+    case 'playing':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.playing
+    case 'done':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.done
+    case 'error':
+      return speechSynthesisErrorMessageFor(speechSynthesisErrorReason)
+  }
+}
+
+export function pronunciationStatusMessageFor(
+  status: PronunciationUiStatus,
+  score0to100: number | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.idle
+    case 'scoring':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.scoring
+    case 'done':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.done(score0to100 ?? 0)
+    case 'unavailable':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.unavailable
   }
 }
 
