@@ -49,7 +49,7 @@ export function HomeScreen({
 
   return (
     <div className="mx-auto my-10 max-w-2xl px-5 text-center font-sans">
-      <span className="rounded-2xl bg-indigo-100 px-3 py-1 text-sm text-indigo-800">
+      <span className="rounded-2xl bg-teal-100 px-3 py-1 text-sm text-teal-800">
         {homeScreenInterfaceTexts.projectPhaseBadgeLabel}
       </span>
 
@@ -75,7 +75,7 @@ export function HomeScreen({
           ref={canvasRef}
           width={600}
           height={150}
-          className="h-[150px] w-full rounded-lg bg-[#1e1e1e]"
+          className="h-[150px] w-full rounded-lg bg-[#0f2b26]"
         />
       </div>
 
@@ -104,7 +104,7 @@ export function HomeScreen({
           <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
             <div
               className={`h-full rounded-full transition-[width] duration-75 ${
-                isLevelSilentWhileListening ? 'bg-amber-500' : 'bg-green-600'
+                isLevelSilentWhileListening ? 'bg-amber-500' : 'bg-teal-600'
               }`}
               style={{ width: `${levelPercent}%` }}
             />
@@ -117,7 +117,7 @@ export function HomeScreen({
           type="button"
           onClick={onStartMicrophone}
           disabled={isStarting || isListening}
-          className="min-w-[200px] justify-center rounded-lg bg-green-800 px-6 py-3 text-base font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
+          className="min-w-[200px] justify-center rounded-lg bg-teal-700 px-6 py-3 text-base font-bold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
           {homeScreenInterfaceTexts.startMicrophoneButtonLabel}
         </button>
@@ -125,7 +125,7 @@ export function HomeScreen({
           type="button"
           onClick={onStopMicrophone}
           disabled={!isListening}
-          className="min-w-[200px] justify-center rounded-lg bg-red-700 px-6 py-3 text-base font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
+          className="min-w-[200px] justify-center rounded-lg bg-rose-600 px-6 py-3 text-base font-bold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
           {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
         </button>
