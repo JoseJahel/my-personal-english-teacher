@@ -49,21 +49,21 @@ export function HomeScreen({
 
   return (
     <div className="mx-auto my-10 max-w-2xl px-5 text-center font-sans">
-      <span className="rounded-2xl bg-teal-100 px-3 py-1 text-sm text-teal-800">
+      <span className="rounded-2xl bg-[#e2ede2] px-3 py-1 text-sm text-[#3c5c3f]">
         {homeScreenInterfaceTexts.projectPhaseBadgeLabel}
       </span>
 
-      <h1 className="mt-4 text-3xl font-bold text-slate-800">
+      <h1 className="mt-4 text-3xl font-bold text-[#3a3a35]">
         {homeScreenInterfaceTexts.applicationTitle}
       </h1>
-      <p className="text-slate-500">{homeScreenInterfaceTexts.applicationSubtitle}</p>
+      <p className="text-[#8a8a7f]">{homeScreenInterfaceTexts.applicationSubtitle}</p>
 
       {environmentDiagnosticsMessage && (
         <p
           className={`mt-3 rounded-md px-3 py-2 text-left text-xs ${
             environmentDiagnosticsMessage.includes('NO (hay un mock')
               ? 'bg-amber-100 text-amber-900'
-              : 'bg-slate-50 text-slate-600'
+              : 'bg-[#f7f6f2] text-[#8a8a7f]'
           }`}
         >
           {environmentDiagnosticsMessage}
@@ -75,25 +75,25 @@ export function HomeScreen({
           ref={canvasRef}
           width={600}
           height={150}
-          className="h-[150px] w-full rounded-lg bg-[#0f2b26]"
+          className="h-[150px] w-full rounded-lg bg-[#2e3b30]"
         />
       </div>
 
       {(isListening || isStarting) && (
         <div className="mb-4 text-left">
           {activeMicrophoneLabel ? (
-            <p className="mb-2 text-xs font-medium text-slate-600">
+            <p className="mb-2 text-xs font-medium text-[#5c5c51]">
               {homeScreenInterfaceTexts.activeMicrophoneLabel(activeMicrophoneLabel)}
             </p>
           ) : null}
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm text-[#5c5c51]">
             <span>
               <strong>{homeScreenInterfaceTexts.inputLevelLabel}:</strong> {levelPercent}%
-              <span className="ml-2 font-mono text-xs text-slate-500">
+              <span className="ml-2 font-mono text-xs text-[#8a8a7f]">
                 {homeScreenInterfaceTexts.inputLevelMeters(liveRms, livePeak)}
               </span>
             </span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-[#8a8a7f]">
               {isLevelSilentWhileListening
                 ? homeScreenInterfaceTexts.inputLevelHintSilent
                 : isListening
@@ -101,10 +101,10 @@ export function HomeScreen({
                   : ''}
             </span>
           </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-[#e5e3db]">
             <div
               className={`h-full rounded-full transition-[width] duration-75 ${
-                isLevelSilentWhileListening ? 'bg-amber-500' : 'bg-teal-600'
+                isLevelSilentWhileListening ? 'bg-amber-500' : 'bg-[#5c8a63]'
               }`}
               style={{ width: `${levelPercent}%` }}
             />
@@ -117,7 +117,7 @@ export function HomeScreen({
           type="button"
           onClick={onStartMicrophone}
           disabled={isStarting || isListening}
-          className="min-w-[200px] justify-center rounded-lg bg-teal-700 px-6 py-3 text-base font-bold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
+          className="min-w-[200px] justify-center rounded-lg bg-[#5c8a63] px-6 py-3 text-base font-bold text-white transition-colors hover:bg-[#4a7350] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
           {homeScreenInterfaceTexts.startMicrophoneButtonLabel}
         </button>
@@ -125,17 +125,17 @@ export function HomeScreen({
           type="button"
           onClick={onStopMicrophone}
           disabled={!isListening}
-          className="min-w-[200px] justify-center rounded-lg bg-rose-600 px-6 py-3 text-base font-bold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
+          className="min-w-[200px] justify-center rounded-lg bg-[#b97d7d] px-6 py-3 text-base font-bold text-white transition-colors hover:bg-[#a66b6b] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
           {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
         </button>
       </div>
 
-      <div className="rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+      <div className="rounded-md bg-[#f7f6f2] p-3 text-sm text-[#5c5c51]">
         <strong>{homeScreenInterfaceTexts.statusFieldLabel}:</strong> {microphoneStatusMessage}
       </div>
 
-      <div className="mt-4 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+      <div className="mt-4 rounded-md bg-[#f7f6f2] p-3 text-sm text-[#5c5c51]">
         <strong>{homeScreenInterfaceTexts.transcriptionPanelLabel}:</strong>{' '}
         {transcriptionStatusMessage}
         {transcribedText && (
@@ -144,14 +144,14 @@ export function HomeScreen({
           </p>
         )}
         {captureDiagnosticsMessage && (
-          <p className="mt-2 text-left text-xs text-slate-500">
+          <p className="mt-2 text-left text-xs text-[#8a8a7f]">
             <strong>{homeScreenInterfaceTexts.captureDiagnosticsLabel}:</strong>{' '}
             {captureDiagnosticsMessage}
           </p>
         )}
       </div>
 
-      <div className="mt-4 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+      <div className="mt-4 rounded-md bg-[#f7f6f2] p-3 text-sm text-[#5c5c51]">
         <strong>{homeScreenInterfaceTexts.grammarCorrectionPanelLabel}:</strong>{' '}
         {grammarCorrectionStatusMessage}
         {correctedGrammarText && (
@@ -160,7 +160,7 @@ export function HomeScreen({
           </p>
         )}
         {grammarCorrectionMadeNoChangesToTranscription && (
-          <p className="mt-2 text-slate-500 italic">
+          <p className="mt-2 text-[#8a8a7f] italic">
             {homeScreenInterfaceTexts.grammarCorrectionStatusMessages.noCorrectionsNeeded}
           </p>
         )}
