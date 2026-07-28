@@ -3,9 +3,9 @@
  * Auto-scales to recent peak so quiet mics still show motion when voice changes.
  */
 
-export const WAVEFORM_BACKGROUND_COLOR = '#0f2b26'
-export const WAVEFORM_LINE_COLOR = '#2dd4bf'
-export const WAVEFORM_CENTER_LINE_COLOR = '#3f5a55'
+export const WAVEFORM_BACKGROUND_COLOR = '#2e3b30'
+export const WAVEFORM_LINE_COLOR = '#8fbf95'
+export const WAVEFORM_CENTER_LINE_COLOR = '#4a5c4d'
 
 export interface AnalyserWaveformOptions {
   onMeters?: (meters: { rms: number; peak: number; level01: number }) => void
