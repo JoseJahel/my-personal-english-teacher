@@ -117,7 +117,7 @@ export function HomeScreen({
           type="button"
           onClick={onStartMicrophone}
           disabled={isStarting || isListening}
-          className="min-w-[200px] justify-center rounded-lg bg-[#5c8a63] px-6 py-3 text-base font-bold text-white transition-colors hover:bg-[#4a7350] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
+          className="min-w-[200px] justify-center rounded-lg bg-[#cf7a70] px-6 py-3 text-base font-bold text-white transition-colors hover:bg-[#bb6459] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70"
         >
           {homeScreenInterfaceTexts.startMicrophoneButtonLabel}
         </button>
