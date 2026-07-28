@@ -107,12 +107,12 @@ export function HomeScreen({
     pronunciationScore0to100 !== null
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl px-4 pb-28 pt-8 font-sans text-slate-800 sm:px-5">
+    <div className="mx-auto min-h-screen max-w-2xl px-4 pb-28 pt-8 font-sans text-[#3a3a35] sm:px-5">
       <header className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
           {homeScreenInterfaceTexts.applicationTitle}
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-600 sm:text-base">
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#5c5c51] sm:text-base">
           {homeScreenInterfaceTexts.productLead}
         </p>
       </header>
@@ -284,7 +284,7 @@ export function HomeScreen({
       >
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-800"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
           onClick={() => setShowSignalLab((open) => !open)}
           aria-expanded={showSignalLab}
         >
@@ -332,7 +332,7 @@ export function HomeScreen({
       <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-800"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
           onClick={() => setShowHistory((open) => !open)}
           aria-expanded={showHistory}
         >
@@ -357,7 +357,7 @@ export function HomeScreen({
       <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-800"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
           onClick={() => setShowTechnicalDetails((open) => !open)}
           aria-expanded={showTechnicalDetails}
         >
@@ -365,7 +365,7 @@ export function HomeScreen({
           <span className="text-slate-400">{showTechnicalDetails ? '−' : '+'}</span>
         </button>
         {showTechnicalDetails ? (
-          <div className="space-y-2 border-t border-slate-100 px-4 pb-4 pt-3 text-left text-xs text-slate-600">
+          <div className="space-y-2 border-t border-slate-100 px-4 pb-4 pt-3 text-left text-xs text-[#5c5c51]">
             <StatusLine
               label={homeScreenInterfaceTexts.statusFieldLabel}
               value={microphoneStatusMessage}
