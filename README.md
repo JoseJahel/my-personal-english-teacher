@@ -25,8 +25,11 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 - **Score de pronunciación** (`dsp/pronunciation-score.ts` + panel UI): user PCM vs TTS de la frase corregida (MFCC + pitch opcional + DTW).
 - **Highlights por palabra** (`dsp/word-pronunciation-highlights.ts`): color good/medium/poor desde el path DTW (aproximación temporal por letras).
 - **TTS SpeechT5**: referencia acústica del score + reproducción de la respuesta del tutor.
-- **SmolLM2 tutor** (`ia/conversation-suggestions.ts`): genera la siguiente línea del tutor en el escenario (fallback curado si falla).
-- **Shell de conversación Avance 2:** escenarios, chat, ASR+gramática, score, tutor LLM + voz TTS.
+- **Conversación híbrida activa** (`ia/conversation-suggestions.ts` + `ui/tutor-reply-orchestration.ts`): SmolLM2 genera la respuesta principal del tutor con memoria de los últimos 4 turnos; timeout de 10 s y motor de reglas por escenario (`ui/tutor-reply-engine.ts`) como respaldo veraz (insignia honesta en el chat, nunca se hace pasar por generación del modelo).
+- **Catálogo ASR multi-candidato** (`ia/model-registry.ts`): 4 modelos Whisper evaluables (`tiny-en` default, `base-en`, `distil-small-en`, `small-en`) con tamaño aproximado de descarga; override de desarrollo `VITE_ASR_MODEL`; el default de producción sigue siendo `tiny-en` (cero cambio de comportamiento) hasta tener datos del banco de pruebas.
+- **Banco de pruebas ASR** (solo desarrollo, `#asr-benchmark`, fuera del bundle de producción): fixtures de voz propias en una IndexedDB separada (borrable sin tocar el progreso del estudiante, nunca en Git), corridas candidato × backend (WASM q8 / WebGPU fp32) con WER por Levenshtein y export a CSV/JSON.
+- **Paleta de diseño centralizada** (`index.css`, tokens `@theme`: sage/ink/blush) consumida por toda la UI; tests de freeze-guard evitan cambios accidentales de color.
+- **Shell de conversación Avance 2:** escenarios, chat, ASR+gramática, score, tutor híbrido + voz TTS.
 - UI modular en español: `HomeScreen` + selector de escenario + panel de chat + hook de sesión + textos centralizados.
 - PWA con `vite-plugin-pwa` (app shell); pesos de modelos gestionados por `transformers.js` / Cache API.
 - CI con GitHub Actions (lint, typecheck, tests, build).
@@ -46,7 +49,7 @@ El soporte multi-idioma se descartó explícitamente por ser incompatible con la
 
 - **Frontend:** React + TypeScript, Vite, Tailwind CSS.
 - **IA en navegador:** `@huggingface/transformers` (ONNX Runtime Web); WebGPU oportunista con fallback a WASM.
-- **Modelos activos:** `Xenova/whisper-tiny.en` (ASR), `Xenova/t5-base-grammar-correction` (gramática).
+- **Modelos activos:** `Xenova/whisper-tiny.en` (ASR, default de un catálogo de 4 candidatos evaluables), `Xenova/t5-base-grammar-correction` (gramática), `Xenova/speecht5_tts` (TTS), `HuggingFaceTB/SmolLM2-360M-Instruct` (tutor conversacional).
 - **Audio:** Web Audio API (`MediaStreamSource` + `AnalyserNode` para visualización) + `MediaRecorder` para ASR; resample a 16 kHz mono en `audio/`.
 - **DSP en código:** energía RMS/pico y gate de habla usable (`dsp/signal-energy.ts`).
 - **Estado de UI:** hooks de React en `ui/use-home-screen-session.ts` (sin store global todavía).
@@ -57,7 +60,6 @@ El soporte multi-idioma se descartó explícitamente por ser incompatible con la
 
 ### Registrado / previsto (aún no cableado en la UI)
 
-- **Modelos activos en worker:** Whisper, T5, SpeechT5, SmolLM2-360M-Instruct.
 - **DSP futuro:** YIN, MFCC (implementación propia; Meyda solo como referencia de tests cuando exista), formantes; opcionalmente AudioWorklet para DSP en tiempo real.
 - **Pronunciación:** DTW + distancia euclidiana frame a frame vs referencia TTS.
 - **Almacenamiento de app:** IndexedDB versionado (sesiones/progreso); los pesos ya usan Cache API vía transformers.js.
@@ -103,7 +105,7 @@ La extracción de MFCC (FFT, banco de filtros mel, DCT) es contenido nuclear del
 
 transformers.js cachea los pesos de los modelos mediante la Cache API por defecto, sin código adicional de por medio, y esa API está pensada para pares request/response, no para datos estructurados. Las sesiones de práctica, el historial de conversación y las métricas de progreso, en cambio, son datos consultables que encajan naturalmente en IndexedDB. Forzar toda la persistencia a una sola de las dos tecnologías implicaría usar cada una para un caso que no le corresponde.
 
-**Estado:** modelos → Cache API (transformers.js). Sesiones/turnos → IndexedDB en `storage/` (schema v1, sin audio crudo).
+**Estado:** modelos → Cache API (transformers.js). Sesiones/turnos → IndexedDB en `storage/` (schema v1, sin audio crudo). Excepción dev-only: el banco de pruebas ASR usa una IndexedDB separada que sí guarda PCM crudo de las fixtures grabadas, nunca versionada en Git.
 
 ### SmolLM2-360M-Instruct sobre variantes de Phi-2 para sugerencias conversacionales
 
@@ -139,7 +141,7 @@ El usuario objetivo es un hispanohablante aprendiendo inglés, y entender el fee
 
 La práctica se estructura en escenarios curados por el equipo (por ejemplo, restaurante, aeropuerto, entrevista de trabajo), y SmolLM2 genera variaciones y respuestas dentro del marco de cada escenario. Un modelo de 360M de parámetros sin guía tiende a divagar; el enfoque híbrido da una demo confiable sin renunciar al mérito de la generación dinámica.
 
-**Estado de implementación:** escenarios + chat en UI; **apertura y follow-ups multi-turno son guiones curados** (coherentes e instantáneos). SmolLM2 queda como opción con filtro de calidad; no bloquea el turno (la latencia de demo viene de ASR/TTS/score).
+**Estado de implementación:** escenarios + chat en UI; **la apertura del escenario sigue un guion curado** (instantánea y coherente). Para cada turno del estudiante, SmolLM2 genera la respuesta principal del tutor con memoria de los últimos 4 turnos de la conversación; si no responde de forma plausible dentro de un timeout de 10 s (`ui/tutor-reply-orchestration.ts`), se usa como respaldo la línea del motor de reglas por escenario (`ui/tutor-reply-engine.ts`), marcada con una insignia honesta en el chat en vez de hacerse pasar por generación del modelo.
 
 ### Micrófono con toggle y auto-stop por VAD
 
@@ -154,7 +156,9 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 ### Ya aplicados en el código
 
 - Inferencia con WebGPU oportunista y fallback automático a WASM (ONNX Runtime Web); nada de inferencia en el hilo principal (Web Worker `ia/inference-worker.ts`).
-- Pipeline activo post-utterance: **ASR → gramática → SmolLM2 (tutor) → score pronunciación → TTS del tutor**.
+- Pipeline activo post-utterance: **ASR → gramática → tutor híbrido (SmolLM2 con timeout de 10 s + respaldo de reglas) → score pronunciación → TTS del tutor**.
+- Catálogo de candidatos ASR en `ia/model-registry.ts` (override de desarrollo `VITE_ASR_MODEL`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend) para decidir el modelo definitivo antes de la Entrega Final.
+- Paleta de diseño centralizada en tokens CSS (`app/src/index.css`, `@theme`: sage/ink/blush) consumida por toda la UI, con tests de freeze-guard.
 - Captura a tasa nativa del dispositivo; resample a 16 kHz mono antes de Whisper (`audio/audio-resampler.ts`).
 - Grafo de visualización: `MediaStreamSource → Analyser → Gain(0) → destination`. ASR: `MediaRecorder` sobre el mismo `MediaStream` real. Invariantes en `app/src/audio/CAPTURE-INVARIANTS.md`.
 - Estado de pantalla con hooks (`use-home-screen-session.ts`); se migrará a Context o Zustand solo si la complejidad lo exige.
@@ -222,26 +226,28 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 
 ## Estado
 
-**Fase:** Avance 1 completo en código + **inicio de Avance 2** (shell de conversación guiada). Ventana formal A2: 17–22/08/2026.
+**Fase:** Avance 1 completo en código + **Avance 2 en curso**, con **conversación híbrida generativa activa** (SmolLM2 + respaldo de reglas) y un banco de pruebas de desarrollo para decidir el modelo ASR definitivo. Ventana formal A2: 17–22/08/2026.
 
 | Capa | Qué hay hoy | Qué falta (Avance 2 / final) |
 |------|-------------|------------------------------|
-| `ui/` | Escenarios, chat, SmolLM2, score, TTS, onda + **espectrograma + pitch** | Highlights por palabra |
+| `ui/` | Escenarios, chat con **tutor híbrido** (SmolLM2 + respaldo honesto), score, TTS, onda + **espectrograma + pitch** + **highlights por palabra** + **banco de pruebas ASR** (dev) + paleta de diseño en tokens | — |
 | `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop** | Half-duplex más estricto al TTS |
-| `ia/` | Whisper, T5, SpeechT5, **SmolLM2**, worker + client | — (pipeline A2 core cableado) |
+| `ia/` | Whisper (**catálogo de 4 candidatos**), T5, SpeechT5, **SmolLM2** (conversación híbrida activa), worker + client | Fijar candidato ASR definitivo tras el benchmark |
 | `dsp/` | Energía + YIN + MFCC + DTW + score + espectrograma + **VAD** + **formantes** | — |
-| `storage/` | **IndexedDB** sesiones/turnos (sin audio) | Migraciones futuras de schema |
+| `storage/` | **IndexedDB** sesiones/turnos (sin audio) + **IndexedDB separada de fixtures del banco de pruebas ASR** (solo dev, con audio crudo) | Migraciones futuras de schema |
+
+**Decisión de modelo ASR:** pendiente de las corridas del banco de pruebas (`#asr-benchmark`, solo desarrollo); el default de producción sigue siendo `whisper-tiny.en` hasta tener datos comparativos de WER/latencia entre los 4 candidatos catalogados.
 
 Detalle operativo de la demo actual:
 
-1. Elegir escenario → intro del tutor en el chat.
+1. Elegir escenario → intro del tutor en el chat (guion curado) + precarga de SmolLM2 en segundo plano.
 2. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
 3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
-5. Si el texto es habla real → T5 → **SmolLM2** (línea del tutor) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
+5. Si el texto es habla real → T5 → **tutor híbrido**: SmolLM2 con memoria de los últimos 4 turnos contra un timeout de 10 s; si no responde a tiempo o produce basura, línea del motor de reglas del escenario (marcada como respaldo) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
 6. Si es tag no-habla → mensaje honesto sin gramática ni score.
-7. `App.tsx` es un shell fino; la orquestación vive en `ui/use-home-screen-session.ts`.
+7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` (solo dev, hash `#asr-benchmark`) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`.
 
-**Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio).
+**Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio). Aparte, solo en desarrollo, una segunda IndexedDB independiente guarda las fixtures de voz del banco de pruebas ASR (con audio crudo, nunca en Git).
 
 Invariantes de mic: `app/src/audio/CAPTURE-INVARIANTS.md`. Reglas de equipo: `Documentacion general/REGLAS-DE-CODIGO.md`. Guía de capas: `app/README.md`.

@@ -1,10 +1,9 @@
 # My Personal English Teacher
 
-PWA offline de práctica de inglés, 100% del lado del cliente: el reconocimiento
-de voz y la corrección gramatical corren en el propio navegador mediante
+PWA offline de práctica de inglés, 100% del lado del cliente: reconocimiento
+de voz, corrección gramatical, conversación con el tutor, síntesis de voz y
+comparación de pronunciación corren en el propio navegador mediante
 `transformers.js`, sin backend ni envío de audio a servidores externos.
-Síntesis de voz, sugerencias conversacionales y comparación de pronunciación
-están en el diseño del proyecto pero **aún no implementadas** en esta carpeta.
 
 ## Estado de la app (código actual)
 
@@ -15,19 +14,36 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
    `audio/microphone-capture.ts`).
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
 4. Al detener: MediaRecorder → decode mono → **espectrograma + pitch track** →
-   gate de energía → resample 16 kHz → Whisper → T5 → SmolLM2 → score → TTS.
-5. **SmolLM2** genera la siguiente línea del tutor (o fallback del escenario).
+   gate de energía → resample 16 kHz → Whisper → T5 → tutor híbrido → score → TTS.
+5. **Conversación híbrida**: SmolLM2 genera la respuesta del tutor con memoria
+   de los últimos 4 turnos, contra un timeout de 10 s; si no responde a tiempo
+   o produce basura, se usa la línea del motor de reglas del escenario
+   (`ui/tutor-reply-engine.ts`), marcada como respaldo en el chat.
 6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
 7. **TTS SpeechT5** reproduce la línea del tutor.
-8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación.
+8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación, historial
+   de práctica (IndexedDB).
 
 Orquestación en `ui/use-home-screen-session.ts`; presentación en
 `ui/HomeScreen.tsx` + `ScenarioPicker` / `PracticeChatPanel`; `App.tsx` solo
-ensambla el hook con la vista.
+ensambla el hook con la vista (y enruta a la pantalla de banco de pruebas ASR
+en desarrollo, ver más abajo).
 
 Captura: **MediaRecorder** sobre el `MediaStream` del SO para ASR; grafo Web
 Audio solo para visualización. Detalle e invariantes:
 `src/audio/CAPTURE-INVARIANTS.md`.
+
+## Banco de pruebas ASR (solo desarrollo)
+
+Pantalla accesible en `#asr-benchmark`, gateada por `import.meta.env.DEV` en
+`App.tsx` / `src/app-routing.ts` — invisible sin el hash y ausente del bundle
+de producción. Permite grabar fixtures de voz propias (guardadas en una
+IndexedDB separada, `storage/benchmark-fixture-store.ts`, borrable sin tocar
+el progreso del estudiante), correr los 4 candidatos Whisper de
+`ia/model-registry.ts` contra los backends WASM (q8) y WebGPU (fp32), y
+comparar WER (Levenshtein, `ia/word-error-rate.ts`) y latencia por
+combinación, con export a CSV/JSON. Las fixtures nunca se suben a Git; solo
+salen del navegador vía export/import JSON manual.
 
 ## Puesta en marcha (Windows)
 
@@ -104,11 +120,11 @@ adentro, dejando el dominio libre de detalles de infraestructura:
 
 | Capa | Rol hoy | README de capa |
 |------|---------|----------------|
-| **`ui/`** | Presentación React + escenarios/chat + sesión (mic → ASR → gramática → turno de chat). Textos ES en `interface-texts.ts`. | `ui/README.md` |
-| **`ia/`** | Whisper, T5, SpeechT5, SmolLM2, worker y cliente tipado. | `ia/README.md` |
+| **`ui/`** | Presentación React + escenarios/chat + sesión (mic → ASR → gramática → tutor híbrido → turno de chat); paleta de diseño en tokens de `index.css`; pantalla de banco de pruebas ASR (solo dev). Textos ES en `interface-texts.ts`. | `ui/README.md` |
+| **`ia/`** | Whisper (catálogo de 4 candidatos evaluables), T5, SpeechT5, SmolLM2 (conversación híbrida activa), worker y cliente tipado. | `ia/README.md` |
 | **`dsp/`** | Energía + YIN + MFCC + DTW + score de pronunciación. | `dsp/README.md` |
 | **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample. | `audio/README.md` |
-| **`storage/`** | IndexedDB: sesiones y turnos (textos/scores, sin audio). | `storage/README.md` |
+| **`storage/`** | IndexedDB de progreso: sesiones y turnos (textos/scores, sin audio) + IndexedDB separada de fixtures del banco de pruebas ASR (solo dev, con audio crudo). | `storage/README.md` |
 
 Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO.md`.
 
@@ -118,6 +134,12 @@ Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO
 desarrollo. Antes de la Entrega Final del proyecto, cada modelo debe anclarse a
 un commit específico del Hub de Hugging Face para asegurar una build
 reproducible. Hoy ASR, gramática, TTS y SmolLM2 tienen adaptadores en el worker.
+
+El ASR además cataloga varios candidatos Whisper evaluables
+(`asrModelCandidates`); el banco de pruebas de desarrollo (`#asr-benchmark`)
+mide WER y latencia por candidato × backend para decidir cuál queda fijo antes
+de la Entrega Final. El default de producción sigue siendo `whisper-tiny.en`
+hasta tener esos números.
 
 ## PWA y caché de modelos
 
