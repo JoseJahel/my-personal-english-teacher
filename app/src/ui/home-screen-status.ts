@@ -56,6 +56,15 @@ export type SpeechSynthesisUiStatus =
 /** Pronunciation score status (MFCC/YIN + DTW vs TTS reference). */
 export type PronunciationUiStatus = 'idle' | 'scoring' | 'done' | 'unavailable'
 
+/** Tutor reply generation status (SmolLM2; loads on scenario selection). */
+export type TutorGenerationUiStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'generating'
+  | 'done-generated'
+  | 'done-fallback'
+  | 'error'
+
 export function microphoneStatusMessageFor(
   status: MicrophoneUiStatus,
   errorDetail: string | null = null,
@@ -125,6 +134,7 @@ export function transcriptionStatusMessageFor(
   modelLoadingProgressPercent: number,
   transcriptionErrorReason: InferenceClientErrorReason | null,
   noAudioReason: NoAudioReason | null = null,
+  approxAsrDownloadMb = 0,
 ): string {
   switch (status) {
     case 'idle':
@@ -134,6 +144,7 @@ export function transcriptionStatusMessageFor(
     case 'loading-model':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.modelLoadingProgressMessage(
         modelLoadingProgressPercent,
+        approxAsrDownloadMb,
       )
     case 'transcribing':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.transcribing
@@ -247,4 +258,36 @@ export function captureDiagnosticsMessageFor(diagnostics: CaptureDiagnostics): s
     trackMuted: diagnostics.trackMuted,
     audioContextState: diagnostics.audioContextState,
   })
+}
+
+export function tutorGenerationStatusMessageFor(
+  status: TutorGenerationUiStatus,
+  modelLoadingProgressPercent: number,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.tutorGeneration.statusIdle
+    case 'loading-model':
+      return homeScreenInterfaceTexts.tutorGeneration.statusPreparingModel(
+        modelLoadingProgressPercent,
+      )
+    case 'generating':
+      return homeScreenInterfaceTexts.tutorGeneration.statusGenerating
+    case 'done-generated':
+      return homeScreenInterfaceTexts.tutorGeneration.statusDoneGenerated
+    case 'done-fallback':
+      return homeScreenInterfaceTexts.tutorGeneration.statusDoneFallback
+    case 'error':
+      return homeScreenInterfaceTexts.tutorGeneration.statusError
+  }
+}
+
+/** Discreet "Preparando tutor conversacional…" strip inside the chat. */
+export function shouldShowTutorModelPreparingBanner(status: TutorGenerationUiStatus): boolean {
+  return status === 'loading-model'
+}
+
+/** "El tutor está escribiendo…" bubble while `generateTutorReply` runs. */
+export function shouldShowTutorTypingIndicator(status: TutorGenerationUiStatus): boolean {
+  return status === 'generating'
 }

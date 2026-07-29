@@ -3,6 +3,7 @@
  * Avance 2: scenario intro + user ASR/grammar + SmolLM2 (or fallback) tutor replies.
  */
 
+import type { TutorReplyHistoryTurn } from '../ia/inference-worker-protocol'
 import type { PracticeScenario } from './practice-scenarios'
 
 export type PracticeChatMessageRole = 'tutor' | 'user'
@@ -97,4 +98,25 @@ export function findLastTutorLineText(
     }
   }
   return ''
+}
+
+const MAX_TUTOR_REPLY_HISTORY_TURNS = 4
+
+/**
+ * Last N chat turns (tutor + student), oldest first — SmolLM2's short-term
+ * memory window. Shape matches `historyTurnsEn` on the inference protocol.
+ */
+export function buildRecentHistoryTurnsEn(
+  messages: readonly PracticeChatMessage[],
+  maxTurns: number = MAX_TUTOR_REPLY_HISTORY_TURNS,
+): TutorReplyHistoryTurn[] {
+  const turns: TutorReplyHistoryTurn[] = []
+  for (const message of messages) {
+    if (message.role === 'tutor') {
+      turns.push({ speaker: 'tutor', textEn: message.text })
+    } else {
+      turns.push({ speaker: 'student', textEn: message.correctedText ?? message.text })
+    }
+  }
+  return turns.slice(-maxTurns)
 }

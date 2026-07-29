@@ -1,3 +1,5 @@
+import type { AsrModelCandidateId } from '../ia/model-registry'
+
 /**
  * All user-visible Spanish copy for the home screen.
  * Components must import strings from here — never hardcode product text in JSX.
@@ -54,15 +56,17 @@ export const homeScreenInterfaceTexts = {
     generatedBadge: 'SmolLM2',
     fallbackBadge: 'respuesta de respaldo del escenario',
     grammarCorrectionInlineLabel: 'Mejor gramática',
+    tutorTypingLabel: 'Escribiendo…',
   },
   tutorGeneration: {
     panelLabel: 'Respuesta del tutor',
-    statusIdle: 'El tutor sigue un guion del escenario (rápido y coherente) y te responde en inglés.',
-    statusLoading: (progressPercent: number) =>
-      `Preparando modelo opcional de diálogo... ${progressPercent}%`,
-    statusGenerating: 'Preparando la respuesta del tutor...',
-    statusDoneGenerated: 'Respuesta del tutor lista (guion del escenario).',
-    statusDoneFallback: 'Respuesta del tutor (línea de respaldo).',
+    statusIdle:
+      'El tutor sigue un guion del escenario (rápido y coherente) y te responde en inglés.',
+    statusPreparingModel: (progressPercent: number) =>
+      `Preparando tutor conversacional… ${progressPercent}%`,
+    statusGenerating: 'El tutor está escribiendo…',
+    statusDoneGenerated: 'Respuesta del tutor lista (generada por IA).',
+    statusDoneFallback: 'Respuesta del tutor (línea de respaldo del escenario).',
     statusError: 'No se pudo preparar la respuesta del tutor.',
   },
   statusFieldLabel: 'Estado',
@@ -75,8 +79,7 @@ export const homeScreenInterfaceTexts = {
     permissionDenied:
       'Permiso de micrófono denegado. Habilítalo en la configuración del navegador para poder practicar.',
     genericError: 'No fue posible acceder al micrófono por un error inesperado.',
-    detailedError: (detail: string) =>
-      `No fue posible acceder al micrófono. Detalle: ${detail}`,
+    detailedError: (detail: string) => `No fue posible acceder al micrófono. Detalle: ${detail}`,
   },
   inputLevelLabel: 'Nivel de entrada',
   inputLevelHintSilent:
@@ -101,8 +104,8 @@ export const homeScreenInterfaceTexts = {
       `El motor de voz produjo texto inválido (alucinación), no una frase en inglés. Vista previa: "${previewText}…". Recarga la página y vuelve a intentar hablando claro 3–5 s en inglés. Si se repite, borra los datos del sitio en Chrome (caché de modelos) y recarga.`,
     noAudioCaptured:
       'No se reconoció habla clara en inglés. Habla cerca del micrófono (comprueba que Windows use el micrófono correcto y que no esté silenciado) e inténtalo de nuevo.',
-    modelLoadingProgressMessage: (progressPercent: number) =>
-      `Preparando reconocimiento de voz (solo la primera vez o al actualizar el modelo)... ${progressPercent}%`,
+    modelLoadingProgressMessage: (progressPercent: number, approxDownloadMb: number) =>
+      `Preparando reconocimiento de voz (~${approxDownloadMb} MB, solo la primera vez; luego queda en caché del navegador)... ${progressPercent}%`,
     transcribing: 'Transcribiendo audio (modelo ya cargado)...',
     done: 'Transcripción lista.',
   },
@@ -135,6 +138,12 @@ export const homeScreenInterfaceTexts = {
     textToSpeechVocoder: 'síntesis de voz',
     conversationSuggestions: 'sugerencias de conversación',
   },
+  asrCandidateDisplayNames: {
+    'tiny-en': 'Whisper tiny (inglés, rápido)',
+    'base-en': 'Whisper base (inglés)',
+    'distil-small-en': 'Distil-Whisper small (inglés)',
+    'small-en': 'Whisper small (inglés, más preciso)',
+  } satisfies Record<AsrModelCandidateId, string>,
   grammarCorrectionStatusMessages: {
     idle: 'Esperando la transcripción para corregir la gramática.',
     modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
@@ -236,5 +245,52 @@ export const homeScreenInterfaceTexts = {
       details.pitchScore === null
         ? `MFCC ${details.mfccScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`
         : `MFCC ${details.mfccScore.toFixed(1)} · pitch ${details.pitchScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`,
+  },
+  asrBenchmark: {
+    pageTitle: 'Banco de pruebas ASR (solo desarrollo)',
+    pageHint:
+      'Graba fixtures de referencia, corre modelos × backend y compara WER y latencia antes de fijar el modelo de producción.',
+    fixturesSectionTitle: 'Fixtures de referencia',
+    fixtureReferenceTextLabel: 'Texto de referencia (inglés)',
+    fixtureReferenceTextPlaceholder: 'Ej: Where is gate B10?',
+    recordFixtureButtonLabel: 'Grabar fixture',
+    recordingFixtureButtonLabel: 'Grabando… pulsa para detener',
+    saveFixtureButtonLabel: 'Guardar fixture',
+    deleteFixtureButtonLabel: 'Borrar',
+    noFixturesMessage: 'Aún no hay fixtures grabados en este navegador.',
+    microphoneErrorMessage: 'No se pudo acceder al micrófono. Revisa el permiso del navegador.',
+    fixtureDraftErrorMessages: {
+      missingReferenceText: 'Escribe el texto de referencia en inglés antes de guardar.',
+      emptyRecording: 'La grabación salió vacía. Vuelve a grabar la frase.',
+      tooShort: 'La grabación es demasiado corta para ser un fixture útil (mínimo 0.5 s).',
+      tooLong: 'La grabación es demasiado larga para un fixture (máximo 30 s).',
+    },
+    runSectionTitle: 'Corrida',
+    candidatesLabel: 'Modelos a evaluar',
+    devicesLabel: 'Backends a evaluar',
+    deviceLabels: {
+      wasm: 'WASM (q8)',
+      webgpu: 'WebGPU (fp32)',
+    },
+    runBenchmarkButtonLabel: 'Correr benchmark',
+    runningBenchmarkLabel: (current: number, total: number) => `Corriendo ${current} / ${total}…`,
+    resultsSectionTitle: 'Resultados',
+    noResultsMessage: 'Corre el benchmark para ver la tabla comparativa.',
+    resultsTableHeaders: {
+      candidate: 'Modelo',
+      device: 'Backend',
+      fixtureCount: 'Fixtures',
+      averageWer: 'WER promedio',
+      averageLatency: 'Latencia media (ms)',
+      modelLoad: 'Carga inicial (ms)',
+    },
+    exportFixturesJsonButtonLabel: 'Exportar fixtures (JSON)',
+    importFixturesJsonButtonLabel: 'Importar fixtures (JSON)',
+    exportResultsJsonButtonLabel: 'Exportar resultados (JSON)',
+    exportResultsCsvButtonLabel: 'Exportar resultados (CSV)',
+    storageUnavailableMessage:
+      'IndexedDB no disponible: no se pueden guardar fixtures en este navegador.',
+    importErrorMessage:
+      'No se pudo importar el archivo: revisa que sea un export de fixtures válido.',
   },
 } as const

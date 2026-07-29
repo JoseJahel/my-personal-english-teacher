@@ -58,7 +58,7 @@ function restaurantReply(
   if (/\b(menu|what do you have|options|recommend|special|today)\b/.test(normalized)) {
     return 'Today we have pasta, grilled chicken, fish, and a veggie salad. What sounds good to you?'
   }
-  if (/\b(allerg|vegetarian|vegan|gluten|no meat)\b/.test(normalized)) {
+  if (/\b(allergic|allergy|allergies|vegetarian|vegan|gluten|no meat)\b/.test(normalized)) {
     return 'Thanks for telling me. We can do a veggie salad or pasta without meat. What would you prefer?'
   }
   if (/\b(table|reservation|seat|window|booth)\b/.test(normalized)) {
@@ -114,7 +114,7 @@ function airportReply(
   if (/\b(bag|baggage|luggage|suitcase|lost|carousel)\b/.test(normalized)) {
     return 'I can help with that. Checked bags are at carousel three. Do you have your claim tag?'
   }
-  if (/\b(delay|late|cancel|cancelled|canceled|on time|status)\b/.test(normalized)) {
+  if (/\b(delay|delayed|delays|late|cancel|cancelled|canceled|on time|status)\b/.test(normalized)) {
     return 'I am sorry about the delay. The flight is now expected in forty minutes. Can I rebook you if needed?'
   }
   if (/\b(passport|visa|id card|identity|document)\b/.test(normalized)) {
@@ -129,8 +129,11 @@ function airportReply(
   if (/\b(connection|connecting|transfer|layover|miss)\b/.test(normalized)) {
     return 'Your connection is in terminal C. You have about fifty minutes — I can show you the fastest route.'
   }
-  if (/\b(wifi|lounge|food|coffee|bathroom|restroom)\b/.test(normalized)) {
-    return 'Free Wi‑Fi is available, and there is a cafe near gate B10. Anything else for your flight?'
+  if (/\b(bathroom|restroom|toilet|washroom)\b/.test(normalized)) {
+    return 'The restrooms are past security, near gate B10. Anything else for your flight?'
+  }
+  if (/\b(wifi|lounge|food|coffee)\b/.test(normalized)) {
+    return 'Free WiFi is available, and there is a cafe near gate B10. Anything else for your flight?'
   }
   if (/\b(thank|thanks|bye|goodbye|safe flight)\b/.test(normalized)) {
     return 'You are welcome. Have a safe flight!'
@@ -164,16 +167,30 @@ function jobInterviewReply(
   ) {
     return 'That is helpful. Can you describe a challenge you solved recently?'
   }
-  if (/\b(challenge|problem|project|solved|difficult|hardest|obstacle)\b/.test(normalized)) {
+  if (
+    /\b(challenge|challenges|problem|project|projects|solved|difficult|hardest|obstacle)\b/.test(
+      normalized,
+    )
+  ) {
     return 'Good example. How do you usually work with other people on a team?'
   }
-  if (/\b(team|collaborate|together|colleague|coworker|pair)\b/.test(normalized)) {
+  if (
+    /\b(team|teams|collaborate|collaborated|collaborating|together|colleague|colleagues|coworker|coworkers|pair)\b/.test(
+      normalized,
+    )
+  ) {
     return 'Thanks for sharing. Do you have any questions for us about the role?'
   }
-  if (/\b(strength|weakness|skill|improve)\b/.test(normalized)) {
+  if (
+    /\b(strength|strengths|weakness|weaknesses|skill|skills|improve|improving|improved)\b/.test(
+      normalized,
+    )
+  ) {
     return 'I appreciate your honesty. What is one goal you hope to achieve in this job?'
   }
-  if (/\b(question|ask you|for me|about the company|salary|hours|remote)\b/.test(normalized)) {
+  if (
+    /\b(question|questions|ask you|for me|about the company|salary|hours|remote)\b/.test(normalized)
+  ) {
     return 'Of course. What would you like to know about the role or the company?'
   }
   if (/\b(thank|thanks|bye|goodbye)\b/.test(normalized)) {

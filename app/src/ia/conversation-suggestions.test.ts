@@ -7,16 +7,51 @@ import {
 } from './conversation-suggestions'
 
 describe('buildTutorReplyChatMessages', () => {
-  it('builds a system + user pair with scenario constraints', () => {
+  it('builds a system message plus one message per history turn and the current student line', () => {
     const messages = buildTutorReplyChatMessages({
       scenarioContextEn: 'Role-play: restaurant waiter.',
-      lastTutorLineEn: 'What would you like to order?',
-      userUtteranceEn: 'I would like a coffee.',
+      historyTurnsEn: [
+        { speaker: 'tutor', textEn: 'What would you like to order?' },
+        { speaker: 'student', textEn: 'A coffee, please.' },
+      ],
+      userUtteranceEn: 'And a croissant too.',
       fallbackReplyEn: 'Anything else?',
     })
-    expect(messages).toHaveLength(2)
+    expect(messages).toHaveLength(4)
+    expect(messages[0]).toMatchObject({ role: 'system' })
     expect(messages[0]!.content).toContain('restaurant waiter')
-    expect(messages[1]!.content).toContain('I would like a coffee.')
+    expect(messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'What would you like to order?',
+    })
+    expect(messages[2]).toMatchObject({ role: 'user', content: 'A coffee, please.' })
+    expect(messages[3]).toMatchObject({ role: 'user', content: 'And a croissant too.' })
+  })
+
+  it('works with an empty history window (first turn of the scenario)', () => {
+    const messages = buildTutorReplyChatMessages({
+      scenarioContextEn: 'Role-play: airport airline desk.',
+      historyTurnsEn: [],
+      userUtteranceEn: 'Where is my gate?',
+      fallbackReplyEn: 'I can help with your gate.',
+    })
+    expect(messages).toHaveLength(2)
+    expect(messages[1]).toMatchObject({ role: 'user', content: 'Where is my gate?' })
+  })
+
+  it('drops history turns whose text is blank or only whitespace', () => {
+    const messages = buildTutorReplyChatMessages({
+      scenarioContextEn: 'Role-play: hotel check-in.',
+      historyTurnsEn: [
+        { speaker: 'tutor', textEn: 'Do you have a reservation?' },
+        { speaker: 'student', textEn: '   ' },
+        { speaker: 'tutor', textEn: 'Great, may I see your ID?' },
+      ],
+      userUtteranceEn: 'Here you go.',
+      fallbackReplyEn: 'Thank you.',
+    })
+    expect(messages).toHaveLength(4)
+    expect(messages.some((message) => message.content.length === 0)).toBe(false)
   })
 })
 

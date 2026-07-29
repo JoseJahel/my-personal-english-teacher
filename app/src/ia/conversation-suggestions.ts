@@ -15,6 +15,7 @@ import { modelRegistry } from './model-registry'
 import { onnxDtypeForDevice } from './onnx-dtype'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
 import { isDegenerateTranscript } from './transcription-text'
+import type { TutorReplyHistoryTurn } from './inference-worker-protocol'
 
 export type ModelDownloadProgressCallback = NonNullable<PretrainedModelOptions['progress_callback']>
 
@@ -25,7 +26,8 @@ export const MAXIMUM_TUTOR_REPLY_CHARACTERS = 180
 
 export interface TutorReplyGenerationInput {
   readonly scenarioContextEn: string
-  readonly lastTutorLineEn: string
+  /** Last up-to-4 turns (2 pairs), oldest first — short-term conversation memory. */
+  readonly historyTurnsEn: readonly TutorReplyHistoryTurn[]
   readonly userUtteranceEn: string
   readonly fallbackReplyEn: string
 }
@@ -61,15 +63,17 @@ export function buildTutorReplyChatMessages(
     'Answer the student naturally. Do not explain rules. Do not translate. Do not use lists.',
   ].join(' ')
 
-  const userContent = [
-    `Your previous line: ${input.lastTutorLineEn.trim()}`,
-    `Student: ${input.userUtteranceEn.trim()}`,
-    'Your reply:',
-  ].join('\n')
+  const historyMessages: ChatMessageForGeneration[] = input.historyTurnsEn
+    .map((turn): ChatMessageForGeneration => ({
+      role: turn.speaker === 'tutor' ? 'assistant' : 'user',
+      content: turn.textEn.trim(),
+    }))
+    .filter((message) => message.content.length > 0)
 
   return [
     { role: 'system', content: systemContent },
-    { role: 'user', content: userContent },
+    ...historyMessages,
+    { role: 'user', content: input.userUtteranceEn.trim() },
   ]
 }
 

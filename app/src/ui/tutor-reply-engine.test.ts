@@ -91,4 +91,96 @@ describe('pickContextualTutorReply', () => {
     })
     expect(reply.toLowerCase()).toMatch(/window|seat/)
   })
+
+  it('answers a bathroom question at the airport with restroom info, not wifi/cafe', () => {
+    const reply = pickContextualTutorReply({
+      scenario: airport,
+      userUtteranceEn: 'Where is the bathroom?',
+      userTurnIndex: 1,
+    })
+    expect(reply.toLowerCase()).toMatch(/restroom|bathroom/)
+    expect(reply.toLowerCase()).not.toMatch(/wifi|cafe/)
+  })
+
+  it('still answers general airport amenities (wifi) without a bathroom keyword', () => {
+    const reply = pickContextualTutorReply({
+      scenario: airport,
+      userUtteranceEn: 'Is there wifi here?',
+      userTurnIndex: 1,
+    })
+    expect(reply.toLowerCase()).toMatch(/wifi/)
+  })
+
+  it('recognizes "delayed" (not just "delay") and keeps it on the delay topic', () => {
+    const reply = pickContextualTutorReply({
+      scenario: airport,
+      userUtteranceEn: 'Is my flight delayed?',
+      userTurnIndex: 0,
+    })
+    expect(reply.toLowerCase()).toMatch(/delay|expect|rebook/)
+  })
+
+  it('recognizes the plural "strengths", not just "strength"', () => {
+    const reply = pickContextualTutorReply({
+      scenario: interview,
+      userUtteranceEn: 'What are your strengths?',
+      userTurnIndex: 2,
+    })
+    expect(reply.toLowerCase()).toMatch(/honesty|goal/)
+    expect(reply.toLowerCase()).not.toMatch(/good question|small product team/)
+  })
+
+  it('recognizes "allergies" (question form), not just the bare "allerg" stem', () => {
+    const reply = pickContextualTutorReply({
+      scenario: restaurant,
+      userUtteranceEn: 'Do you have any allergies?',
+      userTurnIndex: 1,
+    })
+    expect(reply.toLowerCase()).toMatch(/veggie salad|without meat/)
+    expect(reply.toLowerCase()).not.toMatch(/happy to help|ready to order/)
+  })
+
+  it('recognizes "allergic", not just the bare "allerg" stem', () => {
+    const reply = pickContextualTutorReply({
+      scenario: restaurant,
+      userUtteranceEn: "I'm allergic to nuts",
+      userTurnIndex: 0,
+    })
+    expect(reply.toLowerCase()).toMatch(/veggie salad|without meat/)
+    expect(reply.toLowerCase()).not.toMatch(/welcome|eat or drink/)
+  })
+
+  it('recognizes the plural "questions", not just "question"', () => {
+    const reply = pickContextualTutorReply({
+      scenario: interview,
+      userUtteranceEn: 'Do you have any questions?',
+      userTurnIndex: 1,
+    })
+    expect(reply.toLowerCase()).toMatch(/what would you like to know|role or the company/)
+    expect(reply.toLowerCase()).not.toMatch(/good question|small product team/)
+  })
+
+  it('recognizes the plural "teams", not just "team"', () => {
+    // Note: the coordinator's suggested phrase "Tell me about your team experience" was
+    // swapped for this one — "experience" makes it match isBackgroundStatement earlier
+    // in jobInterviewReply (the "why are you interested" branch), before the team check
+    // ever runs, both before and after this fix. This phrasing isolates the team group.
+    const reply = pickContextualTutorReply({
+      scenario: interview,
+      userUtteranceEn: 'I have worked on many teams',
+      userTurnIndex: 0,
+    })
+    expect(reply.toLowerCase()).toMatch(/thanks for sharing|questions for us/)
+    expect(reply.toLowerCase()).not.toMatch(/tell me your name/)
+  })
+
+  it('recognizes the plural "challenges", not just "challenge"', () => {
+    const reply = pickContextualTutorReply({
+      scenario: interview,
+      userUtteranceEn: 'What challenges have you faced?',
+      userTurnIndex: 1,
+    })
+    expect(reply.toLowerCase()).toMatch(/good example|work with other people/)
+    expect(reply.toLowerCase()).not.toMatch(/good question|small product team/)
+  })
 })

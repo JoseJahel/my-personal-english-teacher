@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MicrophoneCaptureError, startMicrophoneCapture } from '../audio/microphone-capture'
 import type { CaptureDiagnostics, MicrophoneCaptureSession } from '../audio/microphone-capture'
 import { isGetUserMediaNative } from '../audio/open-microphone-stream'
+import { asrModelCandidates, resolveActiveAsrCandidateId } from '../ia/model-registry'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import { resampleToWhisperRate } from '../audio/audio-resampler'
 import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
@@ -27,8 +28,11 @@ import {
   grammarCorrectionStatusMessageFor,
   microphoneStatusMessageFor,
   pronunciationStatusMessageFor,
+  shouldShowTutorModelPreparingBanner,
+  shouldShowTutorTypingIndicator,
   speechSynthesisStatusMessageFor,
   transcriptionStatusMessageFor,
+  tutorGenerationStatusMessageFor,
 } from './home-screen-status'
 import type {
   GrammarCorrectionUiStatus,
@@ -37,16 +41,18 @@ import type {
   PronunciationUiStatus,
   SpeechSynthesisUiStatus,
   TranscriptionUiStatus,
+  TutorGenerationUiStatus,
 } from './home-screen-status'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import {
   ensureHomeInferenceClient,
+  tutorGenerationStatusFromResult,
   type InferenceInFlightFlags,
-  type TutorGenerationUiStatus,
 } from './home-inference-client'
 import {
   buildInitialChatMessagesForScenario,
+  buildRecentHistoryTurnsEn,
   createTutorReplyMessage,
   createUserUtteranceMessage,
   type PracticeChatMessage,
@@ -56,6 +62,7 @@ import {
   type PracticeScenarioId,
 } from './practice-scenarios'
 import { pickContextualTutorReply } from './tutor-reply-engine'
+import { resolveTutorReplyWithFallback } from './tutor-reply-orchestration'
 import {
   clearUtteranceSignalViews,
   updateUtteranceSignalViews,
@@ -240,6 +247,7 @@ export function useHomeScreenSession(): HomeScreenProps {
   const userTurnIndexRef = useRef(0)
   const transcriptionAttemptGenerationRef = useRef(0)
   const selectedScenarioIdRef = useRef<PracticeScenarioId>(DEFAULT_SCENARIO_ID)
+  const chatMessagesRef = useRef<PracticeChatMessage[]>(chatMessages)
 
   const isStarting = microphoneStatus === 'starting'
   const isListening = microphoneStatus === 'listening'
@@ -248,6 +256,10 @@ export function useHomeScreenSession(): HomeScreenProps {
   useEffect(() => {
     selectedScenarioIdRef.current = selectedScenarioId
   }, [selectedScenarioId])
+
+  useEffect(() => {
+    chatMessagesRef.current = chatMessages
+  }, [chatMessages])
 
   const abortMicrophoneCapture = useCallback(() => {
     stopWaveformAnimationRef.current?.()
@@ -316,6 +328,24 @@ export function useHomeScreenSession(): HomeScreenProps {
         pitchTrackCanvas: pitchTrackCanvasRef.current,
       })
       void ensurePracticeSession(scenarioId)
+
+      const inferenceClient = ensureHomeInferenceClient(
+        inferenceClientRef,
+        inferenceInFlightFlagsRef,
+        setTranscriptionStatus,
+        setModelLoadingProgressPercent,
+        setGrammarCorrectionStatus,
+        setGrammarModelLoadingProgressPercent,
+        setSpeechSynthesisStatus,
+        setSpeechModelLoadingProgressPercent,
+        setTutorGenerationStatus,
+        setTutorModelLoadingProgressPercent,
+      )
+      // SmolLM2 is heavy (~250 MB): fetch it once a scenario is chosen, not at boot,
+      // so the conversation is ready by the time the learner finishes their first turn.
+      void inferenceClient.preloadConversationModel().catch((error: unknown) => {
+        console.warn('SmolLM2 preload failed; will retry on first tutor reply.', error)
+      })
     },
     [ensurePracticeSession, microphoneStatus],
   )
@@ -451,7 +481,7 @@ export function useHomeScreenSession(): HomeScreenProps {
   )
 
   const appendSuccessfulPracticeTurn = useCallback(
-    (transcribedTextResult: string, correctedText: string) => {
+    async (transcribedTextResult: string, correctedText: string) => {
       const scenario = getPracticeScenarioById(selectedScenarioIdRef.current)
       const userMessage = createUserUtteranceMessage(
         transcribedTextResult,
@@ -460,38 +490,62 @@ export function useHomeScreenSession(): HomeScreenProps {
       )
       const referencePhrase = correctedText.trim() || transcribedTextResult.trim()
 
-      // Instant content-aware reply (matches what the student said; no LLM wait).
-      // Prefer the longer of raw ASR vs grammar fix — grammar can over-rewrite short speech.
       const turnIndex = userTurnIndexRef.current
       userTurnIndexRef.current = turnIndex + 1
       const intentPhrase = pickBestIntentPhrase(transcribedTextResult, correctedText)
-      const tutorReplyText = pickContextualTutorReply({
+
+      // Regex reply is the instant, always-available fallback — computed up front so
+      // the LLM path (and its 10 s timeout) never blocks the conversation from moving.
+      const fallbackReplyText = pickContextualTutorReply({
         scenario,
         userUtteranceEn: intentPhrase,
         userTurnIndex: turnIndex,
       })
-      const usedFallback = false
+      const historyTurnsEn = buildRecentHistoryTurnsEn(chatMessagesRef.current)
+
+      setChatMessages((currentMessages) => [...currentMessages, userMessage])
+      setTutorGenerationStatus('generating')
+
+      const inferenceClient = inferenceClientRef.current
+      inferenceInFlightFlagsRef.current.tutorGeneration = true
+
+      let tutorReplyText = fallbackReplyText
+      let usedFallback = true
+      try {
+        if (inferenceClient) {
+          const result = await resolveTutorReplyWithFallback({
+            generateTutorReply: inferenceClient.generateTutorReply,
+            requestInput: {
+              scenarioContextEn: scenario.generationContextEn,
+              historyTurnsEn,
+              userUtteranceEn: intentPhrase,
+              fallbackReplyEn: fallbackReplyText,
+            },
+          })
+          tutorReplyText = result.tutorReplyText
+          usedFallback = result.usedFallback
+        }
+      } finally {
+        inferenceInFlightFlagsRef.current.tutorGeneration = false
+      }
 
       setChatMessages((currentMessages) => [
         ...currentMessages,
-        userMessage,
         createTutorReplyMessage(tutorReplyText, nextChatMessageId('tutor'), usedFallback),
       ])
-      setTutorGenerationStatus('done-generated')
+      setTutorGenerationStatus(tutorGenerationStatusFromResult(usedFallback))
 
-      void (async () => {
-        // Conversation first: speak ASAP. Score is heavy (extra TTS) — run after voice starts.
-        void speakTutorText(tutorReplyText)
-        const pronunciation = await scoreUserPronunciation(referencePhrase)
-        await persistPracticeTurn({
-          transcribedText: transcribedTextResult,
-          correctedText: referencePhrase,
-          tutorReplyText,
-          tutorUsedFallback: usedFallback,
-          pronunciation,
-          formants: medianFormantsRef.current,
-        })
-      })()
+      // Conversation first: speak ASAP. Score is heavy (extra TTS) — run after voice starts.
+      void speakTutorText(tutorReplyText)
+      const pronunciation = await scoreUserPronunciation(referencePhrase)
+      await persistPracticeTurn({
+        transcribedText: transcribedTextResult,
+        correctedText: referencePhrase,
+        tutorReplyText,
+        tutorUsedFallback: usedFallback,
+        pronunciation,
+        formants: medianFormantsRef.current,
+      })
     },
     [persistPracticeTurn, scoreUserPronunciation, speakTutorText],
   )
@@ -500,7 +554,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     async (transcribedTextResult: string, attemptGeneration: number) => {
       if (!transcribedTextResult.trim() || !inferenceClientRef.current) {
         setGrammarCorrectionStatus('idle')
-        appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
+        void appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
         return
       }
 
@@ -515,7 +569,7 @@ export function useHomeScreenSession(): HomeScreenProps {
         }
         setCorrectedGrammarText(correctedText)
         setGrammarCorrectionStatus('done')
-        appendSuccessfulPracticeTurn(transcribedTextResult, correctedText)
+        void appendSuccessfulPracticeTurn(transcribedTextResult, correctedText)
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
@@ -524,7 +578,7 @@ export function useHomeScreenSession(): HomeScreenProps {
         setGrammarCorrectionErrorReason(reason)
         setGrammarCorrectionStatus('error')
         // Still add the user turn so chat history is not empty after a successful ASR.
-        appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
+        void appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
         console.error(error)
       } finally {
         if (attemptGeneration === transcriptionAttemptGenerationRef.current) {
@@ -926,6 +980,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     modelLoadingProgressPercent,
     transcriptionErrorReason,
     noAudioReason,
+    asrModelCandidates[resolveActiveAsrCandidateId()].approxDownloadMb,
   )
   const grammarCorrectionStatusMessage = grammarCorrectionStatusMessageFor(
     grammarCorrectionStatus,
@@ -937,24 +992,10 @@ export function useHomeScreenSession(): HomeScreenProps {
     speechModelLoadingProgressPercent,
     speechSynthesisErrorReason,
   )
-  const tutorGenerationStatusMessage = (() => {
-    switch (tutorGenerationStatus) {
-      case 'idle':
-        return homeScreenInterfaceTexts.tutorGeneration.statusIdle
-      case 'loading-model':
-        return homeScreenInterfaceTexts.tutorGeneration.statusLoading(
-          tutorModelLoadingProgressPercent,
-        )
-      case 'generating':
-        return homeScreenInterfaceTexts.tutorGeneration.statusGenerating
-      case 'done-generated':
-        return homeScreenInterfaceTexts.tutorGeneration.statusDoneGenerated
-      case 'done-fallback':
-        return homeScreenInterfaceTexts.tutorGeneration.statusDoneFallback
-      case 'error':
-        return homeScreenInterfaceTexts.tutorGeneration.statusError
-    }
-  })()
+  const tutorGenerationStatusMessage = tutorGenerationStatusMessageFor(
+    tutorGenerationStatus,
+    tutorModelLoadingProgressPercent,
+  )
   const pronunciationStatusMessage = pronunciationStatusMessageFor(
     pronunciationStatus,
     pronunciationScore?.score0to100 ?? null,
@@ -983,6 +1024,11 @@ export function useHomeScreenSession(): HomeScreenProps {
     speechSynthesisStatus === 'loading-model' ||
     speechSynthesisStatus === 'synthesizing' ||
     speechSynthesisStatus === 'playing'
+
+  const isTutorPreparingConversationModel = shouldShowTutorModelPreparingBanner(
+    tutorGenerationStatus,
+  )
+  const isTutorComposingReply = shouldShowTutorTypingIndicator(tutorGenerationStatus)
 
   const formantsSummaryMessage = formatFormantsSummaryMessage(medianFormants)
 
@@ -1026,6 +1072,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     grammarCorrectionMadeNoChangesToTranscription,
     speechSynthesisStatusMessage,
     tutorGenerationStatusMessage,
+    isTutorPreparingConversationModel,
+    isTutorComposingReply,
     pronunciationStatusMessage,
     pronunciationDetailMessage,
     pronunciationScore0to100: pronunciationScore?.score0to100 ?? null,

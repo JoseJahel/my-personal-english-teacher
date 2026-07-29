@@ -9,6 +9,7 @@ import type {
   GrammarCorrectionUiStatus,
   SpeechSynthesisUiStatus,
   TranscriptionUiStatus,
+  TutorGenerationUiStatus,
 } from './home-screen-status'
 
 export type InferenceInFlightFlags = {
@@ -17,14 +18,6 @@ export type InferenceInFlightFlags = {
   speechSynthesis: boolean
   tutorGeneration: boolean
 }
-
-export type TutorGenerationUiStatus =
-  | 'idle'
-  | 'loading-model'
-  | 'generating'
-  | 'done-generated'
-  | 'done-fallback'
-  | 'error'
 
 /**
  * Only show "loading-model" while download is incomplete.
@@ -150,4 +143,9 @@ export function ensureHomeInferenceClient(
   })
   inferenceClientRef.current = inferenceClient
   return inferenceClient
+}
+
+/** Maps the orchestrator's `usedFallback` flag to the truthful UI status. */
+export function tutorGenerationStatusFromResult(usedFallback: boolean): TutorGenerationUiStatus {
+  return usedFallback ? 'done-fallback' : 'done-generated'
 }
