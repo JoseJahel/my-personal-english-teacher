@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildTutorReplyChatMessages,
   cleanGeneratedTutorReply,
+  generateTutorReply,
   isPlausibleTutorReply,
   MAXIMUM_TUTOR_REPLY_CHARACTERS,
 } from './conversation-suggestions'
+import type { TextGenerationPipeline } from '@huggingface/transformers'
+import type { TutorReplyGenerationInput } from './conversation-suggestions'
+
+// Never load real ONNX weights in unit tests.
+vi.mock('@huggingface/transformers', () => ({
+  pipeline: vi.fn(),
+}))
 
 describe('buildTutorReplyChatMessages', () => {
   it('builds a system message plus one message per history turn and the current student line', () => {
@@ -92,5 +100,83 @@ describe('isPlausibleTutorReply', () => {
     expect(
       isPlausibleTutorReply('As an AI language model I cannot help', 'hello'),
     ).toBe(false)
+  })
+})
+
+describe('generateTutorReply', () => {
+  const baseInput: TutorReplyGenerationInput = {
+    scenarioContextEn: 'Role-play: hotel front desk.',
+    historyTurnsEn: [],
+    userUtteranceEn: 'Where is the bathroom?',
+    fallbackReplyEn: 'Let me check for you.',
+  }
+
+  function fakeGeneratorResolving(value: unknown): TextGenerationPipeline {
+    return vi.fn().mockResolvedValue(value) as unknown as TextGenerationPipeline
+  }
+
+  it('extracts the assistant turn when generated_text is a chat-mode message array', async () => {
+    const generator = fakeGeneratorResolving([
+      {
+        generated_text: [
+          { role: 'system', content: 'You are a role-play partner for English practice.' },
+          { role: 'user', content: 'Where is the bathroom?' },
+          {
+            role: 'assistant',
+            content: 'The bathroom is just down the hall, near the kitchen.',
+          },
+        ],
+      },
+    ])
+
+    const result = await generateTutorReply(generator, baseInput)
+
+    expect(result.usedFallback).toBe(false)
+    expect(result.tutorReplyText).toBe('The bathroom is just down the hall, near the kitchen.')
+  })
+
+  it('still extracts generated_text when it is a plain string (legacy pipeline shape)', async () => {
+    const generator = fakeGeneratorResolving([
+      { generated_text: 'It is right next to the front desk.' },
+    ])
+
+    const result = await generateTutorReply(generator, baseInput)
+
+    expect(result.usedFallback).toBe(false)
+    expect(result.tutorReplyText).toBe('It is right next to the front desk.')
+  })
+
+  it('falls back when the last chat message content is empty', async () => {
+    const generator = fakeGeneratorResolving([
+      {
+        generated_text: [
+          { role: 'system', content: 'You are a role-play partner for English practice.' },
+          { role: 'user', content: 'Where is the bathroom?' },
+          { role: 'assistant', content: '' },
+        ],
+      },
+    ])
+
+    const result = await generateTutorReply(generator, baseInput)
+
+    expect(result.usedFallback).toBe(true)
+    expect(result.tutorReplyText).toBe(baseInput.fallbackReplyEn)
+  })
+
+  it('falls back when the last chat message content is degenerate garbage', async () => {
+    const generator = fakeGeneratorResolving([
+      {
+        generated_text: [
+          { role: 'system', content: 'You are a role-play partner for English practice.' },
+          { role: 'user', content: 'Where is the bathroom?' },
+          { role: 'assistant', content: 'loop loop loop loop loop loop loop loop' },
+        ],
+      },
+    ])
+
+    const result = await generateTutorReply(generator, baseInput)
+
+    expect(result.usedFallback).toBe(true)
+    expect(result.tutorReplyText).toBe(baseInput.fallbackReplyEn)
   })
 })

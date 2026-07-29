@@ -196,6 +196,16 @@ export async function generateTutorReply(
   }
 }
 
+/** Type guard for a chat message object (`{ role, content }`) inside a `generated_text` array. */
+function isChatMessageWithContent(value: unknown): value is { content: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'content' in value &&
+    typeof (value as { content?: unknown }).content === 'string'
+  )
+}
+
 function extractGeneratedText(
   output: TextGenerationOutput | TextGenerationOutput[],
 ): string {
@@ -208,8 +218,16 @@ function extractGeneratedText(
     if (typeof generated === 'string') {
       return generated
     }
-    if (Array.isArray(generated) && typeof generated[0] === 'string') {
-      return generated[0]
+    if (Array.isArray(generated)) {
+      // Chat-mode pipelines return the whole conversation as messages; the new
+      // assistant turn is the last one.
+      const lastMessage = generated[generated.length - 1]
+      if (isChatMessageWithContent(lastMessage)) {
+        return lastMessage.content
+      }
+      if (typeof generated[0] === 'string') {
+        return generated[0]
+      }
     }
   }
   return ''
