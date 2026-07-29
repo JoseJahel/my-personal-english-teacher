@@ -36,6 +36,8 @@ export interface HomeScreenProps {
   grammarCorrectionMadeNoChangesToTranscription: boolean
   speechSynthesisStatusMessage: string
   tutorGenerationStatusMessage: string
+  isTutorPreparingConversationModel: boolean
+  isTutorComposingReply: boolean
   pronunciationStatusMessage: string
   pronunciationDetailMessage: string | null
   pronunciationScore0to100: number | null
@@ -76,6 +78,8 @@ export function HomeScreen({
   grammarCorrectionMadeNoChangesToTranscription,
   speechSynthesisStatusMessage,
   tutorGenerationStatusMessage,
+  isTutorPreparingConversationModel,
+  isTutorComposingReply,
   pronunciationStatusMessage,
   pronunciationDetailMessage,
   pronunciationScore0to100,
@@ -107,12 +111,12 @@ export function HomeScreen({
     pronunciationScore0to100 !== null
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl px-4 pb-28 pt-8 font-sans text-[#3a3a35] sm:px-5">
+    <div className="mx-auto min-h-screen max-w-2xl px-4 pb-28 pt-8 font-sans text-ink-900 sm:px-5">
       <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
           {homeScreenInterfaceTexts.applicationTitle}
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#5c5c51] sm:text-base">
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600 sm:text-base">
           {homeScreenInterfaceTexts.productLead}
         </p>
       </header>
@@ -124,12 +128,12 @@ export function HomeScreen({
       ) : null}
 
       {isPreparingModels ? (
-        <p className="mt-4 rounded-lg bg-indigo-50 px-3 py-2 text-center text-sm text-indigo-900 ring-1 ring-indigo-100">
+        <p className="mt-4 rounded-lg bg-sage-100 px-3 py-2 text-center text-sm text-sage-800 ring-1 ring-sage-200">
           {homeScreenInterfaceTexts.modelsWarmingUpMessage}
         </p>
       ) : null}
 
-      <section className="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/80">
+      <section className="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
         <ScenarioPicker
           selectedScenarioId={selectedScenarioId}
           isSelectionLocked={isScenarioSelectionLocked}
@@ -138,8 +142,8 @@ export function HomeScreen({
       </section>
 
       {/* Primary action — above the fold, not buried under empty charts */}
-      <section className="mt-5 rounded-2xl bg-slate-900 p-4 text-white shadow-lg">
-        <p className="text-center text-sm font-medium text-slate-200">
+      <section className="mt-5 rounded-2xl bg-sage-950 p-4 text-white shadow-lg">
+        <p className="text-center text-sm font-medium text-sage-300">
           {primaryActivityMessage}
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -147,7 +151,7 @@ export function HomeScreen({
             type="button"
             onClick={onStartMicrophone}
             disabled={isStarting || isListening || isTutorSpeaking}
-            className="min-h-12 flex-1 rounded-xl bg-emerald-500 px-5 py-3 text-base font-bold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
+            className="min-h-12 flex-1 rounded-xl bg-sage-700 px-5 py-3 text-base font-bold text-white transition hover:bg-sage-600 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
           >
             {isListening
               ? homeScreenInterfaceTexts.listeningButtonLabel
@@ -157,12 +161,12 @@ export function HomeScreen({
             type="button"
             onClick={onStopMicrophone}
             disabled={!isListening}
-            className="min-h-12 flex-1 rounded-xl bg-rose-500 px-5 py-3 text-base font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
+            className="min-h-12 flex-1 rounded-xl bg-blush-600 px-5 py-3 text-base font-bold text-white transition hover:bg-blush-500 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
           >
             {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
           </button>
         </div>
-        <p className="mt-3 text-center text-xs text-slate-400">
+        <p className="mt-3 text-center text-xs text-sage-300">
           {homeScreenInterfaceTexts.micHelperHint}
         </p>
 
@@ -170,11 +174,11 @@ export function HomeScreen({
           className={`mt-4 text-left ${isListening || isStarting ? '' : 'hidden'}`}
         >
           {activeMicrophoneLabel ? (
-            <p className="mb-2 text-xs text-slate-300">
+            <p className="mb-2 text-xs text-sage-300">
               {homeScreenInterfaceTexts.activeMicrophoneLabel(activeMicrophoneLabel)}
             </p>
           ) : null}
-          <div className="mb-1 flex justify-between text-xs text-slate-300">
+          <div className="mb-1 flex justify-between text-xs text-sage-300">
             <span>
               {homeScreenInterfaceTexts.inputLevelLabel}: {levelPercent}%
             </span>
@@ -184,10 +188,10 @@ export function HomeScreen({
                 : homeScreenInterfaceTexts.inputLevelHintActiveShort}
             </span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-700">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-sage-track">
             <div
               className={`h-full rounded-full transition-[width] duration-75 ${
-                isLevelSilentWhileListening ? 'bg-amber-400' : 'bg-emerald-400'
+                isLevelSilentWhileListening ? 'bg-amber-400' : 'bg-sage-400'
               }`}
               style={{ width: `${levelPercent}%` }}
             />
@@ -198,28 +202,34 @@ export function HomeScreen({
           ref={canvasRef}
           width={600}
           height={100}
-          className={`mt-3 h-[100px] w-full rounded-lg bg-black/40 ${
+          className={`mt-3 h-[100px] w-full rounded-lg bg-sage-900 ${
             isListening || isStarting ? '' : 'hidden'
           }`}
         />
       </section>
 
-      <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/80">
-        <PracticeChatPanel messages={chatMessages} firstTurnHintEn={firstTurnHintEn} />
+      <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+        <PracticeChatPanel
+          messages={chatMessages}
+          firstTurnHintEn={firstTurnHintEn}
+          isTutorPreparingConversationModel={isTutorPreparingConversationModel}
+          isTutorComposingReply={isTutorComposingReply}
+          tutorGenerationStatusMessage={tutorGenerationStatusMessage}
+        />
       </section>
 
       {hasResults ? (
-        <section className="mt-5 space-y-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200/80">
-          <h2 className="text-sm font-semibold text-slate-800">
+        <section className="mt-5 space-y-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-sage-200/80">
+          <h2 className="text-sm font-semibold text-ink-900">
             {homeScreenInterfaceTexts.resultsSectionTitle}
           </h2>
 
           {transcribedText ? (
             <div>
-              <p className="text-xs font-medium text-slate-500">
+              <p className="text-xs font-medium text-ink-400">
                 {homeScreenInterfaceTexts.transcriptionPanelLabel}
               </p>
-              <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 font-mono text-sm text-slate-900">
+              <p className="mt-1 rounded-lg bg-sage-50 px-3 py-2 font-mono text-sm text-ink-900">
                 {transcribedText}
               </p>
             </div>
@@ -227,14 +237,14 @@ export function HomeScreen({
 
           {correctedGrammarText ? (
             <div>
-              <p className="text-xs font-medium text-slate-500">
+              <p className="text-xs font-medium text-ink-400">
                 {homeScreenInterfaceTexts.grammarCorrectionPanelLabel}
               </p>
               <p className="mt-1 rounded-lg bg-emerald-50 px-3 py-2 font-mono text-sm text-emerald-950">
                 {correctedGrammarText}
               </p>
               {grammarCorrectionMadeNoChangesToTranscription ? (
-                <p className="mt-1 text-xs italic text-slate-500">
+                <p className="mt-1 text-xs italic text-ink-400">
                   {homeScreenInterfaceTexts.grammarCorrectionStatusMessages.noCorrectionsNeeded}
                 </p>
               ) : null}
@@ -243,27 +253,21 @@ export function HomeScreen({
 
           {pronunciationScore0to100 !== null ? (
             <div>
-              <p className="text-xs font-medium text-slate-500">
+              <p className="text-xs font-medium text-ink-400">
                 {homeScreenInterfaceTexts.pronunciationPanelLabel}
               </p>
-              <p className="mt-1 text-sm text-slate-700">{pronunciationStatusMessage}</p>
+              <p className="mt-1 text-sm text-ink-600">{pronunciationStatusMessage}</p>
               <div className="mt-2">
-                <div className="mb-1 flex justify-between text-xs text-slate-500">
+                <div className="mb-1 flex justify-between text-xs text-ink-400">
                   <span>0</span>
-                  <span className="font-semibold text-indigo-700">
+                  <span className="font-semibold text-sage-800">
                     {pronunciationScore0to100.toFixed(1)}
                   </span>
                   <span>100</span>
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="h-3 w-full overflow-hidden rounded-full bg-sage-200">
                   <div
-                    className={`h-full rounded-full transition-[width] duration-300 ${
-                      pronunciationScore0to100 >= 70
-                        ? 'bg-emerald-500'
-                        : pronunciationScore0to100 >= 45
-                          ? 'bg-amber-400'
-                          : 'bg-rose-500'
-                    }`}
+                    className="h-full rounded-full bg-sage-600 transition-[width] duration-300"
                     style={{
                       width: `${Math.min(100, Math.max(0, pronunciationScore0to100))}%`,
                     }}
@@ -278,66 +282,66 @@ export function HomeScreen({
 
       {/* Signal lab: collapsed; canvases always mounted so drawings survive expand. */}
       <section
-        className={`mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80 ${
+        className={`mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80 ${
           hasCompletedCapture ? '' : 'hidden'
         }`}
       >
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
           onClick={() => setShowSignalLab((open) => !open)}
           aria-expanded={showSignalLab}
         >
           <span>{homeScreenInterfaceTexts.signalLabTitle}</span>
-          <span className="text-slate-400">{showSignalLab ? '−' : '+'}</span>
+          <span className="text-ink-400">{showSignalLab ? '−' : '+'}</span>
         </button>
         <div
-          className={`space-y-4 border-t border-slate-100 px-4 pb-4 pt-3 text-left ${
+          className={`space-y-4 border-t border-sage-200 px-4 pb-4 pt-3 text-left ${
             showSignalLab ? '' : 'hidden'
           }`}
         >
           <div>
-            <p className="mb-1 text-xs font-semibold text-slate-600">
+            <p className="mb-1 text-xs font-semibold text-ink-600">
               {homeScreenInterfaceTexts.spectrogramPanelLabel}
             </p>
             <canvas
               ref={spectrogramCanvasRef}
               width={600}
               height={140}
-              className="h-[140px] w-full rounded-lg bg-[#1e1e1e]"
+              className="h-[140px] w-full rounded-lg bg-sage-900"
             />
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold text-slate-600">
+            <p className="mb-1 text-xs font-semibold text-ink-600">
               {homeScreenInterfaceTexts.pitchTrackPanelLabel}
             </p>
             <canvas
               ref={pitchTrackCanvasRef}
               width={600}
               height={100}
-              className="h-[100px] w-full rounded-lg bg-[#1e1e1e]"
+              className="h-[100px] w-full rounded-lg bg-sage-900"
             />
           </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-            <p className="text-xs font-semibold text-slate-600">
+          <div className="rounded-lg bg-sage-50 px-3 py-2 text-sm">
+            <p className="text-xs font-semibold text-ink-600">
               {homeScreenInterfaceTexts.formantsPanelLabel}
             </p>
-            <p className="mt-1 font-mono text-slate-900">
+            <p className="mt-1 font-mono text-ink-900">
               {formantsSummaryMessage ?? homeScreenInterfaceTexts.formantsUnavailable}
             </p>
           </div>
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
+      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
           onClick={() => setShowHistory((open) => !open)}
           aria-expanded={showHistory}
         >
           <span>{homeScreenInterfaceTexts.practiceHistory.sectionTitle}</span>
-          <span className="text-slate-400">
+          <span className="text-ink-400">
             {practiceHistoryTurns.length > 0
               ? `(${practiceHistoryTurns.length}) `
               : ''}
@@ -345,7 +349,7 @@ export function HomeScreen({
           </span>
         </button>
         {showHistory ? (
-          <div className="border-t border-slate-100 px-4 pb-4">
+          <div className="border-t border-sage-200 px-4 pb-4">
             <PracticeHistoryPanel
               turns={practiceHistoryTurns}
               statusMessage={practiceHistoryStatusMessage}
@@ -354,18 +358,18 @@ export function HomeScreen({
         ) : null}
       </section>
 
-      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
+      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3a3a35]"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
           onClick={() => setShowTechnicalDetails((open) => !open)}
           aria-expanded={showTechnicalDetails}
         >
           <span>{homeScreenInterfaceTexts.technicalDetailsTitle}</span>
-          <span className="text-slate-400">{showTechnicalDetails ? '−' : '+'}</span>
+          <span className="text-ink-400">{showTechnicalDetails ? '−' : '+'}</span>
         </button>
         {showTechnicalDetails ? (
-          <div className="space-y-2 border-t border-slate-100 px-4 pb-4 pt-3 text-left text-xs text-[#5c5c51]">
+          <div className="space-y-2 border-t border-sage-200 px-4 pb-4 pt-3 text-left text-xs text-ink-600">
             <StatusLine
               label={homeScreenInterfaceTexts.statusFieldLabel}
               value={microphoneStatusMessage}
@@ -391,18 +395,18 @@ export function HomeScreen({
               value={pronunciationStatusMessage}
             />
             {pronunciationDetailMessage ? (
-              <p className="text-[11px] text-slate-400">{pronunciationDetailMessage}</p>
+              <p className="text-[11px] text-ink-400">{pronunciationDetailMessage}</p>
             ) : null}
             {captureDiagnosticsMessage ? (
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-ink-400">
                 <strong>{homeScreenInterfaceTexts.captureDiagnosticsLabel}:</strong>{' '}
                 {captureDiagnosticsMessage}
               </p>
             ) : null}
             {environmentDiagnosticsMessage && !showMockEnvironmentWarning ? (
-              <p className="text-[11px] text-slate-400">{environmentDiagnosticsMessage}</p>
+              <p className="text-[11px] text-ink-400">{environmentDiagnosticsMessage}</p>
             ) : null}
-            <p className="pt-1 text-[11px] text-slate-400">
+            <p className="pt-1 text-[11px] text-ink-400">
               {homeScreenInterfaceTexts.liveMetersDetail(liveRms, livePeak)}
             </p>
           </div>
@@ -415,7 +419,7 @@ export function HomeScreen({
 function StatusLine({ label, value }: { label: string; value: string }) {
   return (
     <p>
-      <strong className="text-slate-700">{label}:</strong> {value}
+      <strong className="text-ink-600">{label}:</strong> {value}
     </p>
   )
 }

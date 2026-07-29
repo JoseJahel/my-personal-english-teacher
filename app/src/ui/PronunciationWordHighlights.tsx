@@ -18,8 +18,8 @@ export function PronunciationWordHighlights({ highlights }: PronunciationWordHig
 
   return (
     <div className="mt-3">
-      <p className="mb-2 text-xs font-semibold text-slate-600">{copy.title}</p>
-      <p className="mb-2 text-[11px] text-slate-500">{copy.hint}</p>
+      <p className="mb-2 text-xs font-semibold text-ink-600">{copy.title}</p>
+      <p className="mb-2 text-[11px] text-ink-400">{copy.hint}</p>
       <p className="flex flex-wrap gap-1.5 text-left font-mono text-sm leading-relaxed">
         {highlights.map((highlight, index) => (
           <span
@@ -31,9 +31,9 @@ export function PronunciationWordHighlights({ highlights }: PronunciationWordHig
           </span>
         ))}
       </p>
-      <ul className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-500">
+      <ul className="mt-2 flex flex-wrap gap-3 text-[11px] text-ink-400">
         <li>
-          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-green-500" />
+          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-sage-600" />
           {copy.legendGood}
         </li>
         <li>
@@ -41,7 +41,7 @@ export function PronunciationWordHighlights({ highlights }: PronunciationWordHig
           {copy.legendMedium}
         </li>
         <li>
-          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-red-400" />
+          <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-blush-500" />
           {copy.legendPoor}
         </li>
       </ul>
@@ -52,10 +52,10 @@ export function PronunciationWordHighlights({ highlights }: PronunciationWordHig
 function bandClassName(band: WordPronunciationHighlight['band']): string {
   switch (band) {
     case 'good':
-      return 'bg-green-100 text-green-900 ring-1 ring-green-300'
+      return 'bg-sage-100 text-sage-900 ring-1 ring-sage-300'
     case 'medium':
       return 'bg-amber-100 text-amber-950 ring-1 ring-amber-300'
     case 'poor':
-      return 'bg-red-100 text-red-900 ring-1 ring-red-300'
+      return 'bg-blush-500/15 text-ink-900 ring-1 ring-blush-500/40'
   }
 }

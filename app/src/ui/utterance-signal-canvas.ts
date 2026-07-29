@@ -9,7 +9,7 @@ import {
 } from '../dsp/spectrogram'
 import type { YinPitchContourFrame } from '../dsp/pitch-detection-yin'
 
-export const SIGNAL_CANVAS_BACKGROUND = '#1e1e1e'
+export const SIGNAL_CANVAS_BACKGROUND = '#2e3b30'
 export const PITCH_TRACK_LINE_COLOR = '#5dade2'
 export const PITCH_TRACK_GRID_COLOR = '#333333'
 export const PITCH_TRACK_UNVOICED_COLOR = '#444444'

@@ -1,1 +1,22 @@
 @import 'tailwindcss';
+
+@theme {
+  --color-sage-50: #f7f6f2;
+  --color-sage-100: #e2ede2;
+  --color-sage-200: #e5e3db;
+  --color-sage-300: #d9e2da;
+  --color-sage-400: #8fbf95;
+  --color-sage-600: #5c8a63;
+  --color-sage-700: #4a7350;
+  --color-sage-800: #3c5c3f;
+  --color-sage-900: #2e3b30;
+  --color-sage-950: #232c26;
+  /* Intentional gap: sage jumps 400 -> 600, no 500 step is missing.
+     sage-track is a semantic key for tracks on dark backgrounds, not a scale step. */
+  --color-sage-track: #4a5c4d;
+  --color-ink-900: #3a3a35;
+  --color-ink-600: #5c5c51;
+  --color-ink-400: #8a8a7f;
+  --color-blush-500: #cf7a70;
+  --color-blush-600: #bb6459;
+}
