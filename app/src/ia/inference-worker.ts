@@ -16,17 +16,20 @@ import {
   loadConversationSuggestionGenerator,
 } from './conversation-suggestions'
 import { correctEnglishGrammar, loadGrammarCorrector } from './grammar-correction'
+import { KeyedAsyncCache } from './keyed-async-cache'
 import { AggregateModelDownloadProgress } from './model-download-progress'
 import type {
   CorrectGrammarRequestMessage,
   GenerateTutorReplyRequestMessage,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
+  PreloadConversationModelRequestMessage,
   PreloadModelsRequestMessage,
   SynthesizeSpeechRequestMessage,
   TranscribeRequestMessage,
 } from './inference-worker-protocol'
-import type { ModelRegistryKey } from './model-registry'
+import type { AsrModelCandidateId, ModelRegistryKey } from './model-registry'
+import { resolveActiveAsrCandidateId } from './model-registry'
 import { resolvePreferredOnnxDevice } from './resolve-inference-device'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
 import {
@@ -91,15 +94,35 @@ function getPreferredDevice(): Promise<OnnxInferenceDevice> {
   return preferredDevicePromise
 }
 
-let speechRecognizerPromise: Promise<AutomaticSpeechRecognitionPipeline> | null = null
+/**
+ * Resolves which ASR candidate a request targets: an explicit override
+ * (benchmark runs) wins, else the active candidate (env override or default).
+ * Keeping the normal app flow's contract unchanged (no candidate → default).
+ */
+export function resolveAsrCandidateIdForMessage(message: {
+  readonly asrCandidateId?: AsrModelCandidateId
+}): AsrModelCandidateId {
+  return message.asrCandidateId ?? resolveActiveAsrCandidateId()
+}
 
-async function loadSpeechRecognizerWithFallback(): Promise<AutomaticSpeechRecognitionPipeline> {
+// Entries are never evicted on success (no LRU/cap). A benchmark sweeping
+// several candidates must dispose/recreate the InferenceClient between
+// candidates instead of reusing one worker, or resident Whisper models will
+// accumulate.
+const speechRecognizerCache = new KeyedAsyncCache<
+  AsrModelCandidateId,
+  AutomaticSpeechRecognitionPipeline
+>()
+
+async function loadSpeechRecognizerWithFallback(
+  candidateId: AsrModelCandidateId,
+): Promise<AutomaticSpeechRecognitionPipeline> {
   const device = await getPreferredDevice()
   const onProgress = (event: SpeechRecognitionProgressEvent) =>
     handleModelDownloadProgress('automaticSpeechRecognition', event)
   progressTrackerFor('automaticSpeechRecognition').reset()
   try {
-    return await loadSpeechRecognizer(device, onProgress)
+    return await loadSpeechRecognizer(device, onProgress, candidateId)
   } catch (error) {
     if (device === 'wasm') {
       throw error
@@ -108,18 +131,16 @@ async function loadSpeechRecognizerWithFallback(): Promise<AutomaticSpeechRecogn
     console.warn('ASR WebGPU load failed; retrying with WASM.', error)
     progressTrackerFor('automaticSpeechRecognition').reset()
     preferredDevicePromise = Promise.resolve('wasm')
-    return loadSpeechRecognizer('wasm', onProgress)
+    return loadSpeechRecognizer('wasm', onProgress, candidateId)
   }
 }
 
-function getSpeechRecognizer(): Promise<AutomaticSpeechRecognitionPipeline> {
-  if (!speechRecognizerPromise) {
-    speechRecognizerPromise = loadSpeechRecognizerWithFallback().catch((error: unknown) => {
-      speechRecognizerPromise = null
-      throw error
-    })
-  }
-  return speechRecognizerPromise
+function getSpeechRecognizer(
+  candidateId: AsrModelCandidateId,
+): Promise<AutomaticSpeechRecognitionPipeline> {
+  return speechRecognizerCache.get(candidateId, () =>
+    loadSpeechRecognizerWithFallback(candidateId),
+  )
 }
 
 let grammarCorrectorPromise: Promise<Text2TextGenerationPipeline> | null = null
@@ -224,9 +245,11 @@ async function handleTranscribeMessage(message: TranscribeRequestMessage): Promi
     return
   }
 
+  const candidateId = resolveAsrCandidateIdForMessage(message)
+
   let recognizer: AutomaticSpeechRecognitionPipeline
   try {
-    recognizer = await getSpeechRecognizer()
+    recognizer = await getSpeechRecognizer(candidateId)
     emitModelReady('automaticSpeechRecognition')
   } catch (error) {
     console.error('Failed to load the speech recognition model.', error)
@@ -271,16 +294,36 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
  */
 async function handlePreloadModelsMessage(message: PreloadModelsRequestMessage): Promise<void> {
   const { requestId } = message
+  const candidateId = resolveAsrCandidateIdForMessage(message)
   try {
-    await getSpeechRecognizer()
+    await getSpeechRecognizer(candidateId)
     emitModelReady('automaticSpeechRecognition')
     await getGrammarCorrector()
     emitModelReady('grammarCorrection')
-    // TTS and SmolLM2 are intentionally not preloaded (heavy); load on first use.
+    // TTS loads on first use; SmolLM2 preloads separately when the learner
+    // picks a scenario (see preload-conversation-model).
     postResponse({ type: 'preload-models-result', requestId })
   } catch (error) {
     console.error('Model preload failed.', error)
     postResponse({ type: 'preload-models-error', requestId, reason: 'model-load-failed' })
+  }
+}
+
+async function handlePreloadConversationModelMessage(
+  message: PreloadConversationModelRequestMessage,
+): Promise<void> {
+  const { requestId } = message
+  try {
+    await getConversationGenerator()
+    emitModelReady('conversationSuggestions')
+    postResponse({ type: 'preload-conversation-model-result', requestId })
+  } catch (error) {
+    console.error('SmolLM2 conversation model preload failed.', error)
+    postResponse({
+      type: 'preload-conversation-model-error',
+      requestId,
+      reason: 'model-load-failed',
+    })
   }
 }
 
@@ -290,7 +333,7 @@ async function handleGenerateTutorReplyMessage(
   const {
     requestId,
     scenarioContextEn,
-    lastTutorLineEn,
+    historyTurnsEn,
     userUtteranceEn,
     fallbackReplyEn,
   } = message
@@ -319,7 +362,7 @@ async function handleGenerateTutorReplyMessage(
   try {
     const result = await generateTutorReply(generator, {
       scenarioContextEn,
-      lastTutorLineEn,
+      historyTurnsEn,
       userUtteranceEn,
       fallbackReplyEn,
     })
@@ -402,11 +445,22 @@ self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMess
     case 'preload-models':
       void handlePreloadModelsMessage(message)
       break
+    case 'preload-conversation-model':
+      void handlePreloadConversationModelMessage(message)
+      break
     case 'synthesize-speech':
       void handleSynthesizeSpeechMessage(message)
       break
     case 'generate-tutor-reply':
       void handleGenerateTutorReplyMessage(message)
+      break
+    case 'set-preferred-device':
+      // Worker-wide pin: ALL pipelines (ASR/grammar/TTS/SmolLM2) read this device.
+      if (message.device === 'webgpu' || message.device === 'wasm') {
+        preferredDevicePromise = Promise.resolve(message.device)
+      } else {
+        console.warn('Ignoring invalid preferred device override.', message.device)
+      }
       break
   }
 })

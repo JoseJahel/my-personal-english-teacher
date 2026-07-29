@@ -5,15 +5,24 @@
 
 import type {
   GenerateTutorReplyErrorReason,
+  GenerateTutorReplyRequestMessage,
   GrammarCorrectionErrorReason,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   ModelLoadingProgressMessage,
   ModelReadyMessage,
+  PreloadConversationModelErrorReason,
+  PreloadConversationModelRequestMessage,
   PreloadModelsErrorReason,
+  PreloadModelsRequestMessage,
+  SetPreferredDeviceMessage,
   SynthesizeSpeechErrorReason,
+  TranscribeRequestMessage,
   TranscriptionErrorReason,
+  TutorReplyHistoryTurn,
 } from './inference-worker-protocol'
+import type { AsrModelCandidateId } from './model-registry'
+import type { OnnxInferenceDevice } from './resolve-inference-device'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 
 export type InferenceClientErrorReason =
@@ -22,6 +31,7 @@ export type InferenceClientErrorReason =
   | PreloadModelsErrorReason
   | SynthesizeSpeechErrorReason
   | GenerateTutorReplyErrorReason
+  | PreloadConversationModelErrorReason
   | 'worker-unavailable'
 
 export interface SynthesizedSpeechResult {
@@ -36,9 +46,61 @@ export interface TutorReplyResult {
 
 export interface GenerateTutorReplyInput {
   readonly scenarioContextEn: string
-  readonly lastTutorLineEn: string
+  /** Last up-to-4 turns (2 pairs), oldest first — short-term conversation memory. */
+  readonly historyTurnsEn: readonly TutorReplyHistoryTurn[]
   readonly userUtteranceEn: string
   readonly fallbackReplyEn: string
+}
+
+export function buildGenerateTutorReplyRequestMessage(
+  requestId: string,
+  input: GenerateTutorReplyInput,
+): GenerateTutorReplyRequestMessage {
+  return {
+    type: 'generate-tutor-reply',
+    requestId,
+    scenarioContextEn: input.scenarioContextEn,
+    historyTurnsEn: input.historyTurnsEn,
+    userUtteranceEn: input.userUtteranceEn,
+    fallbackReplyEn: input.fallbackReplyEn,
+  }
+}
+
+export function buildPreloadConversationModelRequestMessage(
+  requestId: string,
+): PreloadConversationModelRequestMessage {
+  return { type: 'preload-conversation-model', requestId }
+}
+
+export function buildTranscribeRequestMessage(
+  requestId: string,
+  samples16kHz: Float32Array,
+  asrCandidateId?: AsrModelCandidateId,
+): TranscribeRequestMessage {
+  return {
+    type: 'transcribe',
+    requestId,
+    audioSamples: samples16kHz,
+    sampleRate: WHISPER_SAMPLE_RATE_IN_HERTZ,
+    ...(asrCandidateId ? { asrCandidateId } : {}),
+  }
+}
+
+export function buildPreloadModelsRequestMessage(
+  requestId: string,
+  asrCandidateId?: AsrModelCandidateId,
+): PreloadModelsRequestMessage {
+  return {
+    type: 'preload-models',
+    requestId,
+    ...(asrCandidateId ? { asrCandidateId } : {}),
+  }
+}
+
+export function buildSetPreferredDeviceMessage(
+  device: OnnxInferenceDevice,
+): SetPreferredDeviceMessage {
+  return { type: 'set-preferred-device', device }
 }
 
 /** First-class client error; UI maps `reason`, not free-form message text. */
@@ -58,15 +120,23 @@ export type ModelReadyListener = (message: ModelReadyMessage) => void
 export type UnsubscribeFromModelReady = () => void
 
 export interface InferenceClient {
-  /** Transfers `samples16kHz` buffer to the worker (do not read it after). */
-  transcribe: (samples16kHz: Float32Array) => Promise<string>
+  /**
+   * Transfers `samples16kHz` buffer to the worker (do not read it after).
+   * `asrCandidateId` is a benchmark-only override; normal app flow omits it.
+   */
+  transcribe: (samples16kHz: Float32Array, asrCandidateId?: AsrModelCandidateId) => Promise<string>
   correctGrammar: (englishText: string) => Promise<string>
   /** SpeechT5 TTS; loads on first call (not part of warm preload). */
   synthesizeSpeech: (englishText: string) => Promise<SynthesizedSpeechResult>
   /** SmolLM2 tutor reply; loads on first call; falls back to scenario line on soft failure. */
   generateTutorReply: (input: GenerateTutorReplyInput) => Promise<TutorReplyResult>
-  /** Warm-load Whisper + T5 in the worker (progress events still fire). */
-  preloadModels: () => Promise<void>
+  /**
+   * Warm-load Whisper + T5 in the worker (progress events still fire).
+   * `asrCandidateId` is a benchmark-only override; normal app flow omits it.
+   */
+  preloadModels: (asrCandidateId?: AsrModelCandidateId) => Promise<void>
+  /** Warm-load SmolLM2 only; call when the learner picks a scenario (not at boot). */
+  preloadConversationModel: () => Promise<void>
   subscribeToModelLoadingProgress: (
     listener: ModelLoadingProgressListener,
   ) => UnsubscribeFromModelLoadingProgress
@@ -95,11 +165,20 @@ interface PendingVoidRequest {
   reject: (error: InferenceClientError) => void
 }
 
+export interface CreateInferenceClientOptions {
+  /** Dev benchmark only: force the ONNX device for this worker, bypassing env detection. */
+  readonly forcedDevice?: OnnxInferenceDevice
+}
+
 /** Creates a module worker backed inference client. */
-export function createInferenceClient(): InferenceClient {
+export function createInferenceClient(options?: CreateInferenceClientOptions): InferenceClient {
   const worker = new Worker(new URL('./inference-worker.ts', import.meta.url), {
     type: 'module',
   })
+
+  if (options?.forcedDevice) {
+    worker.postMessage(buildSetPreferredDeviceMessage(options.forcedDevice))
+  }
 
   const pendingTextRequests = new Map<string, PendingTextRequest>()
   const pendingSpeechRequests = new Map<string, PendingSpeechRequest>()
@@ -204,6 +283,21 @@ export function createInferenceClient(): InferenceClient {
           )
         pendingVoidRequests.delete(message.requestId)
         break
+      case 'preload-conversation-model-result':
+        pendingVoidRequests.get(message.requestId)?.resolve()
+        pendingVoidRequests.delete(message.requestId)
+        break
+      case 'preload-conversation-model-error':
+        pendingVoidRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `Conversation model preload failed with reason '${message.reason}'.`,
+            ),
+          )
+        pendingVoidRequests.delete(message.requestId)
+        break
     }
   })
 
@@ -241,7 +335,10 @@ export function createInferenceClient(): InferenceClient {
     )
   }
 
-  function transcribe(samples16kHz: Float32Array): Promise<string> {
+  function transcribe(
+    samples16kHz: Float32Array,
+    asrCandidateId?: AsrModelCandidateId,
+  ): Promise<string> {
     const disposedError = rejectIfDisposed()
     if (disposedError) {
       return Promise.reject(disposedError)
@@ -252,12 +349,7 @@ export function createInferenceClient(): InferenceClient {
     return new Promise<string>((resolve, reject) => {
       pendingTextRequests.set(requestId, { resolve, reject })
 
-      const message: InferenceWorkerRequestMessage = {
-        type: 'transcribe',
-        requestId,
-        audioSamples: samples16kHz,
-        sampleRate: WHISPER_SAMPLE_RATE_IN_HERTZ,
-      }
+      const message = buildTranscribeRequestMessage(requestId, samples16kHz, asrCandidateId)
 
       worker.postMessage(message, [samples16kHz.buffer])
     })
@@ -316,20 +408,16 @@ export function createInferenceClient(): InferenceClient {
     return new Promise<TutorReplyResult>((resolve, reject) => {
       pendingTutorReplyRequests.set(requestId, { resolve, reject })
 
-      const message: InferenceWorkerRequestMessage = {
-        type: 'generate-tutor-reply',
+      const message: InferenceWorkerRequestMessage = buildGenerateTutorReplyRequestMessage(
         requestId,
-        scenarioContextEn: input.scenarioContextEn,
-        lastTutorLineEn: input.lastTutorLineEn,
-        userUtteranceEn: input.userUtteranceEn,
-        fallbackReplyEn: input.fallbackReplyEn,
-      }
+        input,
+      )
 
       worker.postMessage(message)
     })
   }
 
-  function preloadModels(): Promise<void> {
+  function preloadModels(asrCandidateId?: AsrModelCandidateId): Promise<void> {
     const disposedError = rejectIfDisposed()
     if (disposedError) {
       return Promise.reject(disposedError)
@@ -340,12 +428,23 @@ export function createInferenceClient(): InferenceClient {
     return new Promise<void>((resolve, reject) => {
       pendingVoidRequests.set(requestId, { resolve, reject })
 
-      const message: InferenceWorkerRequestMessage = {
-        type: 'preload-models',
-        requestId,
-      }
+      const message = buildPreloadModelsRequestMessage(requestId, asrCandidateId)
 
       worker.postMessage(message)
+    })
+  }
+
+  function preloadConversationModel(): Promise<void> {
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
+    }
+
+    const requestId = crypto.randomUUID()
+
+    return new Promise<void>((resolve, reject) => {
+      pendingVoidRequests.set(requestId, { resolve, reject })
+      worker.postMessage(buildPreloadConversationModelRequestMessage(requestId))
     })
   }
 
@@ -403,6 +502,7 @@ export function createInferenceClient(): InferenceClient {
     synthesizeSpeech,
     generateTutorReply,
     preloadModels,
+    preloadConversationModel,
     subscribeToModelLoadingProgress,
     subscribeToModelReady,
     dispose,

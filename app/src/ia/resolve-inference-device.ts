@@ -13,9 +13,12 @@ export type OnnxInferenceDevice = 'webgpu' | 'wasm'
 
 function readDeviceOverride(): OnnxInferenceDevice | null {
   try {
-    // Vite injects import.meta.env in the worker bundle as well.
-    const override = (import.meta as ImportMeta & { env?: Record<string, string> }).env
-      ?.VITE_INFERENCE_DEVICE
+    // Vite injects import.meta.env in the worker bundle as well. Read the
+    // property directly (no cast) so Vite/Vitest keep this dynamic in dev/test
+    // (Vitest, `vite dev`) instead of freezing it to a transform-time snapshot
+    // — see resolve-inference-device.test.ts. Production builds always inline
+    // VITE_* vars at build time; this only helps at dev/test time.
+    const override = import.meta.env.VITE_INFERENCE_DEVICE
     if (override === 'webgpu' || override === 'wasm') {
       return override
     }
