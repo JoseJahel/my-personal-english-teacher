@@ -19,6 +19,7 @@ import {
   type PracticeSessionRepository,
 } from '../storage/session-repository'
 import { playMonoPcmSamples } from '../audio/play-pcm-mono'
+import { awaitWithTimeout } from './await-with-timeout'
 import { InferenceClientError } from '../ia/inference-client'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
 import { grammarCorrectionMadeNoChanges } from '../ia/grammar-correction'
@@ -57,10 +58,7 @@ import {
   createUserUtteranceMessage,
   type PracticeChatMessage,
 } from './practice-chat-messages'
-import {
-  getPracticeScenarioById,
-  type PracticeScenarioId,
-} from './practice-scenarios'
+import { getPracticeScenarioById, type PracticeScenarioId } from './practice-scenarios'
 import { pickContextualTutorReply } from './tutor-reply-engine'
 import { resolveTutorReplyWithFallback } from './tutor-reply-orchestration'
 import {
@@ -71,6 +69,12 @@ import { clearWaveformCanvas, startAnalyserWaveformAnimation } from './waveform-
 import type { HomeScreenProps } from './HomeScreen'
 
 const DEFAULT_SCENARIO_ID: PracticeScenarioId = 'restaurant'
+
+// WASM synthesis measures ~8 s; 5x margin so a genuinely slow-but-alive
+// device is never mistaken for a hung one, while a wedged WebGPU/audio
+// driver promise still gets released instead of blocking the mic forever
+// (speechSynthesisStatus stuck in 'loading-model'/'synthesizing'/'playing').
+const SPEECH_SYNTHESIS_TIMEOUT_MS = 45_000
 
 function nextChatMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -106,11 +110,7 @@ function formatFormantsSummaryMessage(formants: FormantTriple | null): string | 
   if (!formants) {
     return null
   }
-  if (
-    formants.f1InHertz === null &&
-    formants.f2InHertz === null &&
-    formants.f3InHertz === null
-  ) {
+  if (formants.f1InHertz === null && formants.f2InHertz === null && formants.f3InHertz === null) {
     return null
   }
   const formatHz = (value: number | null) =>
@@ -145,7 +145,10 @@ function resolvePrimaryActivityMessage(input: {
   if (input.transcriptionStatus === 'loading-model') {
     return homeScreenInterfaceTexts.modelsWarmingUpMessage
   }
-  if (input.tutorGenerationStatus === 'loading-model' || input.tutorGenerationStatus === 'generating') {
+  if (
+    input.tutorGenerationStatus === 'loading-model' ||
+    input.tutorGenerationStatus === 'generating'
+  ) {
     return homeScreenInterfaceTexts.tutorGeneration.statusGenerating
   }
   if (input.pronunciationStatus === 'scoring') {
@@ -371,12 +374,20 @@ export function useHomeScreenSession(): HomeScreenProps {
     setSpeechModelLoadingProgressPercent(0)
 
     try {
-      const synthesized = await inferenceClient.synthesizeSpeech(englishText)
+      const synthesized = await awaitWithTimeout(
+        inferenceClient.synthesizeSpeech(englishText),
+        SPEECH_SYNTHESIS_TIMEOUT_MS,
+        new Error('Tutor speech synthesis timed out.'),
+      )
       if (playbackGeneration !== speechPlaybackGenerationRef.current) {
         return
       }
       setSpeechSynthesisStatus('playing')
-      await playMonoPcmSamples(synthesized.samples, synthesized.sampleRateInHertz)
+      await awaitWithTimeout(
+        playMonoPcmSamples(synthesized.samples, synthesized.sampleRateInHertz),
+        SPEECH_SYNTHESIS_TIMEOUT_MS,
+        new Error('Tutor speech playback timed out.'),
+      )
       if (playbackGeneration !== speechPlaybackGenerationRef.current) {
         return
       }
@@ -415,7 +426,12 @@ export function useHomeScreenSession(): HomeScreenProps {
           userSamples: capture.samples,
           userSampleRateInHertz: capture.sampleRateInHertz,
           referenceEnglishText,
-          synthesizeSpeech: (englishText) => inferenceClient.synthesizeSpeech(englishText),
+          synthesizeSpeech: (englishText) =>
+            awaitWithTimeout(
+              inferenceClient.synthesizeSpeech(englishText),
+              SPEECH_SYNTHESIS_TIMEOUT_MS,
+              new Error('Reference speech synthesis timed out during pronunciation scoring.'),
+            ),
         })
         if (attemptGeneration !== pronunciationAttemptGenerationRef.current) {
           return null
@@ -793,10 +809,7 @@ export function useHomeScreenSession(): HomeScreenProps {
               }
 
               // Energy VAD: auto-stop after speech + hangover silence (or max duration).
-              const vadResult = voiceActivityDetectorRef.current.pushFrame(
-                { rms, peak },
-                nowMs,
-              )
+              const vadResult = voiceActivityDetectorRef.current.pushFrame({ rms, peak }, nowMs)
               if (vadResult.shouldAutoStop && !autoStopTriggeredRef.current) {
                 autoStopTriggeredRef.current = true
                 handleStopButtonClickRef.current()
@@ -904,7 +917,9 @@ export function useHomeScreenSession(): HomeScreenProps {
       } catch (error) {
         console.warn('Practice IndexedDB init failed.', error)
         if (!cancelled) {
-          setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusUnavailable)
+          setPracticeHistoryStatusMessage(
+            homeScreenInterfaceTexts.practiceHistory.statusUnavailable,
+          )
         }
       }
     })()
@@ -1025,16 +1040,14 @@ export function useHomeScreenSession(): HomeScreenProps {
     speechSynthesisStatus === 'synthesizing' ||
     speechSynthesisStatus === 'playing'
 
-  const isTutorPreparingConversationModel = shouldShowTutorModelPreparingBanner(
-    tutorGenerationStatus,
-  )
+  const isTutorPreparingConversationModel =
+    shouldShowTutorModelPreparingBanner(tutorGenerationStatus)
   const isTutorComposingReply = shouldShowTutorTypingIndicator(tutorGenerationStatus)
 
   const formantsSummaryMessage = formatFormantsSummaryMessage(medianFormants)
 
   const isPreparingModels =
-    transcriptionStatus === 'loading-model' ||
-    grammarCorrectionStatus === 'loading-model'
+    transcriptionStatus === 'loading-model' || grammarCorrectionStatus === 'loading-model'
 
   const primaryActivityMessage = resolvePrimaryActivityMessage({
     isTutorSpeaking,

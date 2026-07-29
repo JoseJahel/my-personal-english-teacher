@@ -11,10 +11,7 @@ import type {
 } from '@huggingface/transformers'
 import { loadSpeechRecognizer, transcribeAudioSamples } from './automatic-speech-recognition'
 import type { ModelDownloadProgressEvent as SpeechRecognitionProgressEvent } from './automatic-speech-recognition'
-import {
-  generateTutorReply,
-  loadConversationSuggestionGenerator,
-} from './conversation-suggestions'
+import { generateTutorReply, loadConversationSuggestionGenerator } from './conversation-suggestions'
 import { correctEnglishGrammar, loadGrammarCorrector } from './grammar-correction'
 import { KeyedAsyncCache } from './keyed-async-cache'
 import { AggregateModelDownloadProgress } from './model-download-progress'
@@ -30,7 +27,7 @@ import type {
 } from './inference-worker-protocol'
 import type { AsrModelCandidateId, ModelRegistryKey } from './model-registry'
 import { resolveActiveAsrCandidateId } from './model-registry'
-import { resolvePreferredOnnxDevice } from './resolve-inference-device'
+import { deviceForModelKey, resolvePreferredOnnxDevice } from './resolve-inference-device'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
 import {
   loadTextToSpeechSynthesizer,
@@ -138,29 +135,20 @@ async function loadSpeechRecognizerWithFallback(
 function getSpeechRecognizer(
   candidateId: AsrModelCandidateId,
 ): Promise<AutomaticSpeechRecognitionPipeline> {
-  return speechRecognizerCache.get(candidateId, () =>
-    loadSpeechRecognizerWithFallback(candidateId),
-  )
+  return speechRecognizerCache.get(candidateId, () => loadSpeechRecognizerWithFallback(candidateId))
 }
 
 let grammarCorrectorPromise: Promise<Text2TextGenerationPipeline> | null = null
 
+// Grammar T5 is only validated on WASM (deviceForModelKey pins it there), so
+// unlike ASR there is no WebGPU attempt and thus no WASM retry to perform:
+// a load failure here is a genuine failure and propagates to the caller.
 async function loadGrammarCorrectorWithFallback(): Promise<Text2TextGenerationPipeline> {
-  const device = await getPreferredDevice()
+  const device = deviceForModelKey('grammarCorrection', await getPreferredDevice())
   const onProgress = (event: SpeechRecognitionProgressEvent) =>
     handleModelDownloadProgress('grammarCorrection', event)
   progressTrackerFor('grammarCorrection').reset()
-  try {
-    return await loadGrammarCorrector(device, onProgress)
-  } catch (error) {
-    if (device === 'wasm') {
-      throw error
-    }
-    console.warn('Grammar WebGPU load failed; retrying with WASM.', error)
-    progressTrackerFor('grammarCorrection').reset()
-    preferredDevicePromise = Promise.resolve('wasm')
-    return loadGrammarCorrector('wasm', onProgress)
-  }
+  return loadGrammarCorrector(device, onProgress)
 }
 
 function getGrammarCorrector(): Promise<Text2TextGenerationPipeline> {
@@ -175,22 +163,17 @@ function getGrammarCorrector(): Promise<Text2TextGenerationPipeline> {
 
 let textToSpeechSynthesizerPromise: Promise<TextToAudioPipeline> | null = null
 
+// TTS/vocoder is only validated on WASM (deviceForModelKey pins it there):
+// SpeechT5's fp32 WebGPU MatMul kernel is broken (see resolve-inference-device.ts),
+// so there is no WebGPU attempt here and thus no WASM retry to perform — and
+// critically, no `preferredDevicePromise` write, so a TTS failure can no
+// longer contaminate the shared device pin that ASR reads.
 async function loadTextToSpeechSynthesizerWithFallback(): Promise<TextToAudioPipeline> {
-  const device = await getPreferredDevice()
+  const device = deviceForModelKey('textToSpeech', await getPreferredDevice())
   const onProgress = (event: SpeechRecognitionProgressEvent) =>
     handleModelDownloadProgress('textToSpeech', event)
   progressTrackerFor('textToSpeech').reset()
-  try {
-    return await loadTextToSpeechSynthesizer(device, onProgress)
-  } catch (error) {
-    if (device === 'wasm') {
-      throw error
-    }
-    console.warn('TTS WebGPU load failed; retrying with WASM.', error)
-    progressTrackerFor('textToSpeech').reset()
-    preferredDevicePromise = Promise.resolve('wasm')
-    return loadTextToSpeechSynthesizer('wasm', onProgress)
-  }
+  return loadTextToSpeechSynthesizer(device, onProgress)
 }
 
 function getTextToSpeechSynthesizer(): Promise<TextToAudioPipeline> {
@@ -207,22 +190,14 @@ function getTextToSpeechSynthesizer(): Promise<TextToAudioPipeline> {
 
 let conversationGeneratorPromise: Promise<TextGenerationPipeline> | null = null
 
+// SmolLM2 is only validated on WASM (deviceForModelKey pins it there), so
+// unlike ASR there is no WebGPU attempt and thus no WASM retry to perform.
 async function loadConversationGeneratorWithFallback(): Promise<TextGenerationPipeline> {
-  const device = await getPreferredDevice()
+  const device = deviceForModelKey('conversationSuggestions', await getPreferredDevice())
   const onProgress = (event: SpeechRecognitionProgressEvent) =>
     handleModelDownloadProgress('conversationSuggestions', event)
   progressTrackerFor('conversationSuggestions').reset()
-  try {
-    return await loadConversationSuggestionGenerator(device, onProgress)
-  } catch (error) {
-    if (device === 'wasm') {
-      throw error
-    }
-    console.warn('SmolLM2 WebGPU load failed; retrying with WASM.', error)
-    progressTrackerFor('conversationSuggestions').reset()
-    preferredDevicePromise = Promise.resolve('wasm')
-    return loadConversationSuggestionGenerator('wasm', onProgress)
-  }
+  return loadConversationSuggestionGenerator(device, onProgress)
 }
 
 function getConversationGenerator(): Promise<TextGenerationPipeline> {
@@ -330,13 +305,7 @@ async function handlePreloadConversationModelMessage(
 async function handleGenerateTutorReplyMessage(
   message: GenerateTutorReplyRequestMessage,
 ): Promise<void> {
-  const {
-    requestId,
-    scenarioContextEn,
-    historyTurnsEn,
-    userUtteranceEn,
-    fallbackReplyEn,
-  } = message
+  const { requestId, scenarioContextEn, historyTurnsEn, userUtteranceEn, fallbackReplyEn } = message
 
   let generator: TextGenerationPipeline
   try {
