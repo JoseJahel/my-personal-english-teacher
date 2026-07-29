@@ -38,10 +38,16 @@ describe('asrCandidateDisplayNames (ui/interface-texts)', () => {
   })
 })
 
+describe('DEFAULT_ASR_CANDIDATE_ID', () => {
+  it('is small-en, chosen by the 2026-07-29 benchmark (best WER, 3.4s on WebGPU)', () => {
+    expect(DEFAULT_ASR_CANDIDATE_ID).toBe('small-en')
+  })
+})
+
 describe('modelRegistry.automaticSpeechRecognition', () => {
   it('derives from the default ASR candidate so existing consumers do not break', () => {
     expect(modelRegistry.automaticSpeechRecognition.huggingFaceModelId).toBe(
-      'Xenova/whisper-tiny.en',
+      'Xenova/whisper-small.en',
     )
     expect(modelRegistry.automaticSpeechRecognition.huggingFaceModelId).toBe(
       asrModelCandidates[DEFAULT_ASR_CANDIDATE_ID].modelId,
@@ -59,6 +65,7 @@ describe('resolveActiveAsrCandidateId', () => {
 
   it('falls back to the default candidate when VITE_ASR_MODEL is unset', () => {
     vi.stubEnv('VITE_ASR_MODEL', '')
+    expect(resolveActiveAsrCandidateId()).toBe('small-en')
     expect(resolveActiveAsrCandidateId()).toBe(DEFAULT_ASR_CANDIDATE_ID)
   })
 

@@ -7,9 +7,9 @@ describe('resolveAsrModelDescriptor', () => {
     vi.unstubAllEnvs()
   })
 
-  it('defaults to the tiny-en candidate when no candidate or override is given', () => {
+  it('defaults to the small-en candidate when no candidate or override is given', () => {
     vi.stubEnv('VITE_ASR_MODEL', '')
-    expect(resolveAsrModelDescriptor()).toEqual(asrModelCandidates['tiny-en'])
+    expect(resolveAsrModelDescriptor()).toEqual(asrModelCandidates['small-en'])
   })
 
   it('uses the explicit candidate id when given, ignoring the env override', () => {

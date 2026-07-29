@@ -54,8 +54,15 @@ export const asrModelCandidates: Record<AsrModelCandidateId, AsrModelCandidateDe
   },
 }
 
-/** Default de producción en esta ronda: cero regresión hasta ver las tablas del benchmark. */
-export const DEFAULT_ASR_CANDIDATE_ID: AsrModelCandidateId = 'tiny-en'
+/**
+ * Default de producción: elegido por el benchmark del 2026-07-29 en la
+ * máquina de referencia. small-en dio el mejor WER (0.000 en todos los casos)
+ * y 3.4 s/frase con WebGPU (viable); en WASM son 11 s/frase (no viable), por
+ * eso este default depende de `resolvePreferredOnnxDevice` auto-detectando
+ * WebGPU (ver resolve-inference-device.ts). tiny-en/base-en siguen
+ * disponibles vía override `VITE_ASR_MODEL` y el banco de pruebas dev.
+ */
+export const DEFAULT_ASR_CANDIDATE_ID: AsrModelCandidateId = 'small-en'
 
 function readAsrModelOverride(): AsrModelCandidateId | null {
   try {
