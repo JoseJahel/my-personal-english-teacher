@@ -22,8 +22,9 @@ import {
   MicrophoneCaptureError,
   toMicrophoneCaptureError,
 } from './microphone-capture-errors'
-import { normalizePeakAmplitude } from './normalize-peak'
+import { DEFAULT_TARGET_PEAK, normalizePeakAmplitude } from './normalize-peak'
 import { openRealMicrophoneStream } from './open-microphone-stream'
+import { trimSpeechSilence } from './trim-speech-silence'
 import { computePeakAmplitude, computeRootMeanSquareEnergy } from '../dsp/signal-energy'
 
 export type { CaptureDiagnostics, CaptureAudioSource } from './capture-diagnostics'
@@ -252,7 +253,9 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
         const decoded = await decodeRecordingBlobToMono(decodeContext, recordingBlob)
         const copied = new Float32Array(decoded.samples.length)
         copied.set(decoded.samples)
-        const normalized = normalizePeakAmplitude(copied, 0.65)
+        // Trim silence first (relative energy), then boost toward Whisper level.
+        const trimmed = trimSpeechSilence(copied, decoded.sampleRate)
+        const normalized = normalizePeakAmplitude(trimmed, DEFAULT_TARGET_PEAK)
         samples = new Float32Array(normalized.length)
         samples.set(normalized)
         sampleRate = decoded.sampleRate

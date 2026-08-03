@@ -1,21 +1,68 @@
 # ui/
 
-Presentation layer: React components, screen session hooks, canvas drawing
-helpers, and the only place user-visible Spanish copy may live
-(`interface-texts.ts`).
+Capa de **presentación**: componentes React, hooks de sesión de pantalla,
+helpers de dibujo en canvas, y el único lugar donde puede vivir texto en
+español visible para el usuario (`interface-texts.ts`).
 
-Does not call `getUserMedia` or `transformers.js` directly — uses `audio/` and
-`ia/` adapters instead. Speech-energy gating uses pure helpers from `dsp/`.
+No llama a `getUserMedia` ni a `transformers.js` directamente — usa los
+adaptadores de `audio/` e `ia/`. El gate de energía de habla usa helpers
+puros de `dsp/`.
 
-Implemented:
+Implementado:
 
-- `interface-texts.ts`: Spanish product strings for the home screen.
-- `home-screen-status.ts`: UI status unions and status→message mappers
-  (mic, transcription, grammar, capture diagnostics).
-- `waveform-canvas.ts`: live waveform from `AnalyserNode` float time-domain
-  data, plus live meter callbacks (RMS / peak / level).
-- `HomeScreen.tsx`: presentational layout (buttons, panels, canvas, level bar).
-- `use-home-screen-session.ts`: mic → energy gate → ASR → non-speech filter →
-  grammar session state machine (React state via hooks; no global store yet).
+- `interface-texts.ts`: textos en español del producto (home, escenarios,
+  chat, banco de pruebas ASR).
+- `home-screen-status.ts`: uniones de estado de UI y mapeadores estado→mensaje
+  (mic, transcripción, gramática, diagnóstico de captura, generación del tutor).
+- `waveform-canvas.ts`: onda en vivo desde datos float de dominio temporal del
+  `AnalyserNode`, más callbacks de medidores en vivo (RMS / pico / nivel).
+- `practice-scenarios.ts`: tres escenarios curados (restaurante, aeropuerto,
+  entrevista de trabajo) con líneas del tutor en inglés y contexto de
+  generación para SmolLM2.
+- `practice-chat-messages.ts`: helpers puros para mensajes de chat de intro /
+  usuario / respuesta del tutor (SmolLM2 o respaldo), y memoria de los últimos
+  4 turnos para el LLM (tests en `practice-chat-messages.test.ts`).
+- `tutor-reply-engine.ts`: motor de reglas por escenario
+  (`pickContextualTutorReply`) — respuesta instantánea y veraz que sirve de
+  respaldo cuando SmolLM2 no responde a tiempo (tests en
+  `tutor-reply-engine.test.ts`).
+- `tutor-reply-orchestration.ts`: enfrenta SmolLM2 contra el motor de reglas
+  con un timeout de 10 s (`resolveTutorReplyWithFallback`); el resultado
+  siempre indica de forma veraz si se usó el respaldo (tests en
+  `tutor-reply-orchestration.test.ts`).
+- `ScenarioPicker.tsx` / `PracticeChatPanel.tsx`: selección de escenario y
+  transcripción de chat presentacionales; el panel de chat muestra insignia
+  honesta cuando la línea es de respaldo, banner "Preparando tutor…" y burbuja
+  "Escribiendo…" como live regions accesibles.
+- `home-inference-client.ts`: wiring compartido del InferenceClient para
+  progreso/listo (incluye la precarga de SmolLM2 al elegir escenario).
+- `HomeScreen.tsx`: layout (escenarios, chat, botones, paneles, canvas, nivel).
+- `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
+  → score DSP.
+- `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
+  **espectrograma** + **pitch track YIN** de la última utterance.
+- `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
+  ASR → gramática → tutor híbrido (**SmolLM2** + respaldo) → score de
+  pronunciación → **SpeechT5** → persistencia en IndexedDB.
+- `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
+  del DTW → banda good/medium/poor).
+- `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en
+  IndexedDB (`storage/`).
 
-`App.tsx` (repo root of `src/`) only wires the session hook into `HomeScreen`.
+**Solo desarrollo — banco de pruebas ASR** (`#asr-benchmark`, gateado por
+`import.meta.env.DEV` en `App.tsx` / `app-routing.ts`, nunca en producción):
+
+- `AsrBenchmarkScreen.tsx`: pantalla de fixtures + corrida + resultados.
+- `use-asr-benchmark.ts`: estado y orquestación; corre cada combinación
+  candidato × backend con un `InferenceClient` nuevo (`dispose` entre modelos).
+- `asr-benchmark-fixture-draft.ts`: valida una grabación de fixture antes de
+  guardarla.
+- `asr-benchmark-results.ts`: plan de corridas, resumen por combinación y
+  export a CSV/JSON.
+
+**Camino Avance 2:** escenarios + chat + tutor híbrido (SmolLM2 + respaldo) +
+TTS + score + highlights por palabra + espectrograma/pitch + VAD + formantes
+(LPC) + persistencia en IndexedDB + banco de pruebas ASR (solo dev).
+
+`App.tsx` (raíz de `src/`) enruta entre `AsrBenchmarkScreen` (solo dev, hash
+`#asr-benchmark`) y `HomeScreen`, conectando el hook de sesión a este último.

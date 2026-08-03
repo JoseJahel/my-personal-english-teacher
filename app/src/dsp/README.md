@@ -20,9 +20,55 @@ Implementado:
   - tests en `signal-energy.test.ts`
   - base del futuro VAD en vivo (aún no corta la captura automáticamente)
 
-Archivos previstos a futuro:
+- `pitch-detection-yin.ts`: estimación de tono fundamental (F0) con **YIN**
+  (de Cheveigné & Kawahara, 2002), dominio puro:
+  - `estimatePitchWithYin(samples, sampleRate)` — un frame → F0 o unvoiced
+  - `extractPitchContourWithYin` — contorno frame a frame (hop por defecto 10 ms)
+  - `computeMeanVoicedPitchInHertz` — media de frames voiced
+  - defaults de habla: 70–400 Hz, umbral absoluto 0.1, frame ~40 ms
+  - pasos: función de diferencia → media acumulada normalizada → umbral
+    absoluto → interpolación parabólica del período
+  - tests en `pitch-detection-yin.test.ts` (senos sintéticos 16 kHz / 48 kHz)
+  - **aún no cableado a la UI** (panel de pitch + score con DTW)
 
-- `pitch-detection-yin.ts`: estimación de tono con el algoritmo YIN.
-- `mfcc-extraction.ts`: extracción de coeficientes cepstrales (MFCC).
-- `dynamic-time-warping.ts`: comparación de contornos de pronunciación en el tiempo.
-- Lógica de VAD en vivo (frames) reutilizable desde un monitor en `audio/`.
+- `mfcc-extraction.ts`: **MFCC de implementación propia** (sin Meyda en runtime):
+  - defaults del diseño: Hann **25 ms**, hop **10 ms**, **13** coeficientes, **40** filtros mel
+  - pre-énfasis 0.97 → ventana Hann → FFT potencia-de-2 → banco mel → log → DCT-II
+  - `extractMfccSequence`, `createMelFilterbank`, `hertzToMel` / `melToHertz`
+  - `computeMfccVectorEuclideanDistance` (coste local; DTW también expone el genérico)
+  - tests en `mfcc-extraction.test.ts` (escala mel, forma del banco, tonos vs ruido)
+
+- `dynamic-time-warping.ts`: **DTW + distancia euclidiana** (dominio puro):
+  - `computeDynamicTimeWarping(query, reference)` → distancia total, normalizada y path
+  - banda opcional Sakoe–Chiba; coste local L2 frame a frame
+  - `zScoreNormalizeFeatureSequence` (normalización por locutor / enunciado)
+  - `centerVoicedPitchContourInHertz` + `pitchContourToFeatureFrames` (pitch relativo)
+  - `convertDtwDistanceToPronunciationScore` → puntuación 0–100 (calibrable)
+  - tests en `dynamic-time-warping.test.ts` (estiramiento temporal, MFCC mismo tono vs distinto)
+- `pronunciation-score.ts`: **score de pronunciación** (dominio puro):
+  - `scorePronunciationFromMonoPcm(user, reference, sampleRate)`
+  - MFCC (z-score) + DTW; pitch relativo (YIN) opcional → score 0–100
+  - tests en `pronunciation-score.test.ts`
+  - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
+
+- `spectrogram.ts`: **espectrograma** log-magnitud (STFT Hann 25 ms / hop 10 ms):
+  - `computeLogMagnitudeSpectrogram`, `computeSpectrogramValueRange`
+  - tests en `spectrogram.test.ts` (tono 1 kHz concentra energía en el bin esperado)
+  - dibujo en UI: `ui/utterance-signal-canvas.ts` + `update-utterance-signal-views.ts`
+
+- `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
+  - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI
+  - tests en `voice-activity-detection.test.ts`
+  - cableado en `use-home-screen-session` vía medidores del Analyser
+
+- `word-pronunciation-highlights.ts`: **highlights por palabra** desde costes
+  locales del path DTW (reparto proporcional por letras); bandas good/medium/poor.
+  Integrado en `pronunciation-score` cuando hay texto de referencia.
+
+- `formant-estimation.ts`: **formantes F1/F2/F3** vía LPC (Levinson–Durbin) +
+  picos de la envolvente; mediana por utterance en la UI.
+  tests en `formant-estimation.test.ts`.
+
+Archivos previstos a futuro (fuera de A2 / final):
+
+- IndexedDB de sesiones.

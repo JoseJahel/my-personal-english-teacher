@@ -14,14 +14,88 @@ export interface RegisteredModelDescriptor {
   readonly huggingFaceModelId: string
   readonly task: SupportedInferenceTask
   /** Hub revision; replace `'main'` with a commit SHA before final release. */
-  readonly revision: 'main'
+  readonly revision: string
 }
+
+/**
+ * ASR candidates evaluados por el banco de pruebas dev (Sección 1 del diseño).
+ * `approxDownloadMb` es una estimación aproximada para el copy de primera
+ * descarga; se refina con los números reales tras correr el benchmark.
+ * TODO: fijar `revision` a un SHA de commit por candidato antes de entrega final.
+ */
+export type AsrModelCandidateId = 'tiny-en' | 'base-en' | 'distil-small-en' | 'small-en'
+
+export interface AsrModelCandidateDescriptor {
+  readonly modelId: string
+  readonly revision: string
+  readonly approxDownloadMb: number
+}
+
+export const asrModelCandidates: Record<AsrModelCandidateId, AsrModelCandidateDescriptor> = {
+  'tiny-en': {
+    modelId: 'Xenova/whisper-tiny.en',
+    revision: 'main',
+    approxDownloadMb: 40,
+  },
+  'base-en': {
+    modelId: 'Xenova/whisper-base.en',
+    revision: 'main',
+    approxDownloadMb: 75,
+  },
+  'distil-small-en': {
+    modelId: 'onnx-community/distil-small.en',
+    revision: 'main',
+    approxDownloadMb: 170,
+  },
+  'small-en': {
+    modelId: 'Xenova/whisper-small.en',
+    revision: 'main',
+    approxDownloadMb: 250,
+  },
+}
+
+/**
+ * Default de producción: elegido por el benchmark del 2026-07-29 en la
+ * máquina de referencia. small-en dio el mejor WER (0.000 en todos los casos)
+ * y 3.4 s/frase con WebGPU (viable); en WASM son 11 s/frase (no viable), por
+ * eso este default depende de `resolvePreferredOnnxDevice` auto-detectando
+ * WebGPU (ver resolve-inference-device.ts). tiny-en/base-en siguen
+ * disponibles vía override `VITE_ASR_MODEL` y el banco de pruebas dev.
+ */
+export const DEFAULT_ASR_CANDIDATE_ID: AsrModelCandidateId = 'small-en'
+
+function readAsrModelOverride(): AsrModelCandidateId | null {
+  try {
+    // Vite injects import.meta.env in the worker bundle as well. Read the
+    // property directly (no cast) so Vite/Vitest keep this dynamic in dev/test
+    // (Vitest, `vite dev`) instead of freezing it to a transform-time snapshot
+    // — see model-registry.test.ts. Production builds always inline VITE_*
+    // vars at build time; this only helps at dev/test time.
+    const override = import.meta.env.VITE_ASR_MODEL
+    if (override && override in asrModelCandidates) {
+      return override as AsrModelCandidateId
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+/**
+ * Candidato ASR activo: override `VITE_ASR_MODEL` cuando es válido, si no el
+ * default. Análogo a `resolvePreferredOnnxDevice` en resolve-inference-device.ts.
+ */
+export function resolveActiveAsrCandidateId(): AsrModelCandidateId {
+  return readAsrModelOverride() ?? DEFAULT_ASR_CANDIDATE_ID
+}
+
+const defaultAsrCandidate = asrModelCandidates[DEFAULT_ASR_CANDIDATE_ID]
 
 export const modelRegistry = {
   automaticSpeechRecognition: {
-    huggingFaceModelId: 'Xenova/whisper-tiny.en',
+    huggingFaceModelId: defaultAsrCandidate.modelId,
     task: 'automaticSpeechRecognition',
-    revision: 'main',
+    revision: defaultAsrCandidate.revision,
   },
   grammarCorrection: {
     huggingFaceModelId: 'Xenova/t5-base-grammar-correction',

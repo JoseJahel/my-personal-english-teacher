@@ -1,3 +1,5 @@
+import type { AsrModelCandidateId } from '../ia/model-registry'
+
 /**
  * All user-visible Spanish copy for the home screen.
  * Components must import strings from here — never hardcode product text in JSX.
@@ -6,20 +8,78 @@ export const homeScreenInterfaceTexts = {
   applicationTitle: 'My Personal English Teacher',
   applicationSubtitle:
     'Practica inglés sin conexión: pronunciación, gramática y conversación con inteligencia artificial que corre en tu propio navegador.',
-  projectPhaseBadgeLabel: 'Fase: Avance 1 — Procesamiento de señales',
-  startMicrophoneButtonLabel: 'Iniciar micrófono',
-  stopMicrophoneButtonLabel: 'Detener micrófono',
+  /** Shorter hero copy for product UX (subtitle kept for docs/PWA). */
+  productLead:
+    'Habla en inglés, recibe corrección y practica una conversación — todo en tu navegador.',
+  projectPhaseBadgeLabel: 'Fase: Avance 2 — Conversación + señales (visual)',
+  startMicrophoneButtonLabel: 'Hablar',
+  listeningButtonLabel: 'Escuchando…',
+  stopMicrophoneButtonLabel: 'Detener',
+  micHelperHint:
+    'Pulsa Hablar, di una frase en inglés y para al terminar (o espera el auto-corte al silencio).',
+  modelsWarmingUpMessage:
+    'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
+  resultsSectionTitle: 'Tu turno',
+  signalLabTitle: 'Laboratorio de señales (espectrograma, pitch, formantes)',
+  technicalDetailsTitle: 'Detalles técnicos del pipeline',
+  inputLevelHintSilentShort: 'Casi no llega señal',
+  inputLevelHintActiveShort: 'Señal OK — habla con naturalidad',
+  liveMetersDetail: (rms: number, peak: number) =>
+    `Medidores en vivo: RMS ${rms.toFixed(4)} · pico ${peak.toFixed(4)}`,
+  practiceScenarios: {
+    sectionTitle: '1. Elige un escenario',
+    sectionHint:
+      'Luego pulsa Hablar y responde en inglés sobre el escenario. El tutor reacciona a lo que dices.',
+    sectionAriaLabel: 'Selector de escenario de práctica',
+    lockedWhileListening: 'No puedes cambiar de escenario mientras el micrófono está activo.',
+    byId: {
+      restaurant: {
+        title: 'Restaurante',
+        description: 'Pedir comida o bebida con un camarero.',
+      },
+      airport: {
+        title: 'Aeropuerto',
+        description: 'Hablar en el mostrador de la aerolínea.',
+      },
+      'job-interview': {
+        title: 'Entrevista de trabajo',
+        description: 'Presentarte y responder al entrevistador.',
+      },
+    },
+  },
+  practiceChat: {
+    sectionTitle: '2. Conversación',
+    sectionAriaLabel: 'Historial de la conversación de práctica',
+    turnHintLabel: 'Pista',
+    userRoleLabel: 'Tú',
+    tutorRoleLabel: 'Tutor',
+    generatedBadge: 'SmolLM2',
+    fallbackBadge: 'respuesta de respaldo del escenario',
+    grammarCorrectionInlineLabel: 'Mejor gramática',
+    tutorTypingLabel: 'Escribiendo…',
+  },
+  tutorGeneration: {
+    panelLabel: 'Respuesta del tutor',
+    statusIdle:
+      'El tutor sigue un guion del escenario (rápido y coherente) y te responde en inglés.',
+    statusPreparingModel: (progressPercent: number) =>
+      `Preparando tutor conversacional… ${progressPercent}%`,
+    statusGenerating: 'El tutor está escribiendo…',
+    statusDoneGenerated: 'Respuesta del tutor lista (generada por IA).',
+    statusDoneFallback: 'Respuesta del tutor (línea de respaldo del escenario).',
+    statusError: 'No se pudo preparar la respuesta del tutor.',
+  },
   statusFieldLabel: 'Estado',
   microphoneStatusMessages: {
     idle: 'Esperando interacción...',
     starting: 'Solicitando acceso al micrófono...',
-    listening: 'Escuchando… la barra de nivel y la onda deben reaccionar cuando hables.',
+    listening:
+      'Escuchando… habla en inglés; al callarte ~1 s se detiene sola (VAD por energía). También puedes pulsar Detener.',
     stopped: 'Captura detenida.',
     permissionDenied:
       'Permiso de micrófono denegado. Habilítalo en la configuración del navegador para poder practicar.',
     genericError: 'No fue posible acceder al micrófono por un error inesperado.',
-    detailedError: (detail: string) =>
-      `No fue posible acceder al micrófono. Detalle: ${detail}`,
+    detailedError: (detail: string) => `No fue posible acceder al micrófono. Detalle: ${detail}`,
   },
   inputLevelLabel: 'Nivel de entrada',
   inputLevelHintSilent:
@@ -44,8 +104,8 @@ export const homeScreenInterfaceTexts = {
       `El motor de voz produjo texto inválido (alucinación), no una frase en inglés. Vista previa: "${previewText}…". Recarga la página y vuelve a intentar hablando claro 3–5 s en inglés. Si se repite, borra los datos del sitio en Chrome (caché de modelos) y recarga.`,
     noAudioCaptured:
       'No se reconoció habla clara en inglés. Habla cerca del micrófono (comprueba que Windows use el micrófono correcto y que no esté silenciado) e inténtalo de nuevo.',
-    modelLoadingProgressMessage: (progressPercent: number) =>
-      `Preparando reconocimiento de voz (solo la primera vez o al actualizar el modelo)... ${progressPercent}%`,
+    modelLoadingProgressMessage: (progressPercent: number, approxDownloadMb: number) =>
+      `Preparando reconocimiento de voz (~${approxDownloadMb} MB, solo la primera vez; luego queda en caché del navegador)... ${progressPercent}%`,
     transcribing: 'Transcribiendo audio (modelo ya cargado)...',
     done: 'Transcripción lista.',
   },
@@ -78,6 +138,12 @@ export const homeScreenInterfaceTexts = {
     textToSpeechVocoder: 'síntesis de voz',
     conversationSuggestions: 'sugerencias de conversación',
   },
+  asrCandidateDisplayNames: {
+    'tiny-en': 'Whisper tiny (inglés, rápido)',
+    'base-en': 'Whisper base (inglés)',
+    'distil-small-en': 'Distil-Whisper small (inglés)',
+    'small-en': 'Whisper small (inglés, más preciso)',
+  } satisfies Record<AsrModelCandidateId, string>,
   grammarCorrectionStatusMessages: {
     idle: 'Esperando la transcripción para corregir la gramática.',
     modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
@@ -91,5 +157,140 @@ export const homeScreenInterfaceTexts = {
     modelLoadFailed: 'No fue posible descargar o inicializar el modelo de corrección gramatical.',
     correctionFailed: 'No fue posible corregir la gramática del texto transcrito.',
     workerUnavailable: 'El proceso de corrección gramatical dejó de responder inesperadamente.',
+  },
+  speechSynthesisPanelLabel: 'Voz del tutor (TTS)',
+  speechSynthesisStatusMessages: {
+    idle: 'La voz del tutor se genera la primera vez que hay una respuesta para reproducir.',
+    modelLoadingProgressMessage: (modelDisplayName: string, progressPercent: number) =>
+      `Preparando ${modelDisplayName} (solo la primera vez)... ${progressPercent}%`,
+    synthesizing: 'Generando voz del tutor...',
+    playing: 'Reproduciendo la respuesta del tutor...',
+    done: 'Reproducción de la voz del tutor lista.',
+  },
+  speechSynthesisErrorMessages: {
+    modelLoadFailed: 'No fue posible descargar o inicializar el modelo de síntesis de voz.',
+    synthesisFailed: 'No fue posible generar el audio de la respuesta del tutor.',
+    emptyText: 'No hay texto para sintetizar en voz.',
+    workerUnavailable: 'El proceso de síntesis de voz dejó de responder inesperadamente.',
+  },
+  liveWaveformLabel: 'Onda en vivo (tiempo)',
+  spectrogramPanelLabel: 'Espectrograma (última utterance)',
+  spectrogramPanelHint: 'Eje X: tiempo · Eje Y: frecuencia (bajas abajo) · color: energía log',
+  pitchTrackPanelLabel: 'Pitch tracking YIN (última utterance)',
+  pitchTrackPanelHint: 'Contorno F0 ~70–400 Hz; marcas abajo = frames no voiced',
+  formantsPanelLabel: 'Formantes (LPC, mediana de la utterance)',
+  formantsPanelHint:
+    'F1/F2/F3 estimados por envolvente LPC + picos; útiles para vocales (aproximación educativa).',
+  formantsUnavailable: 'Sin formantes fiables (silencio o frames inestables).',
+  formantsSummary: (f1: string, f2: string, f3: string) =>
+    `F1 ≈ ${f1} Hz · F2 ≈ ${f2} Hz · F3 ≈ ${f3} Hz`,
+  practiceHistory: {
+    sectionTitle: 'Historial local (IndexedDB)',
+    sectionAriaLabel: 'Historial de turnos de práctica guardados en el navegador',
+    emptyState: 'Aún no hay turnos guardados en este navegador.',
+    statusReady: 'Progreso guardado solo en este dispositivo (sin audio crudo).',
+    statusUnavailable: 'IndexedDB no disponible; la práctica sigue, pero no se guarda historial.',
+    statusError: 'No se pudo leer o escribir el historial local.',
+    youLabel: 'Tú',
+    tutorLabel: 'Tutor',
+    scenarioLabel: (scenarioId: string) => {
+      switch (scenarioId) {
+        case 'restaurant':
+          return 'Restaurante'
+        case 'airport':
+          return 'Aeropuerto'
+        case 'job-interview':
+          return 'Entrevista'
+        default:
+          return scenarioId
+      }
+    },
+    formatTime: (iso: string) => {
+      try {
+        return new Date(iso).toLocaleString('es', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      } catch {
+        return iso
+      }
+    },
+    scoreLabel: (score: number | null) =>
+      score === null ? 'Sin score' : `Score ${score.toFixed(1)}`,
+  },
+  pronunciationPanelLabel: 'Pronunciación (señales)',
+  pronunciationWordHighlights: {
+    title: 'Palabras (aproximación por alineamiento DTW)',
+    hint: 'Verde ≈ cerca de la referencia · ámbar ≈ regular · rojo ≈ más lejos. No es alineamiento fonético perfecto.',
+    legendGood: 'Bien',
+    legendMedium: 'Regular',
+    legendPoor: 'Revisar',
+    wordTooltip: (score0to100: number, band: string) =>
+      `Puntuación local ${score0to100.toFixed(1)} / 100 (${band})`,
+  },
+  pronunciationStatusMessages: {
+    idle: 'Tras hablar, se compara tu audio con una referencia sintetizada (MFCC + DTW).',
+    scoring: 'Calculando puntuación de pronunciación (MFCC / pitch + DTW)...',
+    done: (score0to100: number) =>
+      `Puntuación de pronunciación: ${score0to100.toFixed(1)} / 100 (mayor = más cerca de la referencia).`,
+    unavailable: 'No se pudo calcular la puntuación de pronunciación para este turno.',
+    detail: (details: {
+      mfccScore: number
+      pitchScore: number | null
+      userFrames: number
+      referenceFrames: number
+    }) =>
+      details.pitchScore === null
+        ? `MFCC ${details.mfccScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`
+        : `MFCC ${details.mfccScore.toFixed(1)} · pitch ${details.pitchScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`,
+  },
+  asrBenchmark: {
+    pageTitle: 'Banco de pruebas ASR (solo desarrollo)',
+    pageHint:
+      'Graba fixtures de referencia, corre modelos × backend y compara WER y latencia antes de fijar el modelo de producción.',
+    fixturesSectionTitle: 'Fixtures de referencia',
+    fixtureReferenceTextLabel: 'Texto de referencia (inglés)',
+    fixtureReferenceTextPlaceholder: 'Ej: Where is gate B10?',
+    recordFixtureButtonLabel: 'Grabar fixture',
+    recordingFixtureButtonLabel: 'Grabando… pulsa para detener',
+    saveFixtureButtonLabel: 'Guardar fixture',
+    deleteFixtureButtonLabel: 'Borrar',
+    noFixturesMessage: 'Aún no hay fixtures grabados en este navegador.',
+    microphoneErrorMessage: 'No se pudo acceder al micrófono. Revisa el permiso del navegador.',
+    fixtureDraftErrorMessages: {
+      missingReferenceText: 'Escribe el texto de referencia en inglés antes de guardar.',
+      emptyRecording: 'La grabación salió vacía. Vuelve a grabar la frase.',
+      tooShort: 'La grabación es demasiado corta para ser un fixture útil (mínimo 0.5 s).',
+      tooLong: 'La grabación es demasiado larga para un fixture (máximo 30 s).',
+    },
+    runSectionTitle: 'Corrida',
+    candidatesLabel: 'Modelos a evaluar',
+    devicesLabel: 'Backends a evaluar',
+    deviceLabels: {
+      wasm: 'WASM (q8)',
+      webgpu: 'WebGPU (fp32)',
+    },
+    runBenchmarkButtonLabel: 'Correr benchmark',
+    runningBenchmarkLabel: (current: number, total: number) => `Corriendo ${current} / ${total}…`,
+    resultsSectionTitle: 'Resultados',
+    noResultsMessage: 'Corre el benchmark para ver la tabla comparativa.',
+    resultsTableHeaders: {
+      candidate: 'Modelo',
+      device: 'Backend',
+      fixtureCount: 'Fixtures',
+      averageWer: 'WER promedio',
+      averageLatency: 'Latencia media (ms)',
+      modelLoad: 'Carga inicial (ms)',
+    },
+    exportFixturesJsonButtonLabel: 'Exportar fixtures (JSON)',
+    importFixturesJsonButtonLabel: 'Importar fixtures (JSON)',
+    exportResultsJsonButtonLabel: 'Exportar resultados (JSON)',
+    exportResultsCsvButtonLabel: 'Exportar resultados (CSV)',
+    storageUnavailableMessage:
+      'IndexedDB no disponible: no se pueden guardar fixtures en este navegador.',
+    importErrorMessage:
+      'No se pudo importar el archivo: revisa que sea un export de fixtures válido.',
   },
 } as const

@@ -6,15 +6,16 @@
 /**
  * Speech gate after capture (before Whisper).
  * Kept moderate: too low → noise/hallucinations; too high → quiet mics rejected.
- * Real close-talk speech on a laptop mic is usually well above these floors.
+ * Floors are slightly permissive so laptop/headset mics at normal volume pass
+ * after peak-normalization; trim + Whisper still filter pure noise.
  */
-export const MINIMUM_CAPTURE_ENERGY_RMS = 0.004
+export const MINIMUM_CAPTURE_ENERGY_RMS = 0.0025
 
 /** Peak below this is treated as non-speech (avoids amplifying hiss). */
-export const MINIMUM_CAPTURE_PEAK = 0.02
+export const MINIMUM_CAPTURE_PEAK = 0.012
 
 /** Reject captures shorter than this (native-rate seconds). */
-export const MINIMUM_CAPTURE_DURATION_SECONDS = 0.35
+export const MINIMUM_CAPTURE_DURATION_SECONDS = 0.28
 
 /**
  * Root-mean-square energy of PCM samples in [-1, 1].

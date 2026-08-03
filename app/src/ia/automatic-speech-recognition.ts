@@ -8,7 +8,8 @@ import type {
   AutomaticSpeechRecognitionPipeline,
   PretrainedModelOptions,
 } from '@huggingface/transformers'
-import { modelRegistry } from './model-registry'
+import type { AsrModelCandidateDescriptor, AsrModelCandidateId } from './model-registry'
+import { asrModelCandidates, resolveActiveAsrCandidateId } from './model-registry'
 import { onnxDtypeForDevice } from './onnx-dtype'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
 
@@ -17,17 +18,30 @@ export type ModelDownloadProgressCallback = NonNullable<PretrainedModelOptions['
 
 export type ModelDownloadProgressEvent = Parameters<ModelDownloadProgressCallback>[0]
 
+/**
+ * Resolves which ASR candidate to load: explicit `candidateId` (benchmark
+ * runs) wins, otherwise the active candidate (`VITE_ASR_MODEL` override or
+ * the registry default).
+ */
+export function resolveAsrModelDescriptor(
+  candidateId?: AsrModelCandidateId,
+): AsrModelCandidateDescriptor {
+  const resolvedId = candidateId ?? resolveActiveAsrCandidateId()
+  return asrModelCandidates[resolvedId]
+}
+
 /** Loads (or reuses cached) Whisper pipeline from the model registry. */
 export async function loadSpeechRecognizer(
   device: OnnxInferenceDevice,
   onProgress?: ModelDownloadProgressCallback,
+  candidateId?: AsrModelCandidateId,
 ): Promise<AutomaticSpeechRecognitionPipeline> {
-  const { huggingFaceModelId, revision } = modelRegistry.automaticSpeechRecognition
+  const { modelId, revision } = resolveAsrModelDescriptor(candidateId)
   const dtype = onnxDtypeForDevice(device)
 
   return pipeline<'automatic-speech-recognition'>(
     'automatic-speech-recognition',
-    huggingFaceModelId,
+    modelId,
     {
       revision,
       device,
@@ -64,8 +78,12 @@ export async function transcribeAudioSamples(
 
   // Short practice utterances: avoid chunking (helps whisper-tiny.en quality).
   // Only chunk very long clips (>25 s) so stride logic does not mangle short speech.
+  // Greedy decoding (temperature 0, no sampling) is more stable for quiet speech.
   const generationOptions = {
     max_new_tokens: maxNewTokens,
+    temperature: 0,
+    do_sample: false,
+    return_timestamps: false as const,
     ...(durationSeconds > 25
       ? {
           chunk_length_s: 30,

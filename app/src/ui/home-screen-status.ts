@@ -44,6 +44,27 @@ export type GrammarCorrectionUiStatus =
   | 'done'
   | 'error'
 
+/** Tutor TTS status (SpeechT5; loads on first speak). */
+export type SpeechSynthesisUiStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'synthesizing'
+  | 'playing'
+  | 'done'
+  | 'error'
+
+/** Pronunciation score status (MFCC/YIN + DTW vs TTS reference). */
+export type PronunciationUiStatus = 'idle' | 'scoring' | 'done' | 'unavailable'
+
+/** Tutor reply generation status (SmolLM2; loads on scenario selection). */
+export type TutorGenerationUiStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'generating'
+  | 'done-generated'
+  | 'done-fallback'
+  | 'error'
+
 export function microphoneStatusMessageFor(
   status: MicrophoneUiStatus,
   errorDetail: string | null = null,
@@ -77,8 +98,7 @@ function transcriptionErrorMessageFor(reason: InferenceClientErrorReason | null)
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
     case 'worker-unavailable':
       return homeScreenInterfaceTexts.transcriptionErrorMessages.workerUnavailable
-    case 'correction-failed':
-    case null:
+    default:
       return homeScreenInterfaceTexts.transcriptionErrorMessages.transcriptionFailed
   }
 }
@@ -114,6 +134,7 @@ export function transcriptionStatusMessageFor(
   modelLoadingProgressPercent: number,
   transcriptionErrorReason: InferenceClientErrorReason | null,
   noAudioReason: NoAudioReason | null = null,
+  approxAsrDownloadMb = 0,
 ): string {
   switch (status) {
     case 'idle':
@@ -123,6 +144,7 @@ export function transcriptionStatusMessageFor(
     case 'loading-model':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.modelLoadingProgressMessage(
         modelLoadingProgressPercent,
+        approxAsrDownloadMb,
       )
     case 'transcribing':
       return homeScreenInterfaceTexts.transcriptionStatusMessages.transcribing
@@ -141,9 +163,7 @@ function grammarCorrectionErrorMessageFor(reason: InferenceClientErrorReason | n
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
     case 'worker-unavailable':
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.workerUnavailable
-    case 'invalid-sample-rate':
-    case 'transcription-failed':
-    case null:
+    default:
       return homeScreenInterfaceTexts.grammarCorrectionErrorMessages.correctionFailed
   }
 }
@@ -170,6 +190,61 @@ export function grammarCorrectionStatusMessageFor(
   }
 }
 
+function speechSynthesisErrorMessageFor(reason: InferenceClientErrorReason | null): string {
+  switch (reason) {
+    case 'model-load-failed':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.modelLoadFailed
+    case 'synthesis-failed':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.synthesisFailed
+    case 'empty-text':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.emptyText
+    case 'worker-unavailable':
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.workerUnavailable
+    default:
+      return homeScreenInterfaceTexts.speechSynthesisErrorMessages.synthesisFailed
+  }
+}
+
+export function speechSynthesisStatusMessageFor(
+  status: SpeechSynthesisUiStatus,
+  modelLoadingProgressPercent: number,
+  speechSynthesisErrorReason: InferenceClientErrorReason | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.idle
+    case 'loading-model':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.modelLoadingProgressMessage(
+        homeScreenInterfaceTexts.modelDisplayNames.textToSpeech,
+        modelLoadingProgressPercent,
+      )
+    case 'synthesizing':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.synthesizing
+    case 'playing':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.playing
+    case 'done':
+      return homeScreenInterfaceTexts.speechSynthesisStatusMessages.done
+    case 'error':
+      return speechSynthesisErrorMessageFor(speechSynthesisErrorReason)
+  }
+}
+
+export function pronunciationStatusMessageFor(
+  status: PronunciationUiStatus,
+  score0to100: number | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.idle
+    case 'scoring':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.scoring
+    case 'done':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.done(score0to100 ?? 0)
+    case 'unavailable':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.unavailable
+  }
+}
+
 export function captureDiagnosticsMessageFor(diagnostics: CaptureDiagnostics): string {
   return homeScreenInterfaceTexts.captureDiagnosticsMessage({
     sampleCount: diagnostics.sampleCount,
@@ -183,4 +258,36 @@ export function captureDiagnosticsMessageFor(diagnostics: CaptureDiagnostics): s
     trackMuted: diagnostics.trackMuted,
     audioContextState: diagnostics.audioContextState,
   })
+}
+
+export function tutorGenerationStatusMessageFor(
+  status: TutorGenerationUiStatus,
+  modelLoadingProgressPercent: number,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.tutorGeneration.statusIdle
+    case 'loading-model':
+      return homeScreenInterfaceTexts.tutorGeneration.statusPreparingModel(
+        modelLoadingProgressPercent,
+      )
+    case 'generating':
+      return homeScreenInterfaceTexts.tutorGeneration.statusGenerating
+    case 'done-generated':
+      return homeScreenInterfaceTexts.tutorGeneration.statusDoneGenerated
+    case 'done-fallback':
+      return homeScreenInterfaceTexts.tutorGeneration.statusDoneFallback
+    case 'error':
+      return homeScreenInterfaceTexts.tutorGeneration.statusError
+  }
+}
+
+/** Discreet "Preparando tutor conversacional…" strip inside the chat. */
+export function shouldShowTutorModelPreparingBanner(status: TutorGenerationUiStatus): boolean {
+  return status === 'loading-model'
+}
+
+/** "El tutor está escribiendo…" bubble while `generateTutorReply` runs. */
+export function shouldShowTutorTypingIndicator(status: TutorGenerationUiStatus): boolean {
+  return status === 'generating'
 }
