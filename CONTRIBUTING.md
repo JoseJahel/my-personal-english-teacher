@@ -28,6 +28,29 @@ trabajo: tanto el de interfaz (`ui/`) como el del motor no visual de la app
 de las ramas es histórico y no limita el alcance del trabajo que se integra
 desde cada una.
 
+## Constraints del producto (obligatorio al crear issues)
+
+Antes de abrir o aceptar un issue/PR, comprobar que encaja con el producto real
+del curso y del README:
+
+1. **App local y offline-first.** La demo se entrega en **localhost**
+   (`pnpm dev` / `pnpm preview` en `app/`). Toda la IA corre **client-side**
+   en el navegador (transformers.js / ONNX). No hay backend de aplicación.
+2. **Sin servicios en la nube para el producto.** No se planifican ni se
+   implementan deploys en Vercel, Netlify, Firebase, ni ningún host remoto
+   de la PWA. Tampoco APIs remotas de voz o LLM. GitHub (repo + Actions CI)
+   es solo colaboración y calidad de código, no el runtime de la demo.
+3. **Issues alineados con capas y enunciado.** Cada ticket debe mapear a
+   `ui/` / `audio/` / `dsp/` / `ia/` / `storage/` o a docs/CI del repo, y a
+   un hito (Avance 1 / 2 / Entrega Final) del curso. Si un ticket implica
+   “subir la app a internet”, es inválido: reescribir o cerrar.
+4. **Persona visible.** Assignee de GitHub **y** label `person:…`
+   (`person:jahel`, `person:rebeca`, `person:luna`, `person:saul`,
+   `person:cesar`).
+
+Detalle técnico y lección 2026-08-03: `Documentacion general/REGLAS-DE-CODIGO.md`
+(§1.1 y Lecciones aprendidas).
+
 ## Trabajo por módulos
 
 La construcción de la aplicación es modular, siguiendo las capas de

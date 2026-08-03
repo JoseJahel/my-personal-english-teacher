@@ -23,8 +23,23 @@ Este archivo **evoluciona**: si una sesión o un PR fallan por una regla ausente
 | Package manager | **Solo pnpm**. Nunca `package-lock.json` / yarn. |
 | Tests | Lógica pura (`dsp/`, helpers, resampler, parsers de salida) con Vitest. No mockear de más; no tests que solo repiten el código. |
 | Secretos | Nunca en el repo. `_private/` y `.env` locales. |
+| Ejecución del producto | **Solo local / client-side.** Demo en **localhost**. Sin hosting cloud ni backend remoto (ver [§1.1](#11-producto-local-y-offline--límites-no-negociables)). |
 | Commits | Conventional Commits, scope, inglés, imperativo, título ≤ 50 caracteres (ver `CONTRIBUTING.md`). |
 | PR | Idealmente un módulo / un concern. Actualizar `main` en la rama personal antes de abrir PR. |
+
+### 1.1 Producto local y offline — límites no negociables
+
+La app es una **PWA offline-first** del curso: toda la IA y el audio corren **en el navegador del usuario**. La demo de entrega es **`pnpm dev` / `pnpm preview` en localhost**, no un sitio desplegado.
+
+| Permitido | Prohibido en producto e issues |
+|-----------|--------------------------------|
+| `localhost` / `127.0.0.1` (Vite dev o preview) | Vercel, Netlify, Cloudflare Pages, Firebase Hosting, S3+CloudFront, etc. |
+| Inferencia ONNX en Web Worker (`transformers.js`) | Backend propio, APIs de voz/LLM en la nube, Web Speech API (servidores Google) |
+| Cache API / IndexedDB en el navegador | Bases de datos o storage remotos del producto |
+| CI de GitHub Actions (lint/test/build del repo) | Presentar CI o un host cloud como “la app en producción” |
+| 1.ª descarga de pesos HF al navegador (luego offline) | Requerir red en cada utterance o enviar audio a un servidor |
+
+**Al crear o revisar issues/PRs:** si el ticket implica deploy cloud, URL pública de la app, o servidor de inferencia, es **incorrecto** y se cierra o reescribe antes de implementarlo.
 
 ### Comentarios (inglés, mínimos)
 
@@ -117,6 +132,12 @@ Entradas **solo** si un fallo costó tiempo por regla inexistente o ambigua.
 - **Síntoma:** funcionaba; tras partir archivos o tocar UI, deja de detectar voz.
 - **Causa:** cleanup StrictMode/HMR con `generation++` en abort descartaba un start en curso; o se perdía un `resume()` al mover código.
 - **Regla:** no incrementar generation en unmount; solo en start/stop. Sesión tardía → `idle`, no quedarse en `starting`. Checklist manual en `CAPTURE-INVARIANTS.md` antes de commit que toque `audio/` o la sesión del mic.
+
+### 2026-08-03 — Ticket de “deploy en Vercel” contradice el producto
+
+- **Síntoma:** issue de Entrega Final pedía hosting estático en Vercel / preview cloud de la PWA.
+- **Causa:** se tomó al pie de la letra un párrafo antiguo del README (“plan Vercel”) sin contrastar el enunciado del profesor ni la decisión real: **demo localhost, offline, sin servicios en la nube**.
+- **Regla:** el producto **no** se despliega en la nube. Issues y PRs solo contemplan localhost + client-side. Antes de abrir un ticket de “infra/hosting”, validar §1.1 de este archivo y `CONTRIBUTING.md` (constraints del producto). README y backlog no deben proponer Vercel/Netlify/etc. como alcance.
 
 ---
 

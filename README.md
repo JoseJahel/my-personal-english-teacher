@@ -63,7 +63,7 @@ El soporte multi-idioma se descartó explícitamente por ser incompatible con la
 - **DSP futuro:** YIN, MFCC (implementación propia; Meyda solo como referencia de tests cuando exista), formantes; opcionalmente AudioWorklet para DSP en tiempo real.
 - **Pronunciación:** DTW + distancia euclidiana frame a frame vs referencia TTS.
 - **Almacenamiento de app:** IndexedDB versionado (sesiones/progreso); los pesos ya usan Cache API vía transformers.js.
-- **Deploy de desarrollo (plan):** sitio estático en Vercel con HTTPS para probar la PWA instalable (aún no hay configuración de deploy en el repo).
+- **Entrega / demo:** solo **localhost** (`pnpm dev` o `pnpm preview`). **No** hay ni se planea deploy en la nube (Vercel u otros hosts); el producto es offline-first en el navegador del usuario.
 
 ## Decisiones de arquitectura
 
@@ -182,7 +182,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - Half-duplex con TTS: la UI deshabilita “iniciar mic” mientras sintetiza/reproduce; se puede endurecer más (abort de tracks).
 - IndexedDB versionado (`storage/`): sesiones y turnos con scores/textos; nunca audio crudo.
 - Documento técnico Markdown → PDF (pandoc + Mermaid pre-renderizado).
-- Deploy estático en Vercel para previews HTTPS de la PWA.
+- Demo y prueba de PWA **solo en local** (localhost); sin hosting cloud del producto.
 
 ## Decisiones de proceso y entregas
 
@@ -194,9 +194,9 @@ Se redacta en Markdown con ecuaciones LaTeX/KaTeX (la documentación del curso p
 
 Los diagramas de bloques y de flujo se describen como texto y se renderizan dentro del propio pipeline Markdown→PDF, versionándose junto al documento. La documentación del curso sugiere "herramientas como Draw.io", y Mermaid cumple ese rol con mejor integración al flujo elegido.
 
-### Demo en localhost + deploy en Vercel
+### Demo solo en localhost (sin hosting cloud)
 
-La presentación en vivo corre desde localhost, que no depende de la red del aula y demuestra el funcionamiento offline real. Para el desarrollo, al no existir backend la app es un sitio 100% estático, y eso encaja exactamente con el hosting estático gratuito de Vercel: HTTPS (el contexto seguro que exigen el service worker y el micrófono), integración directa con el repositorio privado de GitHub y preview deploys por cada Pull Request, algo que se alinea con el flujo de PRs del equipo. Usar una plataforma orientada a servidores para servir archivos estáticos sería pagar por capacidad que la app no utiliza.
+La presentación en vivo corre desde **localhost** (`pnpm dev` o `pnpm preview` en `app/`), que no depende de la red del aula y demuestra el funcionamiento **offline real** tras cachear los modelos en el navegador. No hay backend ni deploy del producto en Vercel, Netlify ni ningún otro servicio en la nube: el enunciado del curso exige inferencia **client-side** y capacidad offline; publicar la app en un host remoto diluiría esa demostración y añadiría dependencia innecesaria. GitHub se usa solo para el código y la CI (lint/test/build), no como runtime de la demo. HTTPS local, si hiciera falta para probar la PWA instalable, se resuelve en la máquina del presentador, no con un host externo.
 
 ### Metodología iterativa por avances
 
