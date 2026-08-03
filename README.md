@@ -13,7 +13,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 ### Implementado (estado del repositorio)
 
 - Captura de micrófono real (`getUserMedia`) con `MediaRecorder` para el audio de ASR y grafo Web Audio (`AnalyserNode`) para onda y nivel en vivo.
-- Reconocimiento de voz (ASR) client-side con Whisper (`Xenova/whisper-tiny.en`) en un Web Worker.
+- Reconocimiento de voz (ASR) client-side con Whisper (`Xenova/whisper-small.en`, default de producción) en un Web Worker.
 - Corrección gramatical post-utterance con T5 (`Xenova/t5-base-grammar-correction`) en el mismo worker.
 - Filtro de etiquetas no-habla que Whisper inventa (p. ej. `[Music]`) antes de mostrar texto o corregir gramática.
 - Gate de energía/pico/duración (`dsp/signal-energy.ts`) para no enviar silencio a Whisper.
@@ -26,7 +26,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 - **Highlights por palabra** (`dsp/word-pronunciation-highlights.ts`): color good/medium/poor desde el path DTW (aproximación temporal por letras).
 - **TTS SpeechT5**: referencia acústica del score + reproducción de la respuesta del tutor.
 - **Conversación híbrida activa** (`ia/conversation-suggestions.ts` + `ui/tutor-reply-orchestration.ts`): SmolLM2 genera la respuesta principal del tutor con memoria de los últimos 4 turnos; timeout de 10 s y motor de reglas por escenario (`ui/tutor-reply-engine.ts`) como respaldo veraz (insignia honesta en el chat, nunca se hace pasar por generación del modelo).
-- **Catálogo ASR multi-candidato** (`ia/model-registry.ts`): 4 modelos Whisper evaluables (`tiny-en` default, `base-en`, `distil-small-en`, `small-en`) con tamaño aproximado de descarga; override de desarrollo `VITE_ASR_MODEL`; el default de producción sigue siendo `tiny-en` (cero cambio de comportamiento) hasta tener datos del banco de pruebas.
+- **Catálogo ASR multi-candidato** (`ia/model-registry.ts`): 4 modelos Whisper evaluables (`tiny-en`, `base-en`, `distil-small-en`, **`small-en` default**) con tamaño aproximado de descarga; override de desarrollo `VITE_ASR_MODEL`. Default elegido por el banco de pruebas (2026-07-29): mejor WER y ~3.4 s/frase en **WebGPU** (en WASM small-en es ~11 s y no es viable).
 - **Banco de pruebas ASR** (solo desarrollo, `#asr-benchmark`, fuera del bundle de producción): fixtures de voz propias en una IndexedDB separada (borrable sin tocar el progreso del estudiante, nunca en Git), corridas candidato × backend (WASM q8 / WebGPU fp32) con WER por Levenshtein y export a CSV/JSON.
 - **Paleta de diseño centralizada** (`index.css`, tokens `@theme`: sage/ink/blush) consumida por toda la UI; tests de freeze-guard evitan cambios accidentales de color.
 - **Shell de conversación Avance 2:** escenarios, chat, ASR+gramática, score, tutor híbrido + voz TTS.
@@ -41,7 +41,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 - Persistencia de sesiones y progreso en IndexedDB.
 - Extensiones de innovación: evolución de pitch/puntajes por sesión, filtrado adaptativo de ruido, gamificación.
 
-El soporte multi-idioma se descartó explícitamente por ser incompatible con la elección de `Xenova/whisper-tiny.en`, que solo reconoce inglés.
+El soporte multi-idioma se descartó explícitamente: los candidatos ASR de producción son variantes **.en** (solo inglés).
 
 ## Stack tecnológico
 
@@ -49,7 +49,7 @@ El soporte multi-idioma se descartó explícitamente por ser incompatible con la
 
 - **Frontend:** React + TypeScript, Vite, Tailwind CSS.
 - **IA en navegador:** `@huggingface/transformers` (ONNX Runtime Web); WebGPU oportunista con fallback a WASM.
-- **Modelos activos:** `Xenova/whisper-tiny.en` (ASR, default de un catálogo de 4 candidatos evaluables), `Xenova/t5-base-grammar-correction` (gramática), `Xenova/speecht5_tts` (TTS), `HuggingFaceTB/SmolLM2-360M-Instruct` (tutor conversacional).
+- **Modelos activos (revisiones ancladas a SHA en `ia/model-registry.ts`):** `Xenova/whisper-small.en` (ASR default), `Xenova/t5-base-grammar-correction` (gramática), `Xenova/speecht5_tts` + HiFiGAN (TTS), `HuggingFaceTB/SmolLM2-360M-Instruct` (tutor). ASR prefiere **WebGPU**; gramática/TTS/SmolLM2 van en **WASM**.
 - **Audio:** Web Audio API (`MediaStreamSource` + `AnalyserNode` para visualización) + `MediaRecorder` para ASR; resample a 16 kHz mono en `audio/`.
 - **DSP en código:** energía RMS/pico y gate de habla usable (`dsp/signal-energy.ts`).
 - **Estado de UI:** hooks de React en `ui/use-home-screen-session.ts` (sin store global todavía).
@@ -77,13 +77,13 @@ La aplicación combina estado conversacional, audio en tiempo real y varias visu
 
 Con cinco personas trabajando en ramas separadas, los tipos convierten los errores de contrato entre módulos (features acústicas, mensajes de workers, pipeline de IA) en errores de compilación en vez de fallos en la demo; React y transformers.js publican tipos oficiales. El build es Vite: es el estándar actual del ecosistema React y Create React App está deprecado. Los tests usan Vitest por su integración nativa con Vite.
 
-### whisper-tiny.en sobre whisper-base / whisper-small
+### whisper-small.en (default) con fallback de catálogo
 
-`whisper-tiny.en` pesa aproximadamente 40 MB cuantizado, frente a los ~75 MB de `whisper-base` y los ~250 MB de `whisper-small`. La latencia de inferencia en el navegador crece con el tamaño del modelo, y la meta del proyecto es entregar feedback en menos de 2 segundos sobre hardware típico de un estudiante; la documentación del curso recomienda explícitamente modelos tiny para no comprometer esa latencia. Si la precisión del ASR no alcanza la meta propuesta (>85%), migrar a `whisper-base` queda como un cambio de una sola línea de configuración.
+La decisión inicial del Avance 1 favorecía `whisper-tiny.en` (~40 MB) por latencia. El banco de pruebas del 2026-07-29 midió WER y latencia de los 4 candidatos: **`small-en` ganó en precisión** (WER 0.000 en las fixtures de referencia) con ~3.4 s/frase en **WebGPU**. En WASM pure, small-en ronda ~11 s/frase y **no es viable**; por eso el device policy de ASR auto-detecta WebGPU y cae a WASM solo si no hay adapter. `tiny-en` / `base-en` / `distil-small-en` siguen en el catálogo y se pueden forzar con `VITE_ASR_MODEL` o el banco `#asr-benchmark`.
 
-### whisper-tiny.en sobre whisper-tiny multilingüe
+### Variantes .en sobre multilingüe
 
-Al mismo peso (~40 MB), la variante entrenada solo en inglés ofrece mejor precisión para el único idioma que la app reconoce, acercando la meta de >85% con el modelo más pequeño. La extensión multi-idioma se descartó explícitamente, así que no se sacrifica nada a cambio.
+A peso comparable, las variantes entrenadas solo en inglés ofrecen mejor precisión para el único idioma de práctica. La extensión multi-idioma se descartó explícitamente.
 
 ### vennify/t5-base-grammar-correction sobre hassaanik/grammar-correction-model
 
@@ -155,7 +155,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 
 ### Ya aplicados en el código
 
-- Inferencia con WebGPU oportunista y fallback automático a WASM (ONNX Runtime Web); nada de inferencia en el hilo principal (Web Worker `ia/inference-worker.ts`).
+- Inferencia: ASR con WebGPU cuando hay adapter (latencia viable de `small-en`); gramática, TTS y SmolLM2 **siempre en WASM** (evita kernels rotos y contaminación del worker). Nada de inferencia en el hilo principal (Web Worker `ia/inference-worker.ts`).
 - Pipeline activo post-utterance: **ASR → gramática → tutor híbrido (SmolLM2 con timeout de 10 s + respaldo de reglas) → score pronunciación → TTS del tutor**.
 - Catálogo de candidatos ASR en `ia/model-registry.ts` (override de desarrollo `VITE_ASR_MODEL`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend) para decidir el modelo definitivo antes de la Entrega Final.
 - Paleta de diseño centralizada en tokens CSS (`app/src/index.css`, `@theme`: sage/ink/blush) consumida por toda la UI, con tests de freeze-guard.
@@ -168,7 +168,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - Estructura de `app/src` por capas: `audio/`, `dsp/`, `ia/`, `ui/`, `storage/`.
 - Navegador objetivo: Chrome/Chromium.
 - Carga perezosa de modelos en el primer uso (Whisper al transcribir, T5 al corregir) con progreso y `model-ready` hacia la UI.
-- Revisión de modelos en `ia/model-registry.ts` (`revision: 'main'` en desarrollo; anclar SHA antes de la Entrega Final).
+- Revisiones de modelos en `ia/model-registry.ts` ancladas a **commit SHA** del Hub (build reproducible).
 - Nomenclatura en inglés en código; textos de UI en español en `ui/interface-texts.ts`.
 - CI en GitHub Actions: lint, typecheck, tests y build en PR y push a `main`.
 - Errores de mic e inferencia tipados y mapeados a mensajes en español.
@@ -232,11 +232,11 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 |------|-------------|------------------------------|
 | `ui/` | Escenarios, chat con **tutor híbrido** (SmolLM2 + respaldo honesto), score, TTS, onda + **espectrograma + pitch** + **highlights por palabra** + **banco de pruebas ASR** (dev) + paleta de diseño en tokens | — |
 | `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop** | Half-duplex más estricto al TTS |
-| `ia/` | Whisper (**catálogo de 4 candidatos**), T5, SpeechT5, **SmolLM2** (conversación híbrida activa), worker + client | Fijar candidato ASR definitivo tras el benchmark |
+| `ia/` | Whisper (**default `small-en`**, catálogo de 4), T5, SpeechT5, **SmolLM2**, worker + client; revisiones **SHA** | Re-medir bench en hardware de demo si hace falta |
 | `dsp/` | Energía + YIN + MFCC + DTW + score + espectrograma + **VAD** + **formantes** | — |
 | `storage/` | **IndexedDB** sesiones/turnos (sin audio) + **IndexedDB separada de fixtures del banco de pruebas ASR** (solo dev, con audio crudo) | Migraciones futuras de schema |
 
-**Decisión de modelo ASR:** pendiente de las corridas del banco de pruebas (`#asr-benchmark`, solo desarrollo); el default de producción sigue siendo `whisper-tiny.en` hasta tener datos comparativos de WER/latencia entre los 4 candidatos catalogados.
+**Decisión de modelo ASR:** **`whisper-small.en`** es el default de producción (bench 2026-07-29). Requiere **WebGPU** para latencia de demo viable; sin adapter el runtime cae a WASM (más lento). El banco `#asr-benchmark` (solo dev) sigue disponible para re-medir en otras máquinas.
 
 Detalle operativo de la demo actual:
 

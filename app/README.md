@@ -130,16 +130,14 @@ Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO
 
 ## Nota sobre versiones de modelos
 
-`ia/model-registry.ts` fija la revisión de cada modelo en `'main'` durante el
-desarrollo. Antes de la Entrega Final del proyecto, cada modelo debe anclarse a
-un commit específico del Hub de Hugging Face para asegurar una build
-reproducible. Hoy ASR, gramática, TTS y SmolLM2 tienen adaptadores en el worker.
+`ia/model-registry.ts` ancla cada modelo a un **commit SHA** del Hub de Hugging
+Face (build reproducible). ASR, gramática, TTS/vocoder y SmolLM2 tienen
+adaptadores en el worker.
 
-El ASR además cataloga varios candidatos Whisper evaluables
-(`asrModelCandidates`); el banco de pruebas de desarrollo (`#asr-benchmark`)
-mide WER y latencia por candidato × backend para decidir cuál queda fijo antes
-de la Entrega Final. El default de producción sigue siendo `whisper-tiny.en`
-hasta tener esos números.
+El ASR cataloga varios candidatos Whisper (`asrModelCandidates`); el banco de
+pruebas de desarrollo (`#asr-benchmark`) mide WER y latencia por candidato ×
+backend. El default de producción es **`whisper-small.en`** (bench 2026-07-29):
+mejor WER y ~3.4 s/frase con **WebGPU**; en WASM no es viable (~11 s).
 
 ## PWA y caché de modelos
 
