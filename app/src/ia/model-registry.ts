@@ -1,6 +1,7 @@
 /**
  * Single source of truth for Hugging Face model IDs used by transformers.js.
- * Keep `revision: 'main'` only during development; pin SHAs before final delivery.
+ * Revisions are pinned to Hub commit SHAs for reproducible final delivery.
+ * SHAs fetched from huggingface.co/api/models on 2026-08-03 (main tip then).
  */
 
 export type SupportedInferenceTask =
@@ -13,15 +14,13 @@ export type SupportedInferenceTask =
 export interface RegisteredModelDescriptor {
   readonly huggingFaceModelId: string
   readonly task: SupportedInferenceTask
-  /** Hub revision; replace `'main'` with a commit SHA before final release. */
+  /** Hub commit SHA (pinned; do not use floating `'main'` in release builds). */
   readonly revision: string
 }
 
 /**
- * ASR candidates evaluados por el banco de pruebas dev (Sección 1 del diseño).
- * `approxDownloadMb` es una estimación aproximada para el copy de primera
- * descarga; se refina con los números reales tras correr el benchmark.
- * TODO: fijar `revision` a un SHA de commit por candidato antes de entrega final.
+ * ASR candidates evaluated by the dev benchmark screen.
+ * `approxDownloadMb` is a rough first-download estimate for UI copy.
  */
 export type AsrModelCandidateId = 'tiny-en' | 'base-en' | 'distil-small-en' | 'small-en'
 
@@ -34,33 +33,32 @@ export interface AsrModelCandidateDescriptor {
 export const asrModelCandidates: Record<AsrModelCandidateId, AsrModelCandidateDescriptor> = {
   'tiny-en': {
     modelId: 'Xenova/whisper-tiny.en',
-    revision: 'main',
+    revision: '79fb389fc764e7c395bd330e9531d9d32ada7049',
     approxDownloadMb: 40,
   },
   'base-en': {
     modelId: 'Xenova/whisper-base.en',
-    revision: 'main',
+    revision: '95bf40a508535962c6483ead40270b2e32267508',
     approxDownloadMb: 75,
   },
   'distil-small-en': {
     modelId: 'onnx-community/distil-small.en',
-    revision: 'main',
+    revision: '69be759f982d1d4c5b8a987d4140752742619bd0',
     approxDownloadMb: 170,
   },
   'small-en': {
     modelId: 'Xenova/whisper-small.en',
-    revision: 'main',
+    revision: 'fa16a75f5d91e83ecb6a2ccb690f14d91ef00ca4',
     approxDownloadMb: 250,
   },
 }
 
 /**
- * Default de producción: elegido por el benchmark del 2026-07-29 en la
- * máquina de referencia. small-en dio el mejor WER (0.000 en todos los casos)
- * y 3.4 s/frase con WebGPU (viable); en WASM son 11 s/frase (no viable), por
- * eso este default depende de `resolvePreferredOnnxDevice` auto-detectando
- * WebGPU (ver resolve-inference-device.ts). tiny-en/base-en siguen
- * disponibles vía override `VITE_ASR_MODEL` y el banco de pruebas dev.
+ * Production default: chosen by the 2026-07-29 benchmark on the reference
+ * machine. small-en had the best WER (0.000 on all fixtures) and ~3.4 s per
+ * utterance on WebGPU (viable); on WASM it is ~11 s (not viable). Default
+ * device policy auto-detects WebGPU for ASR (see resolve-inference-device.ts).
+ * tiny-en/base-en remain available via `VITE_ASR_MODEL` and the dev bench.
  */
 export const DEFAULT_ASR_CANDIDATE_ID: AsrModelCandidateId = 'small-en'
 
@@ -82,8 +80,7 @@ function readAsrModelOverride(): AsrModelCandidateId | null {
 }
 
 /**
- * Candidato ASR activo: override `VITE_ASR_MODEL` cuando es válido, si no el
- * default. Análogo a `resolvePreferredOnnxDevice` en resolve-inference-device.ts.
+ * Active ASR candidate: valid `VITE_ASR_MODEL` override, else the default.
  */
 export function resolveActiveAsrCandidateId(): AsrModelCandidateId {
   return readAsrModelOverride() ?? DEFAULT_ASR_CANDIDATE_ID
@@ -100,22 +97,22 @@ export const modelRegistry = {
   grammarCorrection: {
     huggingFaceModelId: 'Xenova/t5-base-grammar-correction',
     task: 'grammarCorrection',
-    revision: 'main',
+    revision: 'c439d702d7b7b178b96b64d4dc4537308963c271',
   },
   textToSpeech: {
     huggingFaceModelId: 'Xenova/speecht5_tts',
     task: 'textToSpeech',
-    revision: 'main',
+    revision: '1723781b8ce2d02f0400c8337be04ae8ee3d6d56',
   },
   textToSpeechVocoder: {
     huggingFaceModelId: 'Xenova/speecht5_hifigan',
     task: 'textToSpeechVocoder',
-    revision: 'main',
+    revision: 'cf980c3610d7b7f20919960031066ef7905737bd',
   },
   conversationSuggestions: {
     huggingFaceModelId: 'HuggingFaceTB/SmolLM2-360M-Instruct',
     task: 'conversationSuggestions',
-    revision: 'main',
+    revision: 'a10cc1512eabd3dde888204e902eca88bddb4951',
   },
 } as const satisfies Record<string, RegisteredModelDescriptor>
 

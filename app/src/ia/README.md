@@ -14,17 +14,17 @@ cliente de inferencia; `ia/` solo recibe PCM ya a 16 kHz y texto.
 Implementado:
 
 - `model-registry.ts`: catálogo tipado de modelos e IDs del Hub (ASR, gramática,
-  TTS y **SmolLM2** en uso). ASR además cataloga 4 **candidatos Whisper**
-  evaluables (`asrModelCandidates`: tiny-en default, base-en, distil-small-en,
-  small-en) con tamaño aproximado de descarga; override de desarrollo
-  `VITE_ASR_MODEL`.
+  TTS y **SmolLM2** en uso) con **revisiones ancladas a SHA** del Hub. ASR
+  cataloga 4 candidatos Whisper (`tiny-en`, `base-en`, `distil-small-en`,
+  **`small-en` default de producción**); override `VITE_ASR_MODEL`.
 - `keyed-async-cache.ts`: memoización de promesas por clave; el worker la usa
   para mantener un pipeline Whisper cargado por candidato ASR sin relanzar una
   carga ya en curso.
-- `automatic-speech-recognition.ts`: adaptador ASR Whisper, ahora consciente
-  del candidato activo. Por defecto **WASM + q8** (fiable); WebGPU solo con
-  `VITE_INFERENCE_DEVICE=webgpu` y entonces **fp32** (q8+WebGPU produjo basura
-  tipo bucles de tokens). `max_new_tokens` acotado por duración del audio.
+- `automatic-speech-recognition.ts` + `resolve-inference-device.ts`: ASR usa
+  el candidato activo y **auto-detecta WebGPU** (latencia viable de small-en);
+  fallback WASM. En WebGPU el dtype es **fp32** (q8+WebGPU produce basura).
+  Gramática/TTS/SmolLM2 se fuerzan a WASM. `max_new_tokens` acotado por audio.
+
 - `grammar-correction.ts`: adaptador T5 con el mismo criterio de device/dtype.
   Si la salida es degenerada, devuelve el texto original.
 - `text-to-speech-synthesis.ts`: **SpeechT5** (`Xenova/speecht5_tts`, dtype
