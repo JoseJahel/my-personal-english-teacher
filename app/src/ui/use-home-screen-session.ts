@@ -47,6 +47,11 @@ import type {
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import {
+  createUserTurnSignalSnapshot,
+  isCurrentAttemptGeneration,
+  type UserTurnSignalSnapshot,
+} from './practice-turn-signal-snapshot'
+import {
   ensureHomeInferenceClient,
   tutorGenerationStatusFromResult,
   type InferenceInFlightFlags,
@@ -408,9 +413,11 @@ export function useHomeScreenSession(): HomeScreenProps {
   }, [])
 
   const scoreUserPronunciation = useCallback(
-    async (referenceEnglishText: string): Promise<PronunciationScoreResult | null> => {
-      const capture = lastUserCaptureRef.current
-      if (!capture || !inferenceClientRef.current) {
+    async (
+      referenceEnglishText: string,
+      turnSignalSnapshot: UserTurnSignalSnapshot | null,
+    ): Promise<PronunciationScoreResult | null> => {
+      if (!turnSignalSnapshot || !inferenceClientRef.current) {
         setPronunciationStatus('unavailable')
         setPronunciationScore(null)
         return null
@@ -423,8 +430,8 @@ export function useHomeScreenSession(): HomeScreenProps {
       try {
         const inferenceClient = inferenceClientRef.current
         const result = await runPronunciationScoringForUtterance({
-          userSamples: capture.samples,
-          userSampleRateInHertz: capture.sampleRateInHertz,
+          userSamples: turnSignalSnapshot.samples,
+          userSampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
           referenceEnglishText,
           synthesizeSpeech: (englishText) =>
             awaitWithTimeout(
@@ -433,7 +440,12 @@ export function useHomeScreenSession(): HomeScreenProps {
               new Error('Reference speech synthesis timed out during pronunciation scoring.'),
             ),
         })
-        if (attemptGeneration !== pronunciationAttemptGenerationRef.current) {
+        if (
+          !isCurrentAttemptGeneration(
+            attemptGeneration,
+            pronunciationAttemptGenerationRef.current,
+          )
+        ) {
           return null
         }
         if (!result) {
@@ -445,7 +457,12 @@ export function useHomeScreenSession(): HomeScreenProps {
         setPronunciationStatus('done')
         return result
       } catch (error) {
-        if (attemptGeneration !== pronunciationAttemptGenerationRef.current) {
+        if (
+          !isCurrentAttemptGeneration(
+            attemptGeneration,
+            pronunciationAttemptGenerationRef.current,
+          )
+        ) {
           return null
         }
         console.error(error)
@@ -497,7 +514,11 @@ export function useHomeScreenSession(): HomeScreenProps {
   )
 
   const appendSuccessfulPracticeTurn = useCallback(
-    async (transcribedTextResult: string, correctedText: string) => {
+    async (
+      transcribedTextResult: string,
+      correctedText: string,
+      turnSignalSnapshot: UserTurnSignalSnapshot,
+    ) => {
       const scenario = getPracticeScenarioById(selectedScenarioIdRef.current)
       const userMessage = createUserUtteranceMessage(
         transcribedTextResult,
@@ -552,25 +573,34 @@ export function useHomeScreenSession(): HomeScreenProps {
       setTutorGenerationStatus(tutorGenerationStatusFromResult(usedFallback))
 
       // Conversation first: speak ASAP. Score is heavy (extra TTS) — run after voice starts.
+      // Score/persist use the per-turn snapshot (issue #23), never live shared refs.
       void speakTutorText(tutorReplyText)
-      const pronunciation = await scoreUserPronunciation(referencePhrase)
+      const pronunciation = await scoreUserPronunciation(referencePhrase, turnSignalSnapshot)
       await persistPracticeTurn({
         transcribedText: transcribedTextResult,
         correctedText: referencePhrase,
         tutorReplyText,
         tutorUsedFallback: usedFallback,
         pronunciation,
-        formants: medianFormantsRef.current,
+        formants: turnSignalSnapshot.formants,
       })
     },
     [persistPracticeTurn, scoreUserPronunciation, speakTutorText],
   )
 
   const correctTranscribedGrammar = useCallback(
-    async (transcribedTextResult: string, attemptGeneration: number) => {
+    async (
+      transcribedTextResult: string,
+      attemptGeneration: number,
+      turnSignalSnapshot: UserTurnSignalSnapshot,
+    ) => {
       if (!transcribedTextResult.trim() || !inferenceClientRef.current) {
         setGrammarCorrectionStatus('idle')
-        void appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
+        void appendSuccessfulPracticeTurn(
+          transcribedTextResult,
+          transcribedTextResult,
+          turnSignalSnapshot,
+        )
         return
       }
 
@@ -585,7 +615,11 @@ export function useHomeScreenSession(): HomeScreenProps {
         }
         setCorrectedGrammarText(correctedText)
         setGrammarCorrectionStatus('done')
-        void appendSuccessfulPracticeTurn(transcribedTextResult, correctedText)
+        void appendSuccessfulPracticeTurn(
+          transcribedTextResult,
+          correctedText,
+          turnSignalSnapshot,
+        )
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
@@ -594,7 +628,11 @@ export function useHomeScreenSession(): HomeScreenProps {
         setGrammarCorrectionErrorReason(reason)
         setGrammarCorrectionStatus('error')
         // Still add the user turn so chat history is not empty after a successful ASR.
-        void appendSuccessfulPracticeTurn(transcribedTextResult, transcribedTextResult)
+        void appendSuccessfulPracticeTurn(
+          transcribedTextResult,
+          transcribedTextResult,
+          turnSignalSnapshot,
+        )
         console.error(error)
       } finally {
         if (attemptGeneration === transcriptionAttemptGenerationRef.current) {
@@ -653,11 +691,9 @@ export function useHomeScreenSession(): HomeScreenProps {
         return
       }
 
-      // Keep native-rate PCM for pronunciation scoring (resampled later to TTS rate).
-      lastUserCaptureRef.current = {
-        samples: samples.slice(),
-        sampleRateInHertz: nativeSampleRate,
-      }
+      // Snapshot by value at end of usable capture (issue #23). Later turns may
+      // overwrite shared refs; score/persist must keep this turn's PCM/formants.
+      pronunciationAttemptGenerationRef.current += 1
       setHasCompletedCapture(true)
       const formants = updateUtteranceSignalViews({
         samples,
@@ -665,6 +701,15 @@ export function useHomeScreenSession(): HomeScreenProps {
         spectrogramCanvas: spectrogramCanvasRef.current,
         pitchTrackCanvas: pitchTrackCanvasRef.current,
       })
+      const turnSignalSnapshot = createUserTurnSignalSnapshot(
+        samples,
+        nativeSampleRate,
+        formants,
+      )
+      lastUserCaptureRef.current = {
+        samples: turnSignalSnapshot.samples,
+        sampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
+      }
       setMedianFormants(formants)
       medianFormantsRef.current = formants
 
@@ -735,7 +780,11 @@ export function useHomeScreenSession(): HomeScreenProps {
 
         setTranscribedText(transcribedTextResult)
         setTranscriptionStatus('done')
-        void correctTranscribedGrammar(transcribedTextResult, attemptGeneration)
+        void correctTranscribedGrammar(
+          transcribedTextResult,
+          attemptGeneration,
+          turnSignalSnapshot,
+        )
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
