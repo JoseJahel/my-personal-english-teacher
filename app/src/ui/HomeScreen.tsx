@@ -166,9 +166,11 @@ export function HomeScreen({
             {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
           </button>
         </div>
-        <p className="mt-3 text-center text-xs text-sage-300">
-          {homeScreenInterfaceTexts.micHelperHint}
-        </p>
+       <p className="mt-3 text-center text-xs text-sage-300">
+  {isTutorSpeaking
+    ? homeScreenInterfaceTexts.tutorSpeakingHint
+    : homeScreenInterfaceTexts.micHelperHint}
+    </p>
 
         <div
           className={`mt-4 text-left ${isListening || isStarting ? '' : 'hidden'}`}
