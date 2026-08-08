@@ -220,6 +220,13 @@ export const homeScreenInterfaceTexts = {
     },
     scoreLabel: (score: number | null) =>
       score === null ? 'Sin score' : `Score ${score.toFixed(1)}`,
+    trendSectionLabel: 'Tendencia de pronunciación',
+    averageScoreLabel: (average: number | null) =>
+      average === null
+        ? 'Aún no hay suficientes turnos con puntuación para calcular un promedio.'
+        : `Promedio de la sesión: ${average.toFixed(1)} / 100`,
+    trendBarTooltip: (turnIndex: number, score: number) =>
+      `Turno ${turnIndex}: ${score.toFixed(1)} / 100`,
   },
   pronunciationPanelLabel: 'Pronunciación (señales)',
   pronunciationWordHighlights: {
