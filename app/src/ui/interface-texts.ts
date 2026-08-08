@@ -17,6 +17,7 @@ export const homeScreenInterfaceTexts = {
   stopMicrophoneButtonLabel: 'Detener',
   micHelperHint:
     'Pulsa Hablar, di una frase en inglés y para al terminar (o espera el auto-corte al silencio).',
+  tutorSpeakingHint: 'El tutor está hablando… espera a que termine para poder hablar tú.',
   modelsWarmingUpMessage:
     'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
   resultsSectionTitle: 'Tu turno',
@@ -219,6 +220,13 @@ export const homeScreenInterfaceTexts = {
     },
     scoreLabel: (score: number | null) =>
       score === null ? 'Sin score' : `Score ${score.toFixed(1)}`,
+    trendSectionLabel: 'Tendencia de pronunciación',
+    averageScoreLabel: (average: number | null) =>
+      average === null
+        ? 'Aún no hay suficientes turnos con puntuación para calcular un promedio.'
+        : `Promedio de la sesión: ${average.toFixed(1)} / 100`,
+    trendBarTooltip: (turnIndex: number, score: number) =>
+      `Turno ${turnIndex}: ${score.toFixed(1)} / 100`,
   },
   pronunciationPanelLabel: 'Pronunciación (señales)',
   pronunciationWordHighlights: {
