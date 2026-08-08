@@ -23,6 +23,7 @@ class FakeBufferSourceNode {
   buffer: FakeAudioBuffer | null = null
   onended: (() => void) | null = null
   startCalls: number[] = []
+  stopCallCount = 0
   connectedTo: unknown = null
   shouldThrowOnStart = false
 
@@ -36,6 +37,11 @@ class FakeBufferSourceNode {
       throw new Error('start failure')
     }
   }
+
+  stop(): void {
+    this.stopCallCount += 1
+    this.onended?.()
+  }
 }
 
 class FakeAudioContext {
@@ -43,6 +49,7 @@ class FakeAudioContext {
   static nextSourceShouldThrowOnStart = false
 
   state: 'suspended' | 'running' | 'closed' = 'running'
+  currentTime = 0
   resumeCallCount = 0
   closeCallCount = 0
   readonly destination = {}
@@ -87,14 +94,32 @@ describe('playMonoPcmSamples early returns', () => {
   it('resolves immediately for empty samples without touching AudioContext', async () => {
     const audioContextConstructor = vi.fn()
     vi.stubGlobal('AudioContext', audioContextConstructor)
-    await expect(playMonoPcmSamples(new Float32Array(0), 16000)).resolves.toBeUndefined()
+    await expect(playMonoPcmSamples(new Float32Array(0), 16000)).resolves.toEqual({
+      completed: true,
+      cutoffMs: 0,
+    })
     expect(audioContextConstructor).not.toHaveBeenCalled()
   })
 
   it('resolves immediately for a non-positive sample rate', async () => {
     const audioContextConstructor = vi.fn()
     vi.stubGlobal('AudioContext', audioContextConstructor)
-    await expect(playMonoPcmSamples(new Float32Array([0.1, 0.2]), 0)).resolves.toBeUndefined()
+    await expect(playMonoPcmSamples(new Float32Array([0.1, 0.2]), 0)).resolves.toEqual({
+      completed: true,
+      cutoffMs: 0,
+    })
+    expect(audioContextConstructor).not.toHaveBeenCalled()
+  })
+
+  it('resolves immediately without starting playback when already aborted', async () => {
+    const audioContextConstructor = vi.fn()
+    vi.stubGlobal('AudioContext', audioContextConstructor)
+    const controller = new AbortController()
+    controller.abort()
+    const result = await playMonoPcmSamples(new Float32Array([0.1, 0.2]), 16000, {
+      signal: controller.signal,
+    })
+    expect(result).toEqual({ completed: false, cutoffMs: 0 })
     expect(audioContextConstructor).not.toHaveBeenCalled()
   })
 })
@@ -109,6 +134,7 @@ describe('playMonoPcmSamples context ownership', () => {
       if (!instance?.lastCreatedSource) throw new Error('not ready')
       return instance
     })
+    created.currentTime = samples.length / 16000
     created.lastCreatedSource!.onended?.()
     await playbackPromise
     expect(created.closeCallCount).toBe(1)
@@ -124,6 +150,7 @@ describe('playMonoPcmSamples context ownership', () => {
     await vi.waitFor(() => {
       if (!audioContext.lastCreatedSource) throw new Error('not ready')
     })
+    audioContext.currentTime = samples.length / 16000
     audioContext.lastCreatedSource!.onended?.()
     await playbackPromise
     expect(audioContext.closeCallCount).toBe(0)
@@ -178,6 +205,7 @@ describe('playMonoPcmSamples playback', () => {
     expect(audioContext.lastCreatedBuffer?.sampleRate).toBe(22050)
     expect(audioContext.lastCreatedBuffer?.channels[0]).toEqual(samples)
     expect(audioContext.lastCreatedSource?.startCalls).toEqual([0])
+    audioContext.currentTime = samples.length / 22050
     audioContext.lastCreatedSource!.onended?.()
     await playbackPromise
   })
@@ -188,5 +216,102 @@ describe('playMonoPcmSamples playback', () => {
     const samples = new Float32Array([0.1])
     await expect(playMonoPcmSamples(samples, 16000)).rejects.toThrow('start failure')
     expect(FakeAudioContext.instances.at(-1)?.closeCallCount).toBe(1)
+  })
+
+  it('reports completed: true with the full duration when playback ends naturally', async () => {
+    const audioContext = new FakeAudioContext()
+    audioContext.state = 'running'
+    const sampleRate = 16000
+    const samples = new Float32Array(sampleRate)
+    const playbackPromise = playMonoPcmSamples(samples, sampleRate, {
+      audioContext: audioContext as unknown as AudioContext,
+    })
+    await vi.waitFor(() => {
+      if (!audioContext.lastCreatedSource) throw new Error('not ready')
+    })
+    audioContext.currentTime = 1
+    audioContext.lastCreatedSource!.onended?.()
+    const result = await playbackPromise
+    expect(result.completed).toBe(true)
+    expect(result.cutoffMs).toBe(1000)
+  })
+})
+
+describe('playMonoPcmSamples interruption (barge-in, issue #46)', () => {
+  it('stops playback and reports completed: false with a partial cutoffMs when aborted mid-utterance', async () => {
+    const audioContext = new FakeAudioContext()
+    audioContext.state = 'running'
+    const sampleRate = 16000
+    const samples = new Float32Array(sampleRate * 2)
+    const controller = new AbortController()
+    const playbackPromise = playMonoPcmSamples(samples, sampleRate, {
+      audioContext: audioContext as unknown as AudioContext,
+      signal: controller.signal,
+    })
+    const source = await vi.waitFor(() => {
+      if (!audioContext.lastCreatedSource) throw new Error('not ready')
+      return audioContext.lastCreatedSource
+    })
+    audioContext.currentTime = 0.75
+    controller.abort()
+    const result = await playbackPromise
+    expect(source.stopCallCount).toBe(1)
+    expect(result.completed).toBe(false)
+    expect(result.cutoffMs).toBe(750)
+  })
+
+  it('never reports a cutoffMs beyond the clip duration even if the clock overshoots', async () => {
+    const audioContext = new FakeAudioContext()
+    audioContext.state = 'running'
+    const sampleRate = 16000
+    const samples = new Float32Array(sampleRate)
+    const controller = new AbortController()
+    const playbackPromise = playMonoPcmSamples(samples, sampleRate, {
+      audioContext: audioContext as unknown as AudioContext,
+      signal: controller.signal,
+    })
+    await vi.waitFor(() => {
+      if (!audioContext.lastCreatedSource) throw new Error('not ready')
+    })
+    audioContext.currentTime = 5
+    controller.abort()
+    const result = await playbackPromise
+    expect(result.cutoffMs).toBe(1000)
+  })
+
+  it('ignores an abort that fires after playback already ended', async () => {
+    const audioContext = new FakeAudioContext()
+    audioContext.state = 'running'
+    const sampleRate = 16000
+    const samples = new Float32Array(sampleRate)
+    const controller = new AbortController()
+    const playbackPromise = playMonoPcmSamples(samples, sampleRate, {
+      audioContext: audioContext as unknown as AudioContext,
+      signal: controller.signal,
+    })
+    const source = await vi.waitFor(() => {
+      if (!audioContext.lastCreatedSource) throw new Error('not ready')
+      return audioContext.lastCreatedSource
+    })
+    audioContext.currentTime = 1
+    source.onended?.()
+    const result = await playbackPromise
+    controller.abort()
+    expect(result.completed).toBe(true)
+    expect(source.stopCallCount).toBe(0)
+  })
+
+  it('resolves immediately with completed: false when the signal is already aborted before start', async () => {
+    const audioContext = new FakeAudioContext()
+    audioContext.state = 'running'
+    const controller = new AbortController()
+    controller.abort()
+    const samples = new Float32Array([0.1, 0.2])
+    const result = await playMonoPcmSamples(samples, 16000, {
+      audioContext: audioContext as unknown as AudioContext,
+      signal: controller.signal,
+    })
+    expect(result).toEqual({ completed: false, cutoffMs: 0 })
+    expect(audioContext.lastCreatedSource).toBeNull()
   })
 })
