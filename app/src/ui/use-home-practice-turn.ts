@@ -1,13 +1,12 @@
 /**
  * Tutor reply, TTS, pronunciation score, and IndexedDB persist for one turn.
+ * Includes barge-in spoken_progress handling (issue #46).
  */
 
 import { useCallback } from 'react'
-import { playMonoPcmSamples } from '../audio/play-pcm-mono'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
-import { InferenceClientError } from '../ia/inference-client'
-import { awaitWithTimeout } from './await-with-timeout'
+import type { StoredSpokenProgress } from '../storage/practice-session-types'
 import {
   ensureHomeInferenceClient,
   tutorGenerationStatusFromResult,
@@ -18,6 +17,7 @@ import {
   nextChatMessageId,
   pickBestIntentPhrase,
 } from './home-session-helpers'
+import { resolvePostInterruptionTutorReply } from './interruption-resume-bridges'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import {
   buildRecentHistoryTurnsEn,
@@ -30,14 +30,19 @@ import {
   type UserTurnSignalSnapshot,
 } from './practice-turn-signal-snapshot'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
+import type { SpokenProgress } from './spoken-progress'
 import { pickContextualTutorReply } from './tutor-reply-engine'
 import { resolveTutorReplyWithFallback } from './tutor-reply-orchestration'
+import { speakTutorTextWithSpokenProgress } from './tutor-speech-playback'
+import { awaitWithTimeout } from './await-with-timeout'
 
 export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
   const {
     inferenceClientRef,
     inferenceInFlightFlagsRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
+    pendingSpokenProgressRef,
     pronunciationAttemptGenerationRef,
     practiceRepositoryRef,
     activeSessionIdRef,
@@ -75,8 +80,25 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     }
   }, [practiceRepositoryRef, setPracticeHistoryStatusMessage, setPracticeHistoryTurns])
 
+  const persistPendingSpokenProgress = useCallback(
+    async (progress: SpokenProgress | null) => {
+      pendingSpokenProgressRef.current = progress
+      const repository = practiceRepositoryRef.current
+      const sessionId = activeSessionIdRef.current
+      if (!repository || !sessionId) {
+        return
+      }
+      try {
+        await repository.setPendingSpokenProgress(sessionId, progress)
+      } catch (error) {
+        console.warn('Failed to persist pending spoken progress.', error)
+      }
+    },
+    [activeSessionIdRef, pendingSpokenProgressRef, practiceRepositoryRef],
+  )
+
   const speakTutorText = useCallback(
-    async (englishText: string) => {
+    async (englishText: string): Promise<SpokenProgress> => {
       const inferenceClient = ensureHomeInferenceClient(
         inferenceClientRef,
         inferenceInFlightFlagsRef,
@@ -89,49 +111,23 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         setTutorGenerationStatus,
         setTutorModelLoadingProgressPercent,
       )
-
-      const playbackGeneration = (speechPlaybackGenerationRef.current += 1)
-      inferenceInFlightFlagsRef.current.speechSynthesis = true
-      setSpeechSynthesisStatus('synthesizing')
-      setSpeechSynthesisErrorReason(null)
-      setSpeechModelLoadingProgressPercent(0)
-
-      try {
-        const synthesized = await awaitWithTimeout(
-          inferenceClient.synthesizeSpeech(englishText),
-          SPEECH_SYNTHESIS_TIMEOUT_MS,
-          new Error('Tutor speech synthesis timed out.'),
-        )
-        if (playbackGeneration !== speechPlaybackGenerationRef.current) {
-          return
-        }
-        setSpeechSynthesisStatus('playing')
-        await awaitWithTimeout(
-          playMonoPcmSamples(synthesized.samples, synthesized.sampleRateInHertz),
-          SPEECH_SYNTHESIS_TIMEOUT_MS,
-          new Error('Tutor speech playback timed out.'),
-        )
-        if (playbackGeneration !== speechPlaybackGenerationRef.current) {
-          return
-        }
-        setSpeechSynthesisStatus('done')
-      } catch (error) {
-        if (playbackGeneration !== speechPlaybackGenerationRef.current) {
-          return
-        }
-        const reason = error instanceof InferenceClientError ? error.reason : 'worker-unavailable'
-        setSpeechSynthesisErrorReason(reason)
-        setSpeechSynthesisStatus('error')
-        console.error(error)
-      } finally {
-        if (playbackGeneration === speechPlaybackGenerationRef.current) {
-          inferenceInFlightFlagsRef.current.speechSynthesis = false
-        }
-      }
+      return speakTutorTextWithSpokenProgress(englishText, {
+        inferenceClient,
+        speechPlaybackGenerationRef,
+        speechPlaybackAbortControllerRef,
+        setSpeechSynthesisStatus,
+        setSpeechModelLoadingProgressPercent,
+        setSpeechSynthesisErrorReason,
+        markSpeechSynthesisInFlight: (inFlight) => {
+          inferenceInFlightFlagsRef.current.speechSynthesis = inFlight
+        },
+        persistPendingSpokenProgress,
+      })
     },
     [
       inferenceClientRef,
       inferenceInFlightFlagsRef,
+      persistPendingSpokenProgress,
       setGrammarCorrectionStatus,
       setGrammarModelLoadingProgressPercent,
       setModelLoadingProgressPercent,
@@ -141,6 +137,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       setTranscriptionStatus,
       setTutorGenerationStatus,
       setTutorModelLoadingProgressPercent,
+      speechPlaybackAbortControllerRef,
       speechPlaybackGenerationRef,
     ],
   )
@@ -166,9 +163,9 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
           userSamples: turnSignalSnapshot.samples,
           userSampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
           referenceEnglishText,
-          synthesizeSpeech: (englishText) =>
+          synthesizeSpeech: (text) =>
             awaitWithTimeout(
-              inferenceClient.synthesizeSpeech(englishText),
+              inferenceClient.synthesizeSpeech(text),
               SPEECH_SYNTHESIS_TIMEOUT_MS,
               new Error('Reference speech synthesis timed out during pronunciation scoring.'),
             ),
@@ -220,6 +217,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       tutorUsedFallback: boolean
       pronunciation: PronunciationScoreResult | null
       formants: FormantTriple | null
+      spokenProgress: SpokenProgress | null
     }) => {
       const repository = practiceRepositoryRef.current
       const sessionId = activeSessionIdRef.current
@@ -241,6 +239,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
           formantF2InHertz: input.formants?.f2InHertz ?? null,
           formantF3InHertz: input.formants?.f3InHertz ?? null,
           wordHighlights: input.pronunciation?.wordHighlights ?? [],
+          spokenProgress: input.spokenProgress as StoredSpokenProgress | null,
         })
         await refreshPracticeHistory()
       } catch (error) {
@@ -271,14 +270,36 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       )
       const referencePhrase = correctedText.trim() || transcribedTextResult.trim()
       const turnIndex = userTurnIndexRef.current
-      userTurnIndexRef.current = turnIndex + 1
       const intentPhrase = pickBestIntentPhrase(transcribedTextResult, correctedText)
-      const fallbackReplyText = pickContextualTutorReply({
-        scenario,
-        userUtteranceEn: intentPhrase,
-        userTurnIndex: turnIndex,
-      })
+      const pendingSpoken = pendingSpokenProgressRef.current
+
+      // Issue #46: classify barge-in against spoken_text only; deterministic bridges.
+      const interruptionResolution =
+        pendingSpoken && !pendingSpoken.completed
+          ? resolvePostInterruptionTutorReply({
+              scenario,
+              spokenProgress: pendingSpoken,
+              userUtteranceEn: intentPhrase,
+              userTurnIndex: turnIndex,
+            })
+          : null
+
+      if (!interruptionResolution || interruptionResolution.advanceScene) {
+        userTurnIndexRef.current = turnIndex + 1
+      }
+
+      const fallbackReplyText = interruptionResolution
+        ? interruptionResolution.replyText
+        : pickContextualTutorReply({
+            scenario,
+            userUtteranceEn: intentPhrase,
+            userTurnIndex: turnIndex,
+          })
+
       const historyTurnsEn = buildRecentHistoryTurnsEn(chatMessagesRef.current)
+      const scenarioContextEn = interruptionResolution?.llmContextNoteEn
+        ? `${scenario.generationContextEn}\n\n${interruptionResolution.llmContextNoteEn}`
+        : scenario.generationContextEn
 
       setChatMessages((currentMessages) => [...currentMessages, userMessage])
       setTutorGenerationStatus('generating')
@@ -292,14 +313,24 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
           const result = await resolveTutorReplyWithFallback({
             generateTutorReply: inferenceClient.generateTutorReply,
             requestInput: {
-              scenarioContextEn: scenario.generationContextEn,
+              scenarioContextEn,
               historyTurnsEn,
               userUtteranceEn: intentPhrase,
               fallbackReplyEn: fallbackReplyText,
             },
           })
-          tutorReplyText = result.tutorReplyText
-          usedFallback = result.usedFallback
+          if (
+            interruptionResolution &&
+            (result.usedFallback ||
+              interruptionResolution.classification === 'digression' ||
+              interruptionResolution.classification === 'early_cutoff')
+          ) {
+            tutorReplyText = interruptionResolution.replyText
+            usedFallback = true
+          } else {
+            tutorReplyText = result.tutorReplyText
+            usedFallback = result.usedFallback
+          }
         }
       } finally {
         inferenceInFlightFlagsRef.current.tutorGeneration = false
@@ -311,8 +342,12 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       ])
       setTutorGenerationStatus(tutorGenerationStatusFromResult(usedFallback))
 
-      void speakTutorText(tutorReplyText)
+      if (interruptionResolution?.clearPendingCutoff) {
+        await persistPendingSpokenProgress(null)
+      }
+
       const pronunciation = await scoreUserPronunciation(referencePhrase, turnSignalSnapshot)
+      const spokenProgress = await speakTutorText(tutorReplyText)
       await persistPracticeTurn({
         transcribedText: transcribedTextResult,
         correctedText: referencePhrase,
@@ -320,12 +355,15 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         tutorUsedFallback: usedFallback,
         pronunciation,
         formants: turnSignalSnapshot.formants,
+        spokenProgress,
       })
     },
     [
       chatMessagesRef,
       inferenceClientRef,
       inferenceInFlightFlagsRef,
+      pendingSpokenProgressRef,
+      persistPendingSpokenProgress,
       persistPracticeTurn,
       scoreUserPronunciation,
       selectedScenarioIdRef,
