@@ -139,6 +139,12 @@ Entradas **solo** si un fallo costó tiempo por regla inexistente o ambigua.
 - **Causa:** se tomó al pie de la letra un párrafo antiguo del README (“plan Vercel”) sin contrastar el enunciado del profesor ni la decisión real: **demo localhost, offline, sin servicios en la nube**.
 - **Regla:** el producto **no** se despliega en la nube. Issues y PRs solo contemplan localhost + client-side. Antes de abrir un ticket de “infra/hosting”, validar §1.1 de este archivo y `CONTRIBUTING.md` (constraints del producto). README y backlog no deben proponer Vercel/Netlify/etc. como alcance.
 
+### 2026-08-09 — Barge-in sin `spoken_progress` rompe la escena
+
+- **Síntoma:** al interrumpir al tutor a mitad de TTS, el siguiente turno repite la frase entera o trata una respuesta válida como desvío.
+- **Causa:** el estado de escena solo se consolidaba al terminar la utterance; no se registraba qué alcanzó a oír el usuario (`cutoffMs` / fragmento).
+- **Regla:** toda reproducción de tutor TTS debe reportar `PlayMonoPcmResult` y construir `spoken_progress`; clasificar el turno entrante **solo** con `spoken_text`; persistir pending en la sesión (IndexedDB) para sobrevivir recargas.
+
 ---
 
 ## Cómo ampliar este documento
