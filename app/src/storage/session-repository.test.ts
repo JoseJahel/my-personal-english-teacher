@@ -256,6 +256,60 @@ describe('createPracticeSessionRepository', () => {
     })
   })
 
+  describe('setPendingSpokenProgress (issue #46 Case D)', () => {
+    it('persists pending spoken_progress on the session and reloads it', async () => {
+      const session = await repository.ensureSessionForScenario('restaurant')
+      expect(session.pendingSpokenProgress).toBeNull()
+
+      const pending = {
+        utteranceId: 'utt-reload',
+        fullText: 'Would you like coffee or tea?',
+        spokenText: 'Would you like coffee',
+        cutoffTokenIndex: 4,
+        cutoffMs: 1100,
+        completed: false as const,
+      }
+      advanceClockTo(4_000)
+      const updated = await repository.setPendingSpokenProgress(session.id, pending)
+      expect(updated?.pendingSpokenProgress).toEqual(pending)
+
+      const reloaded = await repository.getSessionById(session.id)
+      expect(reloaded?.pendingSpokenProgress).toEqual(pending)
+    })
+
+    it('clears pending spoken_progress when set to null', async () => {
+      const session = await repository.ensureSessionForScenario('restaurant')
+      await repository.setPendingSpokenProgress(session.id, {
+        utteranceId: 'utt-clear',
+        fullText: 'Hello there.',
+        spokenText: 'Hello',
+        cutoffTokenIndex: 1,
+        cutoffMs: 300,
+        completed: false,
+      })
+      const cleared = await repository.setPendingSpokenProgress(session.id, null)
+      expect(cleared?.pendingSpokenProgress).toBeNull()
+    })
+
+    it('stores spoken_progress on a turn without raw audio', async () => {
+      const session = await repository.ensureSessionForScenario('restaurant')
+      const turn = await repository.saveTurn(
+        createTurnInput(session.id, {
+          spokenProgress: {
+            utteranceId: 'utt-turn',
+            fullText: 'Of course, do you have a reservation?',
+            spokenText: 'Of course, do you have',
+            cutoffTokenIndex: 5,
+            cutoffMs: 800,
+            completed: false,
+          },
+        }),
+      )
+      expect(turn.spokenProgress?.cutoffMs).toBe(800)
+      expect(turn).not.toHaveProperty('samples')
+    })
+  })
+
   describe('close', () => {
     it('rejects reads issued after the database is closed', async () => {
       repository.close()

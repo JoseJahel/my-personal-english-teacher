@@ -31,6 +31,8 @@ import { clearWaveformCanvas, startAnalyserWaveformAnimation } from './waveform-
 export interface HomeMicrophoneSessionDeps {
   readonly canvasRef: MutableRefObject<HTMLCanvasElement | null>
   readonly speechPlaybackGenerationRef: MutableRefObject<number>
+  /** Abort in-flight tutor TTS so playMonoPcmSamples reports cutoffMs (#46). */
+  readonly speechPlaybackAbortControllerRef: MutableRefObject<AbortController | null>
   readonly inferenceInFlightFlagsRef: MutableRefObject<InferenceInFlightFlags>
   readonly setSpeechSynthesisStatusIdle: () => void
   readonly setMicrophoneStatus: Dispatch<SetStateAction<MicrophoneUiStatus>>
@@ -71,6 +73,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
   const {
     canvasRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,
     setSpeechSynthesisStatusIdle,
     setMicrophoneStatus,
@@ -111,7 +114,9 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
   ])
 
   const handleStartButtonClick = useCallback(async () => {
-    // Half-duplex: cancel in-flight tutor playback when the user starts speaking.
+    // Half-duplex + barge-in: abort tutor TTS so cutoffMs / spoken_progress are recorded (#46).
+    speechPlaybackAbortControllerRef.current?.abort()
+    speechPlaybackAbortControllerRef.current = null
     speechPlaybackGenerationRef.current += 1
     inferenceInFlightFlagsRef.current.speechSynthesis = false
     setSpeechSynthesisStatusIdle()
@@ -209,6 +214,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setTranscribedText,
     setTranscriptionErrorReason,
     setTranscriptionStatus,
+    speechPlaybackAbortControllerRef,
     speechPlaybackGenerationRef,
   ])
 

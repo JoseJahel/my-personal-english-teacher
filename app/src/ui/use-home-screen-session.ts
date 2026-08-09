@@ -13,6 +13,7 @@ import { createModelLoadHistory } from '../storage/model-load-history'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
 import { buildHomeScreenViewModel } from './build-home-screen-view-model'
+import type { SpokenProgress } from './spoken-progress'
 import {
   ensureHomeInferenceClient,
   type InferenceInFlightFlags,
@@ -103,6 +104,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     tutorGeneration: false,
   })
   const speechPlaybackGenerationRef = useRef(0)
+  const speechPlaybackAbortControllerRef = useRef<AbortController | null>(null)
+  const pendingSpokenProgressRef = useRef<SpokenProgress | null>(null)
   const lastUserCaptureRef = useRef<{
     samples: Float32Array
     sampleRateInHertz: number
@@ -131,6 +134,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     inferenceClientRef,
     inferenceInFlightFlagsRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
+    pendingSpokenProgressRef,
     lastUserCaptureRef,
     pronunciationAttemptGenerationRef,
     transcriptionAttemptGenerationRef,
@@ -174,6 +179,7 @@ export function useHomeScreenSession(): HomeScreenProps {
   const { handleStartButtonClick, handleStopButtonClick } = useHomeMicrophoneSession({
     canvasRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,
     setSpeechSynthesisStatusIdle,
     setMicrophoneStatus,
@@ -203,6 +209,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     try {
       const session = await repository.ensureSessionForScenario(scenarioId)
       activeSessionIdRef.current = session.id
+      // Case D (#46): restore pending spoken_progress after reload.
+      pendingSpokenProgressRef.current = session.pendingSpokenProgress
     } catch (error) {
       console.warn('Failed to ensure practice session.', error)
       setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusError)

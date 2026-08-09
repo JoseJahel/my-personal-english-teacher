@@ -30,6 +30,11 @@ Implementado:
   con un timeout de 10 s (`resolveTutorReplyWithFallback`); el resultado
   siempre indica de forma veraz si se usó el respaldo (tests en
   `tutor-reply-orchestration.test.ts`).
+- `spoken-progress.ts` / `interruption-turn-classifier.ts` /
+  `interruption-resume-bridges.ts` / `tutor-speech-playback.ts`: barge-in del
+  tutor (issue #46) — `spoken_progress` desde `cutoffMs`, clasificación solo
+  con el fragmento oído, puentes deterministas (casos A/B/C) y persistencia en
+  sesión/turno (caso D).
 - `ScenarioPicker.tsx` / `PracticeChatPanel.tsx`: selección de escenario y
   transcripción de chat presentacionales; el panel de chat muestra insignia
   honesta cuando la línea es de respaldo, banner "Preparando tutor…" y burbuja
