@@ -196,7 +196,7 @@ Los diagramas de bloques y de flujo se describen como texto y se renderizan dent
 
 ### Demo solo en localhost (sin hosting cloud)
 
-La presentación en vivo corre desde **localhost** (`pnpm dev` o `pnpm preview` en `app/`), que no depende de la red del aula y demuestra el funcionamiento **offline real** tras cachear los modelos en el navegador. No hay backend ni deploy del producto en Vercel, Netlify ni ningún otro servicio en la nube: el enunciado del curso exige inferencia **client-side** y capacidad offline; publicar la app en un host remoto diluiría esa demostración y añadiría dependencia innecesaria. GitHub se usa solo para el código y la CI (lint/test/build), no como runtime de la demo. HTTPS local, si hiciera falta para probar la PWA instalable, se resuelve en la máquina del presentador, no con un host externo.
+La presentación en vivo corre desde **localhost** (`pnpm dev` o `pnpm preview` en `app/`), que no depende de la red del aula y demuestra el funcionamiento **offline real** tras cachear los modelos en el navegador. No hay backend ni deploy del producto en Vercel, Netlify ni ningún otro servicio en la nube: el enunciado del curso exige inferencia **client-side** y capacidad offline; publicar la app en un host remoto diluiría esa demostración y añadiría dependencia innecesaria. GitHub se usa solo para el código y la CI (lint/test/build), no como runtime de la demo. No hace falta HTTPS: los navegadores tratan `localhost` como contexto seguro, de modo que el service worker se registra y la aplicación es instalable sirviendo por HTTP desde `pnpm preview`. Verificado en Chromium (Edge): instalación desde `http://localhost:4173` y funcionamiento del pipeline completo con el servidor detenido.
 
 ### Metodología iterativa por avances
 
