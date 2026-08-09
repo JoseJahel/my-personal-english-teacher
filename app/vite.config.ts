@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch.icon.png'],
       manifest: {
         name: 'My Personal English Teacher',
         short_name: 'EnglishTeacher',
@@ -23,16 +23,22 @@ export default defineConfig({
         background_color: '#f8fafc',
         icons: [
           {
-            src: 'pwa-icon.svg',
+            src: 'pwa-icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'pwa-icon.svg',
+            src: 'pwa-icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
+          },
+          {
+            src: 'pwa-icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },

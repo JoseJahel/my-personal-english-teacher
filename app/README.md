@@ -147,3 +147,43 @@ HTML, iconos) se precachean con Workbox, pero los pesos de los modelos de IA
 (`.onnx` y similares) están explícitamente excluidos de ese precacheo: al ser
 archivos potencialmente enormes, `transformers.js` los descarga y gestiona por
 su cuenta a través de la Cache API del navegador.
+
+### Límites offline conocidos
+
+Todo lo descrito aquí fue verificado sobre `@huggingface/transformers` 3.8.1
+en Chromium (Edge), con el servidor local de desarrollo.
+
+**La primera visita necesita conexión.** Los pesos superan 1 GB en total. Solo
+los dos archivos ONNX de `whisper-small.en` suman ~968 MB (352.839.389 y
+615.402.140 bytes) y `t5-base-grammar-correction` añade ~110 MB; a eso se
+suman SpeechT5, el vocoder HiFiGAN y SmolLM2. La descarga ocurre una única vez
+y queda en el caché `transformers-cache` de la Cache API.
+
+**Los modelos no se cargan todos al abrir la aplicación.** Reconocimiento de
+voz y corrección gramatical se precargan al montar la pantalla; SmolLM2 se
+precarga al seleccionar un escenario; SpeechT5 se carga en el primer turno con
+respuesta hablada. Una sesión en la que solo se abre la aplicación y no se
+habla deja parte de los modelos sin descargar, y por lo tanto **no** habilita
+todavía el uso sin conexión.
+
+**Aviso de disponibilidad offline.** La pantalla principal muestra si el
+navegador ya puede practicar sin conexión, distinguiendo tres situaciones:
+ningún modelo en caché, algunos en caché, o todos en caché. El estado se
+deriva de un historial propio en `localStorage`
+(`storage/model-load-history.ts`), no del contenido del caché de
+`transformers.js`: en la versión 3.8.1 una lectura desde caché emite los
+mismos eventos de progreso con bytes que una descarga de red, por lo que el
+propio evento no permite distinguir el origen. El navegador borra
+`localStorage` y la Cache API en una sola operación al limpiar los datos del
+sitio, de modo que el historial no puede afirmar que un modelo está en caché
+cuando los pesos ya no existen.
+
+**La recarga forzada invalida el caché.** `Ctrl+Shift+R` instruye al navegador
+a ignorar los cachés, incluido el de `transformers.js`, y provoca la descarga
+completa de los modelos. Para comprobar el comportamiento offline debe usarse
+la recarga normal (`F5` o `Ctrl+R`), o directamente el modo sin conexión de
+las herramientas de desarrollo.
+
+**Sin despliegue en la nube.** La aplicación se ejecuta y se verifica
+únicamente en `localhost`, conforme a §1.1 de
+`../Documentacion general/REGLAS-DE-CODIGO.md`.

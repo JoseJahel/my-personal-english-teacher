@@ -20,6 +20,14 @@ export const homeScreenInterfaceTexts = {
   tutorSpeakingHint: 'El tutor está hablando… espera a que termine para poder hablar tú.',
   modelsWarmingUpMessage:
     'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
+    offlineReadiness: {
+    noneCached:
+      'Primera vez en este navegador: se descargarán más de 1 GB de modelos. Necesitas conexión ahora; después podrás practicar sin internet.',
+    partiallyCached:
+      'Algunos modelos ya están guardados en este navegador. Los que falten se descargarán la primera vez que se usen.',
+    fullyCached:
+      'Todos los modelos están guardados en este navegador. Ya puedes practicar sin conexión.',
+  },
   resultsSectionTitle: 'Tu turno',
   signalLabTitle: 'Laboratorio de señales (espectrograma, pitch, formantes)',
   technicalDetailsTitle: 'Detalles técnicos del pipeline',

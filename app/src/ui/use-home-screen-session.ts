@@ -9,6 +9,7 @@ import { isGetUserMediaNative } from '../audio/open-microphone-stream'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
+import { createModelLoadHistory } from '../storage/model-load-history'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
 import { buildHomeScreenViewModel } from './build-home-screen-view-model'
@@ -27,6 +28,11 @@ import type {
 } from './home-screen-status'
 import { DEFAULT_SCENARIO_ID, initialChatMessages } from './home-session-helpers'
 import { homeScreenInterfaceTexts } from './interface-texts'
+import {
+  offlineReadinessMessageFor,
+  resolveOfflineReadiness,
+  type OfflineReadiness,
+} from './offline-readiness'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import { getPracticeScenarioById, type PracticeScenarioId } from './practice-scenarios'
 import { clearUtteranceSignalViews } from './update-utterance-signal-views'
@@ -73,6 +79,10 @@ export function useHomeScreenSession(): HomeScreenProps {
     homeScreenInterfaceTexts.practiceHistory.statusReady,
   )
   const [hasCompletedCapture, setHasCompletedCapture] = useState(false)
+  const [modelLoadHistory] = useState(() => createModelLoadHistory())
+  const [offlineReadiness, setOfflineReadiness] = useState<OfflineReadiness>(() =>
+    resolveOfflineReadiness(modelLoadHistory.snapshot()),
+  )
   const [liveInputLevel01, setLiveInputLevel01] = useState(0)
   const [liveRms, setLiveRms] = useState(0)
   const [livePeak, setLivePeak] = useState(0)
@@ -272,6 +282,10 @@ export function useHomeScreenSession(): HomeScreenProps {
       setTutorGenerationStatus,
       setTutorModelLoadingProgressPercent,
     )
+    const unsubscribeFromModelReady = inferenceClient.subscribeToModelReady((readyMessage) => {
+      modelLoadHistory.markLoaded(readyMessage.modelKey)
+      setOfflineReadiness(resolveOfflineReadiness(modelLoadHistory.snapshot()))
+    })
     let cancelled = false
     void inferenceClient.preloadModels().catch((error: unknown) => {
       if (!cancelled) {
@@ -280,8 +294,9 @@ export function useHomeScreenSession(): HomeScreenProps {
     })
     return () => {
       cancelled = true
+      unsubscribeFromModelReady()
     }
-  }, [])
+  }, [modelLoadHistory])
 
   useEffect(() => {
     let cancelled = false
@@ -347,6 +362,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     hasCompletedCapture,
     primaryActivityMessage: viewModel.primaryActivityMessage,
     isPreparingModels: viewModel.isPreparingModels,
+    offlineReadinessMessage: offlineReadinessMessageFor(offlineReadiness),
     liveInputLevel01,
     liveRms,
     livePeak,
