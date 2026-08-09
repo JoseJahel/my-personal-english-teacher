@@ -48,6 +48,8 @@ export interface HomeScreenProps {
   /** Friendly single-line pipeline status for the hero area. */
   primaryActivityMessage: string
   isPreparingModels: boolean
+  /** Whether this browser can already practise offline (models cached). */
+  offlineReadinessMessage: string
   selectedScenarioId: PracticeScenarioId
   chatMessages: readonly PracticeChatMessage[]
   firstTurnHintEn: string
@@ -89,6 +91,7 @@ export function HomeScreen({
   practiceHistoryStatusMessage,
   primaryActivityMessage,
   isPreparingModels,
+  offlineReadinessMessage,
   selectedScenarioId,
   chatMessages,
   firstTurnHintEn,
@@ -126,6 +129,10 @@ export function HomeScreen({
           {environmentDiagnosticsMessage}
         </p>
       ) : null}
+
+      <p className="mt-4 rounded-lg bg-sage-50 px-3 py-2 text-center text-xs text-ink-600 ring-1 ring-sage-200">
+        {offlineReadinessMessage}
+      </p>
 
       {isPreparingModels ? (
         <p className="mt-4 rounded-lg bg-sage-100 px-3 py-2 text-center text-sm text-sage-800 ring-1 ring-sage-200">
