@@ -251,13 +251,13 @@ try {
     }
   }
 
+  $lr = $behindAhead.Output.Trim() -replace '\s+', ' / '
   $summary = @"
 Deep-scan git sync COMPLETED before analysis.
 - Branch: $finalBranch @ $finalSha
-- origin/main: $mainSha
-- Tree matches main: $treeMatch
-- left-right HEAD...origin/main: $($behindAhead.Output.Trim())
-- Local main was refreshed from origin/main.
+- origin/main: $mainSha (local main refreshed)
+- Branch is not behind main (ahead/behind vs origin/main: $lr)
+- Content equal to main tip: $treeMatch (tree-yes/yes = same files as main; no = branch has extra commits, e.g. local hooks)
 
 Continue the deep project + git history scan on this updated tree.
 State log: .grok/hooks/state/last-deep-scan-sync.txt
