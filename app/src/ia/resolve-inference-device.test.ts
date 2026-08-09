@@ -35,6 +35,12 @@ describe('resolvePreferredOnnxDevice', () => {
     await expect(resolvePreferredOnnxDevice()).resolves.toBe('wasm')
   })
 
+  it('auto-detects wasm when requestAdapter rejects', async () => {
+    vi.stubEnv('VITE_INFERENCE_DEVICE', '')
+    stubGpu(() => Promise.reject(new Error('adapter request failed')))
+    await expect(resolvePreferredOnnxDevice()).resolves.toBe('wasm')
+  })
+
   it('resolves webgpu when overridden and an adapter is available', async () => {
     vi.stubEnv('VITE_INFERENCE_DEVICE', 'webgpu')
     stubGpu(() => Promise.resolve({}))

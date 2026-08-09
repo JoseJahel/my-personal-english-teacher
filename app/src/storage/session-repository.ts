@@ -15,10 +15,13 @@ import type {
   PracticeSessionRecord,
   PracticeTurnRecord,
   StoredPracticeScenarioId,
+  StoredSpokenProgress,
 } from './practice-session-types'
 import {
   createPracticeSessionRecord,
   createPracticeTurnRecord,
+  normalizePracticeSessionRecord,
+  normalizePracticeTurnRecord,
 } from './practice-session-types'
 
 export interface PracticeSessionRepository {
@@ -28,6 +31,12 @@ export interface PracticeSessionRepository {
   saveTurn: (input: CreatePracticeTurnInput) => Promise<PracticeTurnRecord>
   listRecentTurns: (limit?: number) => Promise<PracticeTurnRecord[]>
   listTurnsForSession: (sessionId: string) => Promise<PracticeTurnRecord[]>
+  /** Persist / clear barge-in spoken_progress on the active session (issue #46). */
+  setPendingSpokenProgress: (
+    sessionId: string,
+    pendingSpokenProgress: StoredSpokenProgress | null,
+  ) => Promise<PracticeSessionRecord | null>
+  getSessionById: (sessionId: string) => Promise<PracticeSessionRecord | null>
   close: () => void
 }
 
@@ -62,14 +71,45 @@ export async function createPracticeSessionRepository(
       input.sessionId,
     )
     if (session) {
+      const normalized = normalizePracticeSessionRecord(session)
       const updated: PracticeSessionRecord = {
-        ...session,
+        ...normalized,
         updatedAtIso: turn.createdAtIso,
+        // Completing a turn that finished TTS cleanly clears pending; partial
+        // barge-in is written separately via setPendingSpokenProgress.
+        pendingSpokenProgress:
+          turn.spokenProgress && !turn.spokenProgress.completed
+            ? turn.spokenProgress
+            : turn.spokenProgress?.completed
+              ? null
+              : normalized.pendingSpokenProgress,
       }
       await putRecord(PRACTICE_SESSIONS_STORE, updated)
     }
 
     return turn
+  }
+
+  async function setPendingSpokenProgress(
+    sessionId: string,
+    pendingSpokenProgress: StoredSpokenProgress | null,
+  ): Promise<PracticeSessionRecord | null> {
+    const session = await getRecord<PracticeSessionRecord>(PRACTICE_SESSIONS_STORE, sessionId)
+    if (!session) {
+      return null
+    }
+    const updated: PracticeSessionRecord = {
+      ...normalizePracticeSessionRecord(session),
+      updatedAtIso: new Date().toISOString(),
+      pendingSpokenProgress,
+    }
+    await putRecord(PRACTICE_SESSIONS_STORE, updated)
+    return updated
+  }
+
+  async function getSessionById(sessionId: string): Promise<PracticeSessionRecord | null> {
+    const session = await getRecord<PracticeSessionRecord>(PRACTICE_SESSIONS_STORE, sessionId)
+    return session ? normalizePracticeSessionRecord(session) : null
   }
 
   async function listRecentTurns(limit = 12): Promise<PracticeTurnRecord[]> {
@@ -78,15 +118,16 @@ export async function createPracticeSessionRepository(
       TURN_CREATED_AT_INDEX,
     )
     // Index order is ascending; newest last.
-    return all.slice(-limit).reverse()
+    return all.slice(-limit).reverse().map(normalizePracticeTurnRecord)
   }
 
   async function listTurnsForSession(sessionId: string): Promise<PracticeTurnRecord[]> {
-    return getAllByIndexValue<PracticeTurnRecord>(
+    const turns = await getAllByIndexValue<PracticeTurnRecord>(
       PRACTICE_TURNS_STORE,
       TURN_SESSION_ID_INDEX,
       sessionId,
     )
+    return turns.map(normalizePracticeTurnRecord)
   }
 
   async function listSessionsNewestFirst(limit: number): Promise<PracticeSessionRecord[]> {
@@ -94,7 +135,7 @@ export async function createPracticeSessionRepository(
       PRACTICE_SESSIONS_STORE,
       SESSION_UPDATED_AT_INDEX,
     )
-    return all.slice(-limit).reverse()
+    return all.slice(-limit).reverse().map(normalizePracticeSessionRecord)
   }
 
   function putRecord<T>(storeName: string, value: T): Promise<void> {
@@ -152,6 +193,8 @@ export async function createPracticeSessionRepository(
     saveTurn,
     listRecentTurns,
     listTurnsForSession,
+    setPendingSpokenProgress,
+    getSessionById,
     close: () => {
       database.close()
     },

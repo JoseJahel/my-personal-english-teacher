@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-
 @theme {
   --color-sage-50: #f7f6f2;
   --color-sage-100: #e2ede2;
@@ -19,4 +18,10 @@
   --color-ink-400: #8a8a7f;
   --color-blush-500: #cf7a70;
   --color-blush-600: #bb6459;
+  /* New: warm off-white page background (pastel ivory). */
+  --color-ivory-50: #faf7f2;
+}
+
+body {
+  background-color: var(--color-ivory-50);
 }

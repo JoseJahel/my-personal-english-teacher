@@ -8,6 +8,11 @@ import {
   convertDtwDistanceToPronunciationScore,
   type DtwPathStep,
 } from './dynamic-time-warping'
+import {
+  CALIBRATED_HIGHLIGHT_GOOD_SCORE_THRESHOLD,
+  CALIBRATED_HIGHLIGHT_MEDIUM_SCORE_THRESHOLD,
+  CALIBRATED_MFCC_DISTANCE_AT_HALF_SCORE,
+} from './pronunciation-score-calibration-constants'
 
 export type WordHighlightBand = 'good' | 'medium' | 'poor'
 
@@ -96,9 +101,12 @@ export function buildWordPronunciationHighlights(
     }))
   }
 
-  const distanceAtHalfScore = options?.distanceAtHalfScore ?? 18
-  const goodScoreThreshold = options?.goodScoreThreshold ?? 70
-  const mediumScoreThreshold = options?.mediumScoreThreshold ?? 45
+  const distanceAtHalfScore =
+    options?.distanceAtHalfScore ?? CALIBRATED_MFCC_DISTANCE_AT_HALF_SCORE
+  const goodScoreThreshold =
+    options?.goodScoreThreshold ?? CALIBRATED_HIGHLIGHT_GOOD_SCORE_THRESHOLD
+  const mediumScoreThreshold =
+    options?.mediumScoreThreshold ?? CALIBRATED_HIGHLIGHT_MEDIUM_SCORE_THRESHOLD
 
   const letterWeights = words.map((word) => Math.max(1, countWordLetters(word)))
   const totalWeight = letterWeights.reduce((sum, weight) => sum + weight, 0)
@@ -149,8 +157,8 @@ export function buildWordPronunciationHighlights(
 
 export function classifyWordHighlightBand(
   score0to100: number,
-  goodScoreThreshold = 70,
-  mediumScoreThreshold = 45,
+  goodScoreThreshold = CALIBRATED_HIGHLIGHT_GOOD_SCORE_THRESHOLD,
+  mediumScoreThreshold = CALIBRATED_HIGHLIGHT_MEDIUM_SCORE_THRESHOLD,
 ): WordHighlightBand {
   if (score0to100 >= goodScoreThreshold) {
     return 'good'

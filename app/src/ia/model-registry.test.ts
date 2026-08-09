@@ -11,7 +11,7 @@ import {
 import { homeScreenInterfaceTexts } from '../ui/interface-texts'
 
 describe('asrModelCandidates', () => {
-  it('registers the four evaluated candidates with a main revision', () => {
+  it('registers the four evaluated candidates with pinned Hub commit SHAs', () => {
     expect(Object.keys(asrModelCandidates).sort()).toEqual(
       ['base-en', 'distil-small-en', 'small-en', 'tiny-en'].sort(),
     )
@@ -20,8 +20,16 @@ describe('asrModelCandidates', () => {
     expect(asrModelCandidates['distil-small-en'].modelId).toBe('onnx-community/distil-small.en')
     expect(asrModelCandidates['small-en'].modelId).toBe('Xenova/whisper-small.en')
     for (const candidate of Object.values(asrModelCandidates)) {
-      expect(candidate.revision).toBe('main')
+      expect(candidate.revision).toMatch(/^[0-9a-f]{40}$/)
       expect(candidate.approxDownloadMb).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('modelRegistry revisions', () => {
+  it('pins every registered model to a 40-char Hub commit SHA', () => {
+    for (const descriptor of Object.values(modelRegistry)) {
+      expect(descriptor.revision).toMatch(/^[0-9a-f]{40}$/)
     }
   })
 })

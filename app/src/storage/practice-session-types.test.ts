@@ -16,6 +16,7 @@ describe('practice-session-types', () => {
       createdAtIso: '2026-07-24T12:00:00.000Z',
       updatedAtIso: '2026-07-24T12:00:00.000Z',
       scenarioId: 'restaurant',
+      pendingSpokenProgress: null,
     })
   })
 
@@ -38,6 +39,14 @@ describe('practice-session-types', () => {
           { word: 'I', score0to100: 90, band: 'good' },
           { word: 'need', score0to100: 40, band: 'poor' },
         ],
+        spokenProgress: {
+          utteranceId: 'utt-1',
+          fullText: 'Do you have your boarding pass?',
+          spokenText: 'Do you have your',
+          cutoffTokenIndex: 4,
+          cutoffMs: 900,
+          completed: false,
+        },
       },
       { id: 'turn-1', createdAtIso: '2026-07-24T12:01:00.000Z' },
     )
@@ -45,6 +54,7 @@ describe('practice-session-types', () => {
     expect(turn.id).toBe('turn-1')
     expect(turn.sessionId).toBe('session-1')
     expect(turn.wordHighlightSummary).toBe('I:good need:poor')
+    expect(turn.spokenProgress?.cutoffMs).toBe(900)
     expect(turn).not.toHaveProperty('samples')
     expect(turn).not.toHaveProperty('audio')
   })
