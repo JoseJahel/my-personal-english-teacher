@@ -48,8 +48,11 @@ Implementado:
 - `pronunciation-score.ts`: **score de pronunciación** (dominio puro):
   - `scorePronunciationFromMonoPcm(user, reference, sampleRate)`
   - MFCC (z-score) + DTW; pitch relativo (YIN) opcional → score 0–100
-  - tests en `pronunciation-score.test.ts`
+  - defaults calibrados (issue #29): `pronunciation-score-calibration-constants.ts`
+  - protocolo multi-hablante + fit: `run-pronunciation-score-calibration.ts`
+  - tests en `pronunciation-score.test.ts`, `run-pronunciation-score-calibration.test.ts`
   - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
+  - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
 - `spectrogram.ts`: **espectrograma** log-magnitud (STFT Hann 25 ms / hop 10 ms):
   - `computeLogMagnitudeSpectrogram`, `computeSpectrogramValueRange`

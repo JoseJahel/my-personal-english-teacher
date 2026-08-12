@@ -43,7 +43,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RF-07 | ASR client-side (Whisper) → transcripción | Alta | Curso | `ia/automatic-speech-recognition.ts`, `ia/inference-worker.ts`, `ia/model-registry.ts` | Implementado | `ia/automatic-speech-recognition.test.ts`, `ia/transcription-text.test.ts`, `ia/model-registry.test.ts` | WER (ver reporte); default `whisper-small.en` |
 | RF-08 | Corrección gramatical post-utterance (T5) | Alta | Curso | `ia/grammar-correction.ts` | Implementado | `ia/grammar-correction.test.ts` | Corrige texto de la utterance |
 | RF-09 | Análisis acústico comparativo vs referencia (pitch/energía/MFCC/formantes) | Alta | Curso | `dsp/pronunciation-score.ts`, `dsp/mfcc-extraction.ts`, `dsp/dynamic-time-warping.ts` | Implementado | `dsp/pronunciation-score.test.ts`, `dsp/mfcc-extraction.test.ts`, `dsp/dynamic-time-warping.test.ts` | Distancia MFCC+pitch sobre DTW |
-| RF-10 | Puntaje de pronunciación 0–100 | Alta | Curso | `dsp/pronunciation-score.ts`, `ui/run-pronunciation-scoring.ts` | Implementado | `dsp/pronunciation-score.test.ts` | Score 0–100 con desglose |
+| RF-10 | Puntaje de pronunciación 0–100 | Alta | Curso | `dsp/pronunciation-score.ts`, `ui/run-pronunciation-scoring.ts`, calibración multi-hablante (`run-pronunciation-score-calibration.ts`, issue #29) | Implementado | `dsp/pronunciation-score.test.ts`, `dsp/run-pronunciation-score-calibration.test.ts` | Score 0–100 calibrado (half-score MFCC 16.5); ver `calibracion-score-pronunciacion.md` |
 | RF-11 | Highlights en palabras problemáticas | Media | Curso | `dsp/word-pronunciation-highlights.ts` (path DTW) | Implementado | `dsp/word-pronunciation-highlights.test.ts` | Aproximación temporal por letras |
 | RF-12 | Respuesta conversacional generada del tutor | Alta | Curso | `ia/conversation-suggestions.ts`, `ui/tutor-reply-orchestration.ts`, `ui/tutor-reply-engine.ts` | Implementado | `ui/tutor-reply-orchestration.test.ts`, `ui/tutor-reply-engine.test.ts`, `ia/conversation-suggestions.test.ts` | SmolLM2 + respaldo reglas, timeout 10 s |
 | RF-13 | Respuesta hablada del tutor (TTS SpeechT5) | Alta | Curso | `ia/text-to-speech-synthesis.ts`, `audio/play-pcm-mono.ts` | Implementado | `ia/text-to-speech-synthesis.test.ts` | Síntesis + reproducción |
@@ -60,7 +60,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RF-19 | Gate de energía/pico/duración (no enviar silencio a Whisper) | Alta | Equipo | `dsp/signal-energy.ts` | Implementado | `dsp/signal-energy.test.ts` | RMS/pico + umbral de duración |
 | RF-20 | VAD para auto-stop de captura al silencio de fin de frase | Media | Equipo | `dsp/voice-activity-detection.ts` | Implementado | `dsp/voice-activity-detection.test.ts` | Hangover ~0.9 s |
 | RF-21 | Preprocesamiento robusto: normalización, trim, resample a 16 kHz | Alta | Curso | `audio/normalize-peak.ts`, `audio/trim-speech-silence.ts`, `audio/audio-resampler.ts`, `audio/mix-to-mono.ts` | Implementado | `audio/normalize-peak.test.ts`, `audio/trim-speech-silence.test.ts`, `audio/audio-resampler.test.ts`, `audio/mix-to-mono.test.ts` | 16 kHz mono a Whisper/MFCC |
-| RF-22 | Robustez a ruido / edge cases (acento fuerte, ruido, frases largas) | Media | Curso | `audio/capture-diagnostics.ts` (diagnósticos) | Parcial | `audio/audio-frame-buffer.test.ts` | Diagnósticos presentes; filtrado adaptativo pendiente (issue #30) |
+| RF-22 | Robustez a ruido / edge cases (acento fuerte, ruido, frases largas) | Media | Curso | `audio/capture-diagnostics.ts`, preproceso `audio/*` + issues #30/#31 | Implementado | `audio/*test.ts` | Preproceso endurecido; filtrado adaptativo sigue como extensión (RF-23) |
 | RF-23 | Filtrado adaptativo de ruido | Baja | Curso | — (planificado) | Pendiente | — | Extensión de innovación |
 
 ## Requerimientos no funcionales y de plataforma
@@ -76,7 +76,8 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RNF-07 | Navegador objetivo Chrome/Chromium con WebGPU→WASM fallback | Media | Equipo | `ia/resolve-inference-device.ts` | Implementado | `ia/resolve-inference-device.test.ts` | Auto-detección de adapter |
 | RNF-08 | Sin servicios en la nube para el producto (local-only) | Alta | Equipo | Todo el runtime; CI solo para calidad | Implementado | `docs/local-only-constraints` + `CONTRIBUTING.md` §Constraints | Demo en `localhost` |
 | RNF-09 | Interfaz, instrucciones y correcciones en español | Media | Usuario | `ui/interface-texts.ts` | Implementado | Textos centralizados | Sin toggle bilingüe |
-| RNF-10 | Half-duplex: bloquear mic mientras el tutor habla (TTS) | Media | Equipo | Sesión de UI (deshabilita "iniciar mic" durante TTS) | Parcial | `ui/use-home-microphone-session.ts` | Se puede endurecer (abort de tracks) — issue #26 |
+| RNF-10 | Half-duplex: bloquear mic mientras el tutor habla (TTS) | Media | Equipo | Sesión de UI + abort TTS con `cutoffMs` | Implementado | `ui/use-home-microphone-session.ts`, `audio/play-pcm-mono.test.ts` | Mic deshabilitado en UI; barge-in registra `spoken_progress` (issue #46) |
+| RNF-11 | Barge-in / interrupción mid-utterance sin perder contexto de escena | Media | Equipo | `ui/spoken-progress.ts`, `interruption-turn-classifier.ts`, `interruption-resume-bridges.ts`, `storage` pending | Implementado | `ui/spoken-progress.test.ts`, `interruption-*.test.ts`, `storage/session-repository.test.ts` | Casos A/B/C/D issue #46; `spoken_progress` en turno + sesión |
 
 ## Extensiones de innovación (evaluación 10%)
 

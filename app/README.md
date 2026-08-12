@@ -93,6 +93,83 @@ completo de todos los scripts está más abajo, en la sección
 > npm y yarn quedan descartados: ningún script, documento ni lockfile del
 > repositorio depende de ellos.
 
+## Dos modos de ejecución
+
+El proyecto se levanta de dos formas, y no son intercambiables:
+
+| Modo | Comando | Cuándo usarlo | PWA |
+| --- | --- | --- | --- |
+| Desarrollo | `pnpm dev` o `start-development-server.bat` | Programar día a día, con recarga en caliente | No |
+| Producción local | `pnpm build` + `pnpm preview` | Verificación offline y demo del curso | Sí |
+
+La diferencia es el **service worker**: `vite-plugin-pwa` lo genera únicamente
+durante el build. En `pnpm dev` no existe, por lo que el app shell (HTML, JS,
+CSS) no queda precacheado y la aplicación no es instalable.
+
+Esto importa al comprobar el comportamiento offline. En modo desarrollo el
+servidor local sigue respondiendo aunque no haya internet, porque las
+peticiones nunca salen de la máquina; una prueba hecha así parecería funcionar
+sin demostrar nada sobre la PWA. La verificación offline y la demo del curso
+deben hacerse siempre sobre `pnpm preview`.
+
+## Checklist de demo offline
+
+Procedimiento reproducible para comprobar que la práctica sigue operando sin
+red. Verificado en Chromium (Edge) sobre Windows.
+
+1. **Compilar y servir en local.**
+
+```powershell
+   cd app
+   pnpm build
+   pnpm preview
+```
+
+   Abrir la URL que imprime el comando (por defecto
+   <http://localhost:4173>). No se necesita HTTPS: los navegadores tratan
+   `localhost` como contexto seguro, de modo que el service worker se
+   registra y la aplicación es instalable sin certificados.
+
+2. **Precargar los modelos.** Con conexión activa, esperar a que el aviso de
+   la pantalla principal indique que todos los modelos están guardados.
+   Reconocimiento de voz y corrección gramatical se precargan al abrir;
+   SmolLM2 requiere seleccionar un escenario y SpeechT5 requiere completar un
+   turno hablado. La primera descarga supera 1 GB y puede tardar varios
+   minutos.
+
+3. **Verificar que ya no hay tráfico de modelos.** Recargar con `F5` (nunca
+   con `Ctrl+Shift+R`, que fuerza al navegador a ignorar los cachés) y
+   comprobar en DevTools → Network, filtrando por `onnx`, que no aparece
+   ninguna petición.
+
+4. **Instalar la aplicación.** Pulsar el icono de instalación de la barra de
+   direcciones. La aplicación queda disponible en el menú de inicio y se abre
+   en ventana propia.
+
+5. **Cortar el servidor.** Detener `pnpm preview` con `Ctrl+C`. Opcionalmente,
+   activar además el modo Offline en DevTools → Network.
+
+6. **Comprobar el pipeline completo** en la aplicación instalada, sin
+   servidor: la ventana abre, el micrófono captura, Whisper transcribe, T5
+   corrige la gramática, el tutor responde y SpeechT5 reproduce la voz. El
+   historial de práctica se sigue guardando en IndexedDB.
+
+Si el paso 6 falla, la causa más probable es que el paso 2 quedara incompleto:
+un modelo que nunca se cargó no está en caché y no puede cargarse sin red.
+
+## Entrega local, sin despliegue en la nube
+
+La aplicación se sirve y se demuestra únicamente desde `localhost`. No hay
+backend, ni hosting en Vercel, Netlify, Cloudflare Pages u otro servicio
+remoto, ni se planea añadirlo: el enunciado del curso exige inferencia
+client-side y capacidad offline, y publicar el producto en un host externo
+diluiría esa demostración. GitHub Actions se usa solo como herramienta de
+calidad de código (lint, typecheck, tests y build), no como runtime del
+producto. Ver §1.1 de `../Documentacion general/REGLAS-DE-CODIGO.md`.
+
+Por defecto `pnpm dev` y `pnpm preview` escuchan solo en `localhost` y no se
+exponen a la red local.
+
 ## Requisitos
 
 - Node.js `>=22` (ver `.nvmrc`).
@@ -147,3 +224,43 @@ HTML, iconos) se precachean con Workbox, pero los pesos de los modelos de IA
 (`.onnx` y similares) están explícitamente excluidos de ese precacheo: al ser
 archivos potencialmente enormes, `transformers.js` los descarga y gestiona por
 su cuenta a través de la Cache API del navegador.
+
+### Límites offline conocidos
+
+Todo lo descrito aquí fue verificado sobre `@huggingface/transformers` 3.8.1
+en Chromium (Edge), con el servidor local de desarrollo.
+
+**La primera visita necesita conexión.** Los pesos superan 1 GB en total. Solo
+los dos archivos ONNX de `whisper-small.en` suman ~968 MB (352.839.389 y
+615.402.140 bytes) y `t5-base-grammar-correction` añade ~110 MB; a eso se
+suman SpeechT5, el vocoder HiFiGAN y SmolLM2. La descarga ocurre una única vez
+y queda en el caché `transformers-cache` de la Cache API.
+
+**Los modelos no se cargan todos al abrir la aplicación.** Reconocimiento de
+voz y corrección gramatical se precargan al montar la pantalla; SmolLM2 se
+precarga al seleccionar un escenario; SpeechT5 se carga en el primer turno con
+respuesta hablada. Una sesión en la que solo se abre la aplicación y no se
+habla deja parte de los modelos sin descargar, y por lo tanto **no** habilita
+todavía el uso sin conexión.
+
+**Aviso de disponibilidad offline.** La pantalla principal muestra si el
+navegador ya puede practicar sin conexión, distinguiendo tres situaciones:
+ningún modelo en caché, algunos en caché, o todos en caché. El estado se
+deriva de un historial propio en `localStorage`
+(`storage/model-load-history.ts`), no del contenido del caché de
+`transformers.js`: en la versión 3.8.1 una lectura desde caché emite los
+mismos eventos de progreso con bytes que una descarga de red, por lo que el
+propio evento no permite distinguir el origen. El navegador borra
+`localStorage` y la Cache API en una sola operación al limpiar los datos del
+sitio, de modo que el historial no puede afirmar que un modelo está en caché
+cuando los pesos ya no existen.
+
+**La recarga forzada invalida el caché.** `Ctrl+Shift+R` instruye al navegador
+a ignorar los cachés, incluido el de `transformers.js`, y provoca la descarga
+completa de los modelos. Para comprobar el comportamiento offline debe usarse
+la recarga normal (`F5` o `Ctrl+R`), o directamente el modo sin conexión de
+las herramientas de desarrollo.
+
+**Sin despliegue en la nube.** La aplicación se ejecuta y se verifica
+únicamente en `localhost`, conforme a §1.1 de
+`../Documentacion general/REGLAS-DE-CODIGO.md`.

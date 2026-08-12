@@ -139,12 +139,18 @@ está en la inferencia de los modelos; ver limitaciones.
 | CP-08 | Comparación de pronunciación | User PCM vs TTS de la frase corregida | Score 0–100 con desglose MFCC/pitch | `dsp/pronunciation-score.test.ts` |
 | CP-09 | Precisión ASR (WER) | Fixture de referencia | WER 0.000 con `small-en` | banco `#asr-benchmark` (2026-07-29) |
 | CP-10 | Persistencia de turno | Turno con score/texto | Se guarda en IndexedDB sin audio crudo | `storage/practice-session-types.test.ts` |
+| CP-11 | Calibración score multi-hablante | Panel 8 frases × 2 hablantes × 4 tiers | Fit `distanceAtHalfScore` MFCC≈16.5, pitch≈11.2 | `dsp/run-pronunciation-score-calibration.test.ts` · [doc](./calibracion-score-pronunciacion.md) |
+| CP-12 | Barge-in digresión (Case A) | Interrupción + “what does X mean?” | Puente determinista, no avanza escena | `ui/interruption-resume-bridges.test.ts` |
+| CP-13 | Barge-in respuesta al fragmento (Case B) | Interrupción + “coffee please” | Avanza escena; no repite lista completa | `ui/interruption-turn-classifier.test.ts` |
+| CP-14 | Barge-in corte temprano (Case C) | `cutoffMs` &lt; 250 ms | Reformula frase completa | `ui/spoken-progress.test.ts` |
+| CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
-hoy con el gate de energía/pico/duración y los diagnósticos de captura
-(`audio/capture-diagnostics.ts`); el **filtrado adaptativo de ruido** queda como
-extensión pendiente (issue #30). Las **frases largas** están cubiertas por la
-alineación DTW (CP-04).
+con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los
+diagnósticos de captura. El **filtrado adaptativo de ruido** sigue como
+extensión de innovación (RF-23). Las **frases largas** están cubiertas por DTW
+(CP-04). La **interrupción mid-utterance del tutor** está cubierta por
+`spoken_progress` (CP-12–15, issue #46).
 
 ## 7. Conclusiones
 

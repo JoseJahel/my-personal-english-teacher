@@ -12,9 +12,11 @@ import type { InferenceClient, InferenceClientErrorReason } from '../ia/inferenc
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import { useDrillRepetition } from './use-drill-repetition'
 import { findLastTutorLineText } from './practice-chat-messages'
+import { createModelLoadHistory } from '../storage/model-load-history'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
 import { buildHomeScreenViewModel } from './build-home-screen-view-model'
+import type { SpokenProgress } from './spoken-progress'
 import {
   ensureHomeInferenceClient,
   type InferenceInFlightFlags,
@@ -30,6 +32,11 @@ import type {
 } from './home-screen-status'
 import { DEFAULT_SCENARIO_ID, initialChatMessages } from './home-session-helpers'
 import { homeScreenInterfaceTexts } from './interface-texts'
+import {
+  offlineReadinessMessageFor,
+  resolveOfflineReadiness,
+  type OfflineReadiness,
+} from './offline-readiness'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import { getPracticeScenarioById, type PracticeScenarioId } from './practice-scenarios'
 import { clearUtteranceSignalViews } from './update-utterance-signal-views'
@@ -79,6 +86,10 @@ export function useHomeScreenSession(): HomeScreenProps {
     homeScreenInterfaceTexts.practiceHistory.statusReady,
   )
   const [hasCompletedCapture, setHasCompletedCapture] = useState(false)
+  const [modelLoadHistory] = useState(() => createModelLoadHistory())
+  const [offlineReadiness, setOfflineReadiness] = useState<OfflineReadiness>(() =>
+    resolveOfflineReadiness(modelLoadHistory.snapshot()),
+  )
   const [liveInputLevel01, setLiveInputLevel01] = useState(0)
   const [liveRms, setLiveRms] = useState(0)
   const [livePeak, setLivePeak] = useState(0)
@@ -99,6 +110,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     tutorGeneration: false,
   })
   const speechPlaybackGenerationRef = useRef(0)
+  const speechPlaybackAbortControllerRef = useRef<AbortController | null>(null)
+  const pendingSpokenProgressRef = useRef<SpokenProgress | null>(null)
   const lastUserCaptureRef = useRef<{
     samples: Float32Array
     sampleRateInHertz: number
@@ -127,6 +140,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     inferenceClientRef,
     inferenceInFlightFlagsRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
+    pendingSpokenProgressRef,
     lastUserCaptureRef,
     pronunciationAttemptGenerationRef,
     transcriptionAttemptGenerationRef,
@@ -181,6 +196,7 @@ export function useHomeScreenSession(): HomeScreenProps {
   const { handleStartButtonClick, handleStopButtonClick } = useHomeMicrophoneSession({
     canvasRef,
     speechPlaybackGenerationRef,
+    speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,
     setSpeechSynthesisStatusIdle,
     setMicrophoneStatus,
@@ -210,6 +226,8 @@ export function useHomeScreenSession(): HomeScreenProps {
     try {
       const session = await repository.ensureSessionForScenario(scenarioId)
       activeSessionIdRef.current = session.id
+      // Case D (#46): restore pending spoken_progress after reload.
+      pendingSpokenProgressRef.current = session.pendingSpokenProgress
     } catch (error) {
       console.warn('Failed to ensure practice session.', error)
       setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusError)
@@ -289,6 +307,10 @@ export function useHomeScreenSession(): HomeScreenProps {
       setTutorGenerationStatus,
       setTutorModelLoadingProgressPercent,
     )
+    const unsubscribeFromModelReady = inferenceClient.subscribeToModelReady((readyMessage) => {
+      modelLoadHistory.markLoaded(readyMessage.modelKey)
+      setOfflineReadiness(resolveOfflineReadiness(modelLoadHistory.snapshot()))
+    })
     let cancelled = false
     void inferenceClient.preloadModels().catch((error: unknown) => {
       if (!cancelled) {
@@ -297,8 +319,9 @@ export function useHomeScreenSession(): HomeScreenProps {
     })
     return () => {
       cancelled = true
+      unsubscribeFromModelReady()
     }
-  }, [])
+  }, [modelLoadHistory])
 
   useEffect(() => {
     let cancelled = false
@@ -364,6 +387,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     hasCompletedCapture,
     primaryActivityMessage: viewModel.primaryActivityMessage,
     isPreparingModels: viewModel.isPreparingModels,
+    offlineReadinessMessage: offlineReadinessMessageFor(offlineReadiness),
     liveInputLevel01,
     liveRms,
     livePeak,

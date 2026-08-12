@@ -21,10 +21,16 @@ import type {
 import type { PracticeChatMessage } from './practice-chat-messages'
 import type { PracticeScenarioId } from './practice-scenarios'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
+import type { SpokenProgress } from './spoken-progress'
+
 export interface HomeUtterancePipelineDeps {
   readonly inferenceClientRef: MutableRefObject<InferenceClient | null>
   readonly inferenceInFlightFlagsRef: MutableRefObject<InferenceInFlightFlags>
   readonly speechPlaybackGenerationRef: MutableRefObject<number>
+  /** AbortController for in-flight tutor TTS (barge-in, issue #46). */
+  readonly speechPlaybackAbortControllerRef: MutableRefObject<AbortController | null>
+  /** Last incomplete tutor spoken_progress awaiting resume/clear. */
+  readonly pendingSpokenProgressRef: MutableRefObject<SpokenProgress | null>
   readonly lastUserCaptureRef: MutableRefObject<{
     samples: Float32Array
     sampleRateInHertz: number

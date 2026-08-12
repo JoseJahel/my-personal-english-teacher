@@ -16,20 +16,30 @@ import {
   extractPitchContourWithYin,
 } from './pitch-detection-yin'
 import {
+  CALIBRATED_MFCC_DISTANCE_AT_HALF_SCORE,
+  CALIBRATED_MFCC_SCORE_WEIGHT,
+  CALIBRATED_PITCH_DISTANCE_AT_HALF_SCORE,
+} from './pronunciation-score-calibration-constants'
+import {
   buildWordPronunciationHighlights,
   computeMeanLocalCostPerQueryFrame,
   tokenizeEnglishWords,
   type WordPronunciationHighlight,
 } from './word-pronunciation-highlights'
 
-/** Default half-score distance for MFCC DTW (calibrate with real pairs later). */
-export const DEFAULT_MFCC_DISTANCE_AT_HALF_SCORE = 18
+/**
+ * Default half-score distance for MFCC DTW.
+ * Source: multi-speaker offline calibration (issue #29) — see
+ * `run-pronunciation-score-calibration.ts` and
+ * `Documentacion general/calibracion-score-pronunciacion.md`.
+ */
+export const DEFAULT_MFCC_DISTANCE_AT_HALF_SCORE = CALIBRATED_MFCC_DISTANCE_AT_HALF_SCORE
 
-/** Default half-score distance for relative pitch DTW. */
-export const DEFAULT_PITCH_DISTANCE_AT_HALF_SCORE = 12
+/** Default half-score distance for relative pitch DTW (calibrated, issue #29). */
+export const DEFAULT_PITCH_DISTANCE_AT_HALF_SCORE = CALIBRATED_PITCH_DISTANCE_AT_HALF_SCORE
 
-/** Weight of MFCC score when pitch score is available. */
-export const DEFAULT_MFCC_SCORE_WEIGHT = 0.75
+/** Weight of MFCC score when pitch score is available (calibrated, issue #29). */
+export const DEFAULT_MFCC_SCORE_WEIGHT = CALIBRATED_MFCC_SCORE_WEIGHT
 
 export interface PronunciationScoreResult {
   /** Combined score in [0, 100]; higher is better match to the reference. */
