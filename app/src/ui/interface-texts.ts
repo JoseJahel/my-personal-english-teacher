@@ -300,6 +300,15 @@ export const homeScreenInterfaceTexts = {
       `Turno ${turnIndex}: ${score.toFixed(1)} / 100`,
   },
   pronunciationPanelLabel: 'Pronunciación (señales)',
+  communicationSuggestions: {
+    panelTitle: 'Sugerencias para comunicarte mejor',
+    panelHint: 'Ideas offline para sonar más natural — no reemplazan al tutor.',
+    typeLabels: {
+      vocabulario: 'Vocabulario',
+      fluidez: 'Fluidez',
+      naturalidad: 'Naturalidad',
+    },
+  },
   pronunciationWordHighlights: {
     title: 'Palabras (aproximación por alineamiento DTW)',
     hint: 'Verde ≈ cerca de la referencia · ámbar ≈ regular · rojo ≈ más lejos. No es alineamiento fonético perfecto.',
@@ -324,6 +333,20 @@ export const homeScreenInterfaceTexts = {
       details.pitchScore === null
         ? `MFCC ${details.mfccScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`
         : `MFCC ${details.mfccScore.toFixed(1)} · pitch ${details.pitchScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`,
+  },
+  drill: {
+    panelTitle: 'Repetir la última frase del tutor',
+    panelHint: 'Practica repitiendo exactamente lo que dijo el tutor y recibe tu puntuación.',
+    repeatButtonLabel: 'Repetir esta frase',
+    listeningButtonLabel: 'Escuchando…',
+    noTutorLineMessage: 'Todavía no hay ninguna frase del tutor para repetir.',
+    statusIdle: 'Pulsa "Repetir esta frase" para practicar la última línea del tutor.',
+    statusListening: 'Escuchando tu repetición… habla y pulsa Detener al terminar.',
+    statusScoring: 'Calculando tu puntuación de repetición…',
+    statusDone: (score0to100: number) =>
+      `Puntuación de repetición: ${score0to100.toFixed(1)} / 100.`,
+    statusUnavailable: 'No se pudo calcular la puntuación de esta repetición.',
+    stopButtonLabel: 'Detener',
   },
   asrBenchmark: {
     pageTitle: 'Banco de pruebas ASR (solo desarrollo)',

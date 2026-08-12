@@ -4,6 +4,7 @@
  */
 
 import { useCallback } from 'react'
+import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import type { StoredSpokenProgress } from '../storage/practice-session-types'
@@ -63,6 +64,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     setPracticeHistoryTurns,
     setPracticeHistoryStatusMessage,
     setChatMessages,
+    setCommunicationSuggestions,
   } = deps
 
   const refreshPracticeHistory = useCallback(async () => {
@@ -297,6 +299,13 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
           })
 
       const historyTurnsEn = buildRecentHistoryTurnsEn(chatMessagesRef.current)
+      const communicationSuggestions = buildCommunicationSuggestions({
+        scenarioId: selectedScenarioIdRef.current,
+        userUtteranceEn: transcribedTextResult,
+        correctedUtteranceEn: referencePhrase,
+        userTurnIndex: turnIndex,
+      })
+      setCommunicationSuggestions(communicationSuggestions)
       const scenarioContextEn = interruptionResolution?.llmContextNoteEn
         ? `${scenario.generationContextEn}\n\n${interruptionResolution.llmContextNoteEn}`
         : scenario.generationContextEn
@@ -368,6 +377,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       scoreUserPronunciation,
       selectedScenarioIdRef,
       setChatMessages,
+      setCommunicationSuggestions,
       setTutorGenerationStatus,
       speakTutorText,
       userTurnIndexRef,
