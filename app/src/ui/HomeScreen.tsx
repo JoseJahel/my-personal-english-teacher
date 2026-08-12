@@ -6,11 +6,13 @@ import { useState, type RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
+import type { DrillUiStatus } from './home-screen-status'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import type { PracticeScenarioId } from './practice-scenarios'
 import { PracticeChatPanel } from './PracticeChatPanel'
 import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
+import { DrillPanel } from './DrillPanel'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
 import { PronunciationWordHighlights } from './PronunciationWordHighlights'
 import { ScenarioPicker } from './ScenarioPicker'
@@ -53,6 +55,12 @@ export interface HomeScreenProps {
   selectedScenarioId: PracticeScenarioId
   chatMessages: readonly PracticeChatMessage[]
   communicationSuggestions: readonly CommunicationSuggestion[]
+  lastTutorLineEn: string
+  drillStatus: DrillUiStatus
+  drillScore0to100: number | null
+  isDrillListening: boolean
+  onStartDrill: () => void
+  onStopDrill: () => void
   firstTurnHintEn: string
   onSelectScenario: (scenarioId: PracticeScenarioId) => void
   onStartMicrophone: () => void
@@ -95,6 +103,12 @@ export function HomeScreen({
   selectedScenarioId,
   chatMessages,
   communicationSuggestions,
+  lastTutorLineEn,
+  drillStatus,
+  drillScore0to100,
+  isDrillListening,
+  onStartDrill,
+  onStopDrill,
   firstTurnHintEn,
   onSelectScenario,
   onStartMicrophone,
@@ -227,7 +241,16 @@ export function HomeScreen({
       <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
         <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />
       </section>
-
+      <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+        <DrillPanel
+          lastTutorLineEn={lastTutorLineEn}
+          drillStatus={drillStatus}
+          drillScore0to100={drillScore0to100}
+          isDrillListening={isDrillListening}
+          onStartDrill={onStartDrill}
+          onStopDrill={onStopDrill}
+        />
+      </section>
       {hasResults ? (
         <section className="mt-5 space-y-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-sage-200/80">
           <h2 className="text-sm font-semibold text-ink-900">
