@@ -9,6 +9,7 @@ import { isGetUserMediaNative } from '../audio/open-microphone-stream'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
+import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
 import { buildHomeScreenViewModel } from './build-home-screen-view-model'
@@ -61,6 +62,9 @@ export function useHomeScreenSession(): HomeScreenProps {
   const [speechSynthesisErrorReason, setSpeechSynthesisErrorReason] =
     useState<InferenceClientErrorReason | null>(null)
   const [pronunciationStatus, setPronunciationStatus] = useState<PronunciationUiStatus>('idle')
+  const [communicationSuggestions, setCommunicationSuggestions] = useState< 
+    readonly CommunicationSuggestion[]
+  >([])
   const [pronunciationScore, setPronunciationScore] = useState<PronunciationScoreResult | null>(
     null,
   )
@@ -146,6 +150,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     setPracticeHistoryTurns,
     setPracticeHistoryStatusMessage,
     setChatMessages,
+    setCommunicationSuggestions,
     setCaptureDiagnostics,
     setMedianFormants,
     setHasCompletedCapture,
@@ -373,6 +378,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     practiceHistoryStatusMessage,
     selectedScenarioId,
     chatMessages,
+    communicationSuggestions,
     firstTurnHintEn,
     onSelectScenario: handleSelectScenario,
     onStartMicrophone: () => {
