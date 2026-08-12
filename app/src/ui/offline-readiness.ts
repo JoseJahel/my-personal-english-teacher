@@ -57,3 +57,15 @@ export function offlineReadinessMessageFor(readiness: OfflineReadiness): string 
       return homeScreenInterfaceTexts.offlineReadiness.fullyCached
   }
 }
+
+/** Short rail footer line (Atelier shell). */
+export function offlineReadinessCompactMessageFor(readiness: OfflineReadiness): string {
+  switch (readiness) {
+    case 'none-cached':
+      return homeScreenInterfaceTexts.offlineReadinessCompact.noneCached
+    case 'partially-cached':
+      return homeScreenInterfaceTexts.offlineReadinessCompact.partiallyCached
+    case 'fully-cached':
+      return homeScreenInterfaceTexts.offlineReadinessCompact.fullyCached
+  }
+}

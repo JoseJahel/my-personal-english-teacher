@@ -30,7 +30,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 - **Banco de pruebas ASR** (solo desarrollo, `#asr-benchmark`, fuera del bundle de producción): fixtures de voz propias en una IndexedDB separada (borrable sin tocar el progreso del estudiante, nunca en Git), corridas candidato × backend (WASM q8 / WebGPU fp32) con WER por Levenshtein y export a CSV/JSON.
 - **Paleta de diseño centralizada** (`index.css`, tokens `@theme`: sage/ink/blush) consumida por toda la UI; tests de freeze-guard evitan cambios accidentales de color.
 - **Shell de conversación Avance 2:** escenarios, chat, ASR+gramática, score, tutor híbrido + voz TTS.
-- UI modular en español: `HomeScreen` + selector de escenario + panel de chat + hook de sesión + textos centralizados.
+- UI modular en español (shell **Atelier**, issue #81): rail + chat centrado + panel de feedback; `HomeScreen` + hook de sesión + textos centralizados.
 - PWA con `vite-plugin-pwa` (app shell); pesos de modelos gestionados por `transformers.js` / Cache API.
 - CI con GitHub Actions (lint, typecheck, tests, build).
 
@@ -246,7 +246,7 @@ Detalle operativo de la demo actual:
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
 5. Si el texto es habla real → T5 → **tutor híbrido**: SmolLM2 con memoria de los últimos 4 turnos contra un timeout de 10 s; si no responde a tiempo o produce basura, línea del motor de reglas del escenario (marcada como respaldo) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
 6. Si es tag no-habla → mensaje honesto sin gramática ni score.
-7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` (solo dev, hash `#asr-benchmark`) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`.
+7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` / preview de shell Atelier (solo dev) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`. Guías: `Documentacion general/IDENTIDAD-VISUAL.md`, `UI-UX-SHELL.md`.
 
 **Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio). Aparte, solo en desarrollo, una segunda IndexedDB independiente guarda las fixtures de voz del banco de pruebas ASR (con audio crudo, nunca en Git).
 

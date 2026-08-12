@@ -189,6 +189,8 @@ exponen a la red local.
 | `pnpm format:check` | Verifica el formato sin modificar archivos.          |
 | `pnpm test`         | Ejecuta la suite de pruebas con Vitest una sola vez. |
 | `pnpm test:watch`   | Ejecuta Vitest en modo observador.                   |
+| `pnpm test:e2e`     | Playwright: smoke + screenshots del shell Atelier.   |
+| `pnpm test:e2e:update` | Regenera baselines visuales del shell.            |
 
 ## Arquitectura
 
