@@ -73,7 +73,7 @@ export interface HomeUtterancePipelineDeps {
   readonly setGrammarCorrectionErrorReason: Dispatch<
     SetStateAction<InferenceClientErrorReason | null>
   >
-  readonly setCommunicationSuggestions: Dispatch
+  readonly setCommunicationSuggestions: Dispatch<
     SetStateAction<readonly CommunicationSuggestion[]>
   >
 }
