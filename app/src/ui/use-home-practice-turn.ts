@@ -4,7 +4,6 @@
  */
 
 import { useCallback } from 'react'
-import { playMonoPcmSamples } from '../audio/play-pcm-mono'
 import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
