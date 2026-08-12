@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shouldShowAsrBenchmarkScreen } from './app-routing'
+import { shouldShowAsrBenchmarkScreen, shouldShowShellPreviewScreen } from './app-routing'
 
 describe('shouldShowAsrBenchmarkScreen', () => {
   it('is true only in dev with the exact benchmark hash', () => {
@@ -15,3 +15,21 @@ describe('shouldShowAsrBenchmarkScreen', () => {
     expect(shouldShowAsrBenchmarkScreen(true, '#other')).toBe(false)
   })
 })
+
+describe('shouldShowShellPreviewScreen', () => {
+  it('is true in dev for shell preview hashes', () => {
+    expect(shouldShowShellPreviewScreen(true, '#shell-preview')).toBe(true)
+    expect(shouldShowShellPreviewScreen(true, '#shell-preview-filled')).toBe(true)
+    expect(shouldShowShellPreviewScreen(true, '#shell-preview-listening')).toBe(true)
+  })
+
+  it('is false outside dev', () => {
+    expect(shouldShowShellPreviewScreen(false, '#shell-preview')).toBe(false)
+  })
+
+  it('is false for unrelated hashes', () => {
+    expect(shouldShowShellPreviewScreen(true, '#asr-benchmark')).toBe(false)
+    expect(shouldShowShellPreviewScreen(true, '')).toBe(false)
+  })
+})
+

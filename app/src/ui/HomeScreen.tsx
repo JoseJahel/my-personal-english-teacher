@@ -1,17 +1,29 @@
 /**
- * Product-focused home screen: primary path first, technical detail on demand.
+ * Atelier practice shell: rail + centered chat + feedback artifact panel (#81).
  */
 
-import { useState, type RefObject } from 'react'
+import { useState, type ReactNode, type RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
+import type { OfflineReadiness } from './offline-readiness'
+import {
+  offlineReadinessCompactMessageFor,
+  offlineReadinessMessageFor,
+} from './offline-readiness'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import type { PracticeScenarioId } from './practice-scenarios'
+import {
+  PRACTICE_SHELL_TEST_IDS,
+  type PracticeFeedbackTab,
+  type PracticeModeId,
+  type PracticeShellView,
+} from './practice-shell-types'
+import { FeedbackPanel } from './FeedbackPanel'
 import { PracticeChatPanel } from './PracticeChatPanel'
+import { PracticeComposer } from './PracticeComposer'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
-import { PronunciationWordHighlights } from './PronunciationWordHighlights'
-import { ScenarioPicker } from './ScenarioPicker'
+import { PracticeRail } from './PracticeRail'
 
 export interface HomeScreenProps {
   canvasRef: RefObject<HTMLCanvasElement | null>
@@ -41,15 +53,18 @@ export interface HomeScreenProps {
   pronunciationStatusMessage: string
   pronunciationDetailMessage: string | null
   pronunciationScore0to100: number | null
+  pronunciationMfccScore0to100: number | null
+  pronunciationPitchScore0to100: number | null
   pronunciationWordHighlights: readonly WordPronunciationHighlight[]
   formantsSummaryMessage: string | null
   practiceHistoryTurns: readonly PracticeTurnRecord[]
   practiceHistoryStatusMessage: string
-  /** Friendly single-line pipeline status for the hero area. */
+  /** Friendly single-line pipeline status for the composer. */
   primaryActivityMessage: string
   isPreparingModels: boolean
-  /** Whether this browser can already practise offline (models cached). */
+  /** Full offline readiness message (also used in rail compact form). */
   offlineReadinessMessage: string
+  offlineReadiness: OfflineReadiness
   selectedScenarioId: PracticeScenarioId
   chatMessages: readonly PracticeChatMessage[]
   firstTurnHintEn: string
@@ -58,377 +73,298 @@ export interface HomeScreenProps {
   onStopMicrophone: () => void
 }
 
-export function HomeScreen({
-  canvasRef,
-  spectrogramCanvasRef,
-  pitchTrackCanvasRef,
-  isStarting,
-  isListening,
-  isTutorSpeaking,
-  hasCompletedCapture,
-  liveInputLevel01,
-  liveRms,
-  livePeak,
-  activeMicrophoneLabel,
-  environmentDiagnosticsMessage,
-  microphoneStatusMessage,
-  transcriptionStatusMessage,
-  transcribedText,
-  captureDiagnosticsMessage,
-  grammarCorrectionStatusMessage,
-  correctedGrammarText,
-  grammarCorrectionMadeNoChangesToTranscription,
-  speechSynthesisStatusMessage,
-  tutorGenerationStatusMessage,
-  isTutorPreparingConversationModel,
-  isTutorComposingReply,
-  pronunciationStatusMessage,
-  pronunciationDetailMessage,
-  pronunciationScore0to100,
-  pronunciationWordHighlights,
-  formantsSummaryMessage,
-  practiceHistoryTurns,
-  practiceHistoryStatusMessage,
-  primaryActivityMessage,
-  isPreparingModels,
-  offlineReadinessMessage,
-  selectedScenarioId,
-  chatMessages,
-  firstTurnHintEn,
-  onSelectScenario,
-  onStartMicrophone,
-  onStopMicrophone,
-}: HomeScreenProps) {
-  const [showSignalLab, setShowSignalLab] = useState(false)
-  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+export function HomeScreen(props: HomeScreenProps) {
+  const {
+    canvasRef,
+    spectrogramCanvasRef,
+    pitchTrackCanvasRef,
+    isStarting,
+    isListening,
+    isTutorSpeaking,
+    hasCompletedCapture,
+    liveInputLevel01,
+    liveRms,
+    livePeak,
+    activeMicrophoneLabel,
+    environmentDiagnosticsMessage,
+    microphoneStatusMessage,
+    transcriptionStatusMessage,
+    transcribedText,
+    captureDiagnosticsMessage,
+    grammarCorrectionStatusMessage,
+    correctedGrammarText,
+    grammarCorrectionMadeNoChangesToTranscription,
+    speechSynthesisStatusMessage,
+    tutorGenerationStatusMessage,
+    isTutorPreparingConversationModel,
+    isTutorComposingReply,
+    pronunciationStatusMessage,
+    pronunciationDetailMessage,
+    pronunciationScore0to100,
+    pronunciationMfccScore0to100,
+    pronunciationPitchScore0to100,
+    pronunciationWordHighlights,
+    formantsSummaryMessage,
+    practiceHistoryTurns,
+    practiceHistoryStatusMessage,
+    primaryActivityMessage,
+    isPreparingModels,
+    offlineReadiness,
+    selectedScenarioId,
+    chatMessages,
+    firstTurnHintEn,
+    onSelectScenario,
+    onStartMicrophone,
+    onStopMicrophone,
+  } = props
 
-  const levelPercent = Math.round(Math.min(1, Math.max(0, liveInputLevel01)) * 100)
-  const isLevelSilentWhileListening = isListening && livePeak < 0.01
-  const isScenarioSelectionLocked = isStarting || isListening || isTutorSpeaking
-  const showMockEnvironmentWarning =
-    environmentDiagnosticsMessage?.includes('NO (hay un mock') ?? false
-  const hasResults =
+  const [activeView, setActiveView] = useState<PracticeShellView>('practice')
+  const [practiceMode, setPracticeMode] = useState<PracticeModeId>('conversation')
+  const [feedbackTab, setFeedbackTab] = useState<PracticeFeedbackTab>('turn')
+  /** User explicitly opened the panel (overrides auto-open rules). */
+  const [panelManuallyOpen, setPanelManuallyOpen] = useState(false)
+  /**
+   * Fingerprint of the last turn the user dismissed. A new turn (different
+   * fingerprint) auto-opens the panel again without an effect.
+   */
+  const [dismissedTurnFingerprint, setDismissedTurnFingerprint] = useState<string | null>(null)
+
+  const hasTurnResults =
     Boolean(transcribedText) ||
     Boolean(correctedGrammarText) ||
     pronunciationScore0to100 !== null
 
-  return (
-    <div className="mx-auto min-h-screen max-w-2xl px-4 pb-28 pt-8 font-sans text-ink-900 sm:px-5">
-      <header className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
-          {homeScreenInterfaceTexts.applicationTitle}
-        </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600 sm:text-base">
-          {homeScreenInterfaceTexts.productLead}
-        </p>
-      </header>
+  const turnFingerprint = hasTurnResults
+    ? `${transcribedText}\u0000${correctedGrammarText}\u0000${String(pronunciationScore0to100)}`
+    : ''
 
+  // ChatGPT-style artifact panel: auto-open when there is turn data the user
+  // has not dismissed; manual open always wins.
+  const isFeedbackPanelOpen =
+    panelManuallyOpen ||
+    (turnFingerprint !== '' && turnFingerprint !== dismissedTurnFingerprint)
+
+  const openFeedbackPanel = (tab: PracticeFeedbackTab = 'turn') => {
+    setFeedbackTab(tab)
+    setPanelManuallyOpen(true)
+    setDismissedTurnFingerprint(null)
+  }
+
+  const closeFeedbackPanel = () => {
+    setPanelManuallyOpen(false)
+    if (turnFingerprint !== '') {
+      setDismissedTurnFingerprint(turnFingerprint)
+    }
+  }
+
+  const toggleFeedbackPanel = () => {
+    if (isFeedbackPanelOpen) {
+      closeFeedbackPanel()
+    } else {
+      openFeedbackPanel(feedbackTab)
+    }
+  }
+
+  const isScenarioSelectionLocked = isStarting || isListening || isTutorSpeaking
+  const scenarioTitle =
+    homeScreenInterfaceTexts.practiceScenarios.byId[selectedScenarioId].title
+  const showMockEnvironmentWarning =
+    environmentDiagnosticsMessage?.includes('NO (hay un mock') ?? false
+  const shell = homeScreenInterfaceTexts.shell
+  const offlineCompact = offlineReadinessCompactMessageFor(offlineReadiness)
+  const offlineFull = offlineReadinessMessageFor(offlineReadiness)
+
+  const handleNavigate = (view: PracticeShellView) => {
+    if (view === 'signals') {
+      // Rail highlight + open artifact panel on Señales (single canvas pair).
+      setActiveView('signals')
+      openFeedbackPanel('signals')
+      return
+    }
+    setActiveView(view)
+  }
+
+  return (
+    <div
+      className="flex h-full min-h-0 flex-col bg-sage-50 font-sans text-ink-900"
+      data-testid={PRACTICE_SHELL_TEST_IDS.shell}
+      data-shell-variant="chatgpt"
+    >
       {showMockEnvironmentWarning && environmentDiagnosticsMessage ? (
-        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 ring-1 ring-amber-200">
+        <p className="shrink-0 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900 ring-1 ring-amber-200">
           {environmentDiagnosticsMessage}
         </p>
       ) : null}
 
-      <p className="mt-4 rounded-lg bg-sage-50 px-3 py-2 text-center text-xs text-ink-600 ring-1 ring-sage-200">
-        {offlineReadinessMessage}
-      </p>
-
       {isPreparingModels ? (
-        <p className="mt-4 rounded-lg bg-sage-100 px-3 py-2 text-center text-sm text-sage-800 ring-1 ring-sage-200">
+        <p className="shrink-0 bg-sage-100 px-4 py-1.5 text-center text-xs text-sage-800">
           {homeScreenInterfaceTexts.modelsWarmingUpMessage}
         </p>
       ) : null}
 
-      <section className="mt-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
-        <ScenarioPicker
+      <div className="relative flex min-h-0 flex-1">
+        <PracticeRail
+          activeView={activeView}
+          practiceMode={practiceMode}
           selectedScenarioId={selectedScenarioId}
-          isSelectionLocked={isScenarioSelectionLocked}
-          onSelectScenario={onSelectScenario}
-        />
-      </section>
-
-      {/* Primary action — above the fold, not buried under empty charts */}
-      <section className="mt-5 rounded-2xl bg-sage-950 p-4 text-white shadow-lg">
-        <p className="text-center text-sm font-medium text-sage-300">
-          {primaryActivityMessage}
-        </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={onStartMicrophone}
-            disabled={isStarting || isListening || isTutorSpeaking}
-            className="min-h-12 flex-1 rounded-xl bg-sage-700 px-5 py-3 text-base font-bold text-white transition hover:bg-sage-600 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
-          >
-            {isListening
-              ? homeScreenInterfaceTexts.listeningButtonLabel
-              : homeScreenInterfaceTexts.startMicrophoneButtonLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onStopMicrophone}
-            disabled={!isListening}
-            className="min-h-12 flex-1 rounded-xl bg-blush-600 px-5 py-3 text-base font-bold text-white transition hover:bg-blush-500 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 sm:max-w-[220px]"
-          >
-            {homeScreenInterfaceTexts.stopMicrophoneButtonLabel}
-          </button>
-        </div>
-       <p className="mt-3 text-center text-xs text-sage-300">
-  {isTutorSpeaking
-    ? homeScreenInterfaceTexts.tutorSpeakingHint
-    : homeScreenInterfaceTexts.micHelperHint}
-    </p>
-
-        <div
-          className={`mt-4 text-left ${isListening || isStarting ? '' : 'hidden'}`}
-        >
-          {activeMicrophoneLabel ? (
-            <p className="mb-2 text-xs text-sage-300">
-              {homeScreenInterfaceTexts.activeMicrophoneLabel(activeMicrophoneLabel)}
-            </p>
-          ) : null}
-          <div className="mb-1 flex justify-between text-xs text-sage-300">
-            <span>
-              {homeScreenInterfaceTexts.inputLevelLabel}: {levelPercent}%
-            </span>
-            <span>
-              {isLevelSilentWhileListening
-                ? homeScreenInterfaceTexts.inputLevelHintSilentShort
-                : homeScreenInterfaceTexts.inputLevelHintActiveShort}
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-sage-track">
-            <div
-              className={`h-full rounded-full transition-[width] duration-75 ${
-                isLevelSilentWhileListening ? 'bg-amber-400' : 'bg-sage-400'
-              }`}
-              style={{ width: `${levelPercent}%` }}
-            />
-          </div>
-        </div>
-        {/* Always mounted so the session ref stays valid for start/stop animation. */}
-        <canvas
-          ref={canvasRef}
-          width={600}
-          height={100}
-          className={`mt-3 h-[100px] w-full rounded-lg bg-sage-900 ${
-            isListening || isStarting ? '' : 'hidden'
-          }`}
-        />
-      </section>
-
-      <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
-        <PracticeChatPanel
-          messages={chatMessages}
+          isScenarioSelectionLocked={isScenarioSelectionLocked}
           firstTurnHintEn={firstTurnHintEn}
-          isTutorPreparingConversationModel={isTutorPreparingConversationModel}
-          isTutorComposingReply={isTutorComposingReply}
-          tutorGenerationStatusMessage={tutorGenerationStatusMessage}
+          offlineCompactMessage={offlineCompact}
+          isFullyOfflineReady={offlineReadiness === 'fully-cached'}
+          onNavigate={handleNavigate}
+          onSelectScenario={onSelectScenario}
+          onSelectMode={setPracticeMode}
         />
-      </section>
 
-      {hasResults ? (
-        <section className="mt-5 space-y-3 rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-sage-200/80">
-          <h2 className="text-sm font-semibold text-ink-900">
-            {homeScreenInterfaceTexts.resultsSectionTitle}
-          </h2>
-
-          {transcribedText ? (
-            <div>
-              <p className="text-xs font-medium text-ink-400">
-                {homeScreenInterfaceTexts.transcriptionPanelLabel}
-              </p>
-              <p className="mt-1 rounded-lg bg-sage-50 px-3 py-2 font-mono text-sm text-ink-900">
-                {transcribedText}
-              </p>
-            </div>
-          ) : null}
-
-          {correctedGrammarText ? (
-            <div>
-              <p className="text-xs font-medium text-ink-400">
-                {homeScreenInterfaceTexts.grammarCorrectionPanelLabel}
-              </p>
-              <p className="mt-1 rounded-lg bg-emerald-50 px-3 py-2 font-mono text-sm text-emerald-950">
-                {correctedGrammarText}
-              </p>
-              {grammarCorrectionMadeNoChangesToTranscription ? (
-                <p className="mt-1 text-xs italic text-ink-400">
-                  {homeScreenInterfaceTexts.grammarCorrectionStatusMessages.noCorrectionsNeeded}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {pronunciationScore0to100 !== null ? (
-            <div>
-              <p className="text-xs font-medium text-ink-400">
-                {homeScreenInterfaceTexts.pronunciationPanelLabel}
-              </p>
-              <p className="mt-1 text-sm text-ink-600">{pronunciationStatusMessage}</p>
-              <div className="mt-2">
-                <div className="mb-1 flex justify-between text-xs text-ink-400">
-                  <span>0</span>
-                  <span className="font-semibold text-sage-800">
-                    {pronunciationScore0to100.toFixed(1)}
-                  </span>
-                  <span>100</span>
-                </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-sage-200">
-                  <div
-                    className="h-full rounded-full bg-sage-600 transition-[width] duration-300"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, pronunciationScore0to100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <PronunciationWordHighlights highlights={pronunciationWordHighlights} />
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {/* Signal lab: collapsed; canvases always mounted so drawings survive expand. */}
-      <section
-        className={`mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80 ${
-          hasCompletedCapture ? '' : 'hidden'
-        }`}
-      >
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
-          onClick={() => setShowSignalLab((open) => !open)}
-          aria-expanded={showSignalLab}
+        <main
+          className="flex min-w-0 flex-1 flex-col bg-sage-50"
+          data-testid={PRACTICE_SHELL_TEST_IDS.center}
         >
-          <span>{homeScreenInterfaceTexts.signalLabTitle}</span>
-          <span className="text-ink-400">{showSignalLab ? '−' : '+'}</span>
-        </button>
-        <div
-          className={`space-y-4 border-t border-sage-200 px-4 pb-4 pt-3 text-left ${
-            showSignalLab ? '' : 'hidden'
-          }`}
-        >
-          <div>
-            <p className="mb-1 text-xs font-semibold text-ink-600">
-              {homeScreenInterfaceTexts.spectrogramPanelLabel}
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sage-200 bg-atelier-elev px-5 py-2.5">
+            <div>
+              <h1 className="m-0 text-[1.05rem] font-bold tracking-tight text-ink-900">
+                {scenarioTitle}
+              </h1>
+              <p className="m-0 mt-0.5 text-xs text-ink-600">{shell.centerSubtitle}</p>
+            </div>
+            <button
+              type="button"
+              data-testid={PRACTICE_SHELL_TEST_IDS.panelToggle}
+              onClick={() => {
+                if (activeView === 'history') {
+                  setActiveView('practice')
+                }
+                toggleFeedbackPanel()
+              }}
+              className={`rounded-lg border px-3 py-1.5 text-[0.78rem] font-semibold transition ${
+                isFeedbackPanelOpen
+                  ? 'border-sage-600/40 bg-sage-100 text-sage-700'
+                  : 'border-sage-200 bg-sage-50 text-ink-600 hover:border-sage-600 hover:text-ink-900'
+              }`}
+              title={shell.feedbackToggle}
+            >
+              {shell.feedbackToggle}
+            </button>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 py-4">
+            <p
+              className="mb-3 w-full max-w-[44rem] rounded-lg bg-atelier-elev px-3 py-2 text-center text-[0.72rem] text-ink-600 ring-1 ring-sage-200"
+              title={offlineFull}
+            >
+              {offlineFull}
             </p>
-            <canvas
-              ref={spectrogramCanvasRef}
-              width={600}
-              height={140}
-              className="h-[140px] w-full rounded-lg bg-sage-900"
+            <PracticeChatPanel
+              messages={chatMessages}
+              firstTurnHintEn={firstTurnHintEn}
+              isTutorPreparingConversationModel={isTutorPreparingConversationModel}
+              isTutorComposingReply={isTutorComposingReply}
+              tutorGenerationStatusMessage={tutorGenerationStatusMessage}
+              showSectionChrome={false}
             />
           </div>
-          <div>
-            <p className="mb-1 text-xs font-semibold text-ink-600">
-              {homeScreenInterfaceTexts.pitchTrackPanelLabel}
-            </p>
-            <canvas
-              ref={pitchTrackCanvasRef}
-              width={600}
-              height={100}
-              className="h-[100px] w-full rounded-lg bg-sage-900"
-            />
-          </div>
-          <div className="rounded-lg bg-sage-50 px-3 py-2 text-sm">
-            <p className="text-xs font-semibold text-ink-600">
-              {homeScreenInterfaceTexts.formantsPanelLabel}
-            </p>
-            <p className="mt-1 font-mono text-ink-900">
-              {formantsSummaryMessage ?? homeScreenInterfaceTexts.formantsUnavailable}
-            </p>
-          </div>
-        </div>
-      </section>
 
-      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
-          onClick={() => setShowHistory((open) => !open)}
-          aria-expanded={showHistory}
-        >
-          <span>{homeScreenInterfaceTexts.practiceHistory.sectionTitle}</span>
-          <span className="text-ink-400">
-            {practiceHistoryTurns.length > 0
-              ? `(${practiceHistoryTurns.length}) `
-              : ''}
-            {showHistory ? '−' : '+'}
-          </span>
-        </button>
-        {showHistory ? (
-          <div className="border-t border-sage-200 px-4 pb-4">
+          <PracticeComposer
+            canvasRef={canvasRef}
+            isStarting={isStarting}
+            isListening={isListening}
+            isTutorSpeaking={isTutorSpeaking}
+            isPreparingModels={isPreparingModels}
+            liveInputLevel01={liveInputLevel01}
+            livePeak={livePeak}
+            activeMicrophoneLabel={activeMicrophoneLabel}
+            primaryActivityMessage={primaryActivityMessage}
+            onStartMicrophone={onStartMicrophone}
+            onStopMicrophone={onStopMicrophone}
+          />
+        </main>
+
+        <FeedbackPanel
+          isOpen={isFeedbackPanelOpen}
+          activeTab={feedbackTab}
+          hasTurnResults={hasTurnResults}
+          transcribedText={transcribedText}
+          correctedGrammarText={correctedGrammarText}
+          grammarCorrectionMadeNoChangesToTranscription={
+            grammarCorrectionMadeNoChangesToTranscription
+          }
+          pronunciationScore0to100={pronunciationScore0to100}
+          pronunciationStatusMessage={pronunciationStatusMessage}
+          pronunciationDetailMessage={pronunciationDetailMessage}
+          pronunciationMfccScore0to100={pronunciationMfccScore0to100}
+          pronunciationPitchScore0to100={pronunciationPitchScore0to100}
+          pronunciationWordHighlights={pronunciationWordHighlights}
+          formantsSummaryMessage={formantsSummaryMessage}
+          spectrogramCanvasRef={spectrogramCanvasRef}
+          pitchTrackCanvasRef={pitchTrackCanvasRef}
+          hasCompletedCapture={hasCompletedCapture}
+          microphoneStatusMessage={microphoneStatusMessage}
+          transcriptionStatusMessage={transcriptionStatusMessage}
+          grammarCorrectionStatusMessage={grammarCorrectionStatusMessage}
+          tutorGenerationStatusMessage={tutorGenerationStatusMessage}
+          speechSynthesisStatusMessage={speechSynthesisStatusMessage}
+          pronunciationPipelineStatusMessage={pronunciationStatusMessage}
+          captureDiagnosticsMessage={captureDiagnosticsMessage}
+          environmentDiagnosticsMessage={environmentDiagnosticsMessage}
+          liveRms={liveRms}
+          livePeak={livePeak}
+          isListening={isListening}
+          isStarting={isStarting}
+          onClose={closeFeedbackPanel}
+          onSelectTab={setFeedbackTab}
+        />
+
+        {activeView === 'history' ? (
+          <OverlayView
+            testId={PRACTICE_SHELL_TEST_IDS.historyOverlay}
+            title={shell.historyOverlayTitle}
+            onBack={() => setActiveView('practice')}
+          >
             <PracticeHistoryPanel
               turns={practiceHistoryTurns}
               statusMessage={practiceHistoryStatusMessage}
             />
-          </div>
+          </OverlayView>
         ) : null}
-      </section>
 
-      <section className="mt-5 rounded-2xl bg-white shadow-sm ring-1 ring-sage-200/80">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-ink-900"
-          onClick={() => setShowTechnicalDetails((open) => !open)}
-          aria-expanded={showTechnicalDetails}
-        >
-          <span>{homeScreenInterfaceTexts.technicalDetailsTitle}</span>
-          <span className="text-ink-400">{showTechnicalDetails ? '−' : '+'}</span>
-        </button>
-        {showTechnicalDetails ? (
-          <div className="space-y-2 border-t border-sage-200 px-4 pb-4 pt-3 text-left text-xs text-ink-600">
-            <StatusLine
-              label={homeScreenInterfaceTexts.statusFieldLabel}
-              value={microphoneStatusMessage}
-            />
-            <StatusLine
-              label={homeScreenInterfaceTexts.transcriptionPanelLabel}
-              value={transcriptionStatusMessage}
-            />
-            <StatusLine
-              label={homeScreenInterfaceTexts.grammarCorrectionPanelLabel}
-              value={grammarCorrectionStatusMessage}
-            />
-            <StatusLine
-              label={homeScreenInterfaceTexts.tutorGeneration.panelLabel}
-              value={tutorGenerationStatusMessage}
-            />
-            <StatusLine
-              label={homeScreenInterfaceTexts.speechSynthesisPanelLabel}
-              value={speechSynthesisStatusMessage}
-            />
-            <StatusLine
-              label={homeScreenInterfaceTexts.pronunciationPanelLabel}
-              value={pronunciationStatusMessage}
-            />
-            {pronunciationDetailMessage ? (
-              <p className="text-[11px] text-ink-400">{pronunciationDetailMessage}</p>
-            ) : null}
-            {captureDiagnosticsMessage ? (
-              <p className="text-[11px] text-ink-400">
-                <strong>{homeScreenInterfaceTexts.captureDiagnosticsLabel}:</strong>{' '}
-                {captureDiagnosticsMessage}
-              </p>
-            ) : null}
-            {environmentDiagnosticsMessage && !showMockEnvironmentWarning ? (
-              <p className="text-[11px] text-ink-400">{environmentDiagnosticsMessage}</p>
-            ) : null}
-            <p className="pt-1 text-[11px] text-ink-400">
-              {homeScreenInterfaceTexts.liveMetersDetail(liveRms, livePeak)}
-            </p>
-          </div>
-        ) : null}
-      </section>
+      </div>
     </div>
   )
 }
 
-function StatusLine({ label, value }: { label: string; value: string }) {
+function OverlayView({
+  testId,
+  title,
+  onBack,
+  children,
+}: {
+  testId: string
+  title: string
+  onBack: () => void
+  children: ReactNode
+}) {
+  const shell = homeScreenInterfaceTexts.shell
   return (
-    <p>
-      <strong className="text-ink-600">{label}:</strong> {value}
-    </p>
+    <div
+      className="absolute inset-0 z-20 overflow-y-auto bg-sage-50"
+      data-testid={testId}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div className="mx-auto max-w-3xl px-5 py-6">
+        <header className="mb-5 flex items-center justify-between gap-3">
+          <h1 className="m-0 text-xl font-bold tracking-tight text-ink-900">{title}</h1>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-lg border border-sage-200 bg-atelier-elev px-3 py-1.5 text-sm font-semibold text-ink-600 hover:border-sage-600 hover:text-ink-900"
+          >
+            {shell.backToPractice}
+          </button>
+        </header>
+        {children}
+      </div>
+    </div>
   )
 }
