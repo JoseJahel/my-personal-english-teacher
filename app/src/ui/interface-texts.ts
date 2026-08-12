@@ -229,6 +229,15 @@ export const homeScreenInterfaceTexts = {
       `Turno ${turnIndex}: ${score.toFixed(1)} / 100`,
   },
   pronunciationPanelLabel: 'Pronunciación (señales)',
+  communicationSuggestions: {
+    panelTitle: 'Sugerencias para comunicarte mejor',
+    panelHint: 'Ideas offline para sonar más natural — no reemplazan al tutor.',
+    typeLabels: {
+      vocabulario: 'Vocabulario',
+      fluidez: 'Fluidez',
+      naturalidad: 'Naturalidad',
+    },
+  },
   pronunciationWordHighlights: {
     title: 'Palabras (aproximación por alineamiento DTW)',
     hint: 'Verde ≈ cerca de la referencia · ámbar ≈ regular · rojo ≈ más lejos. No es alineamiento fonético perfecto.',
