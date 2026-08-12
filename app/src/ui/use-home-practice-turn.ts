@@ -377,6 +377,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       scoreUserPronunciation,
       selectedScenarioIdRef,
       setChatMessages,
+      setCommunicationSuggestions,
       setTutorGenerationStatus,
       speakTutorText,
       userTurnIndexRef,
