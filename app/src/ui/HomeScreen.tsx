@@ -5,10 +5,13 @@
 import { useState, type RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
+import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import type { PracticeScenarioId } from './practice-scenarios'
 import { PracticeChatPanel } from './PracticeChatPanel'
+import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
+import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
 import { PronunciationWordHighlights } from './PronunciationWordHighlights'
 import { ScenarioPicker } from './ScenarioPicker'
@@ -50,6 +53,7 @@ export interface HomeScreenProps {
   isPreparingModels: boolean
   selectedScenarioId: PracticeScenarioId
   chatMessages: readonly PracticeChatMessage[]
+  communicationSuggestions: readonly CommunicationSuggestion[]
   firstTurnHintEn: string
   onSelectScenario: (scenarioId: PracticeScenarioId) => void
   onStartMicrophone: () => void
@@ -91,6 +95,7 @@ export function HomeScreen({
   isPreparingModels,
   selectedScenarioId,
   chatMessages,
+  communicationSuggestions,
   firstTurnHintEn,
   onSelectScenario,
   onStartMicrophone,
@@ -218,6 +223,10 @@ export function HomeScreen({
           isTutorComposingReply={isTutorComposingReply}
           tutorGenerationStatusMessage={tutorGenerationStatusMessage}
         />
+      </section>
+
+      <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+        <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />
       </section>
 
       {hasResults ? (
