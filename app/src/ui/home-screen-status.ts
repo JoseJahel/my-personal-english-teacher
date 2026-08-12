@@ -55,7 +55,8 @@ export type SpeechSynthesisUiStatus =
 
 /** Pronunciation score status (MFCC/YIN + DTW vs TTS reference). */
 export type PronunciationUiStatus = 'idle' | 'scoring' | 'done' | 'unavailable'
-
+/** Drill status: repeat the tutor's last line and get scored against it. */
+export type DrillUiStatus = 'idle' | 'listening' | 'scoring' | 'done' | 'unavailable'
 /** Tutor reply generation status (SmolLM2; loads on scenario selection). */
 export type TutorGenerationUiStatus =
   | 'idle'
@@ -244,7 +245,23 @@ export function pronunciationStatusMessageFor(
       return homeScreenInterfaceTexts.pronunciationStatusMessages.unavailable
   }
 }
-
+export function drillStatusMessageFor(
+  status: DrillUiStatus,
+  score0to100: number | null,
+): string {
+  switch (status) {
+    case 'idle':
+      return homeScreenInterfaceTexts.drill.statusIdle
+    case 'listening':
+      return homeScreenInterfaceTexts.drill.statusListening
+    case 'scoring':
+      return homeScreenInterfaceTexts.drill.statusScoring
+    case 'done':
+      return homeScreenInterfaceTexts.drill.statusDone(score0to100 ?? 0)
+    case 'unavailable':
+      return homeScreenInterfaceTexts.drill.statusUnavailable
+  }
+}
 export function captureDiagnosticsMessageFor(diagnostics: CaptureDiagnostics): string {
   return homeScreenInterfaceTexts.captureDiagnosticsMessage({
     sampleCount: diagnostics.sampleCount,
