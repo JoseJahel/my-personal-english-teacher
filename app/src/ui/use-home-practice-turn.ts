@@ -4,6 +4,7 @@
 
 import { useCallback } from 'react'
 import { playMonoPcmSamples } from '../audio/play-pcm-mono'
+import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import { InferenceClientError } from '../ia/inference-client'
@@ -58,6 +59,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     setPracticeHistoryTurns,
     setPracticeHistoryStatusMessage,
     setChatMessages,
+    setCommunicationSuggestions,
   } = deps
 
   const refreshPracticeHistory = useCallback(async () => {
@@ -279,7 +281,13 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         userTurnIndex: turnIndex,
       })
       const historyTurnsEn = buildRecentHistoryTurnsEn(chatMessagesRef.current)
-
+      const communicationSuggestions = buildCommunicationSuggestions({
+        scenarioId: selectedScenarioIdRef.current,
+        userUtteranceEn: transcribedTextResult,
+        correctedUtteranceEn: referencePhrase,
+        userTurnIndex: turnIndex,
+      })
+      setCommunicationSuggestions(communicationSuggestions)
       setChatMessages((currentMessages) => [...currentMessages, userMessage])
       setTutorGenerationStatus('generating')
 
