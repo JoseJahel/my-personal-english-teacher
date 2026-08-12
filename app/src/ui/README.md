@@ -36,12 +36,17 @@ Implementado:
   con el fragmento oído, puentes deterministas (casos A/B/C) y persistencia en
   sesión/turno (caso D).
 - `ScenarioPicker.tsx` / `PracticeChatPanel.tsx`: selección de escenario y
-  transcripción de chat presentacionales; el panel de chat muestra insignia
+  hilo de chat presentacionales; el panel de chat muestra insignia
   honesta cuando la línea es de respaldo, banner "Preparando tutor…" y burbuja
   "Escribiendo…" como live regions accesibles.
 - `home-inference-client.ts`: wiring compartido del InferenceClient para
   progreso/listo (incluye la precarga de SmolLM2 al elegir escenario).
-- `HomeScreen.tsx`: layout (escenarios, chat, botones, paneles, canvas, nivel).
+- **Shell Atelier (issue #81):** `HomeScreen.tsx` compone
+  `PracticeRail` + chat centrado + `PracticeComposer` + `FeedbackPanel`
+  (artefacto Turno/Sugerencias/Señales/Técnico). Historial en overlay desde el
+  rail. Identidad: `Documentacion general/IDENTIDAD-VISUAL.md` +
+  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening`.
+  E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop

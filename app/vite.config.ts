@@ -19,8 +19,8 @@ export default defineConfig({
         lang: 'es',
         start_url: '/',
         display: 'standalone',
-        theme_color: '#1e293b',
-        background_color: '#f8fafc',
+        theme_color: '#4a6b50',
+        background_color: '#f4f2ec',
         icons: [
           {
             src: 'pwa-icon-192.png',
@@ -55,5 +55,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     css: false,
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
   },
 })
