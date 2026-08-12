@@ -10,6 +10,8 @@ import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
+import { useDrillRepetition } from './use-drill-repetition'
+import { findLastTutorLineText } from './practice-chat-messages'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
 import { buildHomeScreenViewModel } from './build-home-screen-view-model'
@@ -162,6 +164,16 @@ export function useHomeScreenSession(): HomeScreenProps {
   }
 
   const { transcribeCapturedAudio } = useHomeUtterancePipeline(pipelineDeps)
+  const {
+    drillStatus,
+    drillScore,
+    isDrillListening,
+    startDrillRecording,
+    stopDrillRecording,
+  } = useDrillRepetition({
+    getInferenceClient: () => inferenceClientRef.current,
+    getLastTutorLineEn: () => findLastTutorLineText(chatMessagesRef.current),
+  })
   const setSpeechSynthesisStatusIdle = useCallback(() => {
     setSpeechSynthesisStatus('idle')
   }, [])
@@ -379,6 +391,14 @@ export function useHomeScreenSession(): HomeScreenProps {
     selectedScenarioId,
     chatMessages,
     communicationSuggestions,
+    lastTutorLineEn: findLastTutorLineText(chatMessages),
+    drillStatus,
+    drillScore0to100: drillScore?.score0to100 ?? null,
+    isDrillListening,
+    onStartDrill: () => {
+      void startDrillRecording()
+    },
+    onStopDrill: stopDrillRecording,
     firstTurnHintEn,
     onSelectScenario: handleSelectScenario,
     onStartMicrophone: () => {
