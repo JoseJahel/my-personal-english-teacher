@@ -5,6 +5,8 @@
 import { useState, type ReactNode, type RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
+import type { CommunicationSuggestion } from '../ia/communication-suggestions'
+import type { DrillUiStatus } from './home-screen-status'
 import type { OfflineReadiness } from './offline-readiness'
 import {
   offlineReadinessCompactMessageFor,
@@ -21,6 +23,8 @@ import {
 } from './practice-shell-types'
 import { FeedbackPanel } from './FeedbackPanel'
 import { PracticeChatPanel } from './PracticeChatPanel'
+import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
+import { DrillPanel } from './DrillPanel'
 import { PracticeComposer } from './PracticeComposer'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
 import { PracticeRail } from './PracticeRail'
@@ -67,6 +71,13 @@ export interface HomeScreenProps {
   offlineReadiness: OfflineReadiness
   selectedScenarioId: PracticeScenarioId
   chatMessages: readonly PracticeChatMessage[]
+  communicationSuggestions: readonly CommunicationSuggestion[]
+  lastTutorLineEn: string
+  drillStatus: DrillUiStatus
+  drillScore0to100: number | null
+  isDrillListening: boolean
+  onStartDrill: () => void
+  onStopDrill: () => void
   firstTurnHintEn: string
   onSelectScenario: (scenarioId: PracticeScenarioId) => void
   onStartMicrophone: () => void
@@ -112,6 +123,13 @@ export function HomeScreen(props: HomeScreenProps) {
     offlineReadiness,
     selectedScenarioId,
     chatMessages,
+    communicationSuggestions,
+    lastTutorLineEn,
+    drillStatus,
+    drillScore0to100,
+    isDrillListening,
+    onStartDrill,
+    onStopDrill,
     firstTurnHintEn,
     onSelectScenario,
     onStartMicrophone,
@@ -262,6 +280,20 @@ export function HomeScreen(props: HomeScreenProps) {
               tutorGenerationStatusMessage={tutorGenerationStatusMessage}
               showSectionChrome={false}
             />
+            <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+              <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />
+            </div>
+
+            <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+              <DrillPanel
+                lastTutorLineEn={lastTutorLineEn}
+                drillStatus={drillStatus}
+                drillScore0to100={drillScore0to100}
+                isDrillListening={isDrillListening}
+                onStartDrill={onStartDrill}
+                onStopDrill={onStopDrill}
+              />
+            </div>
           </div>
 
           <PracticeComposer

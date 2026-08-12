@@ -20,6 +20,7 @@ import type {
 } from './home-screen-status'
 import type { PracticeChatMessage } from './practice-chat-messages'
 import type { PracticeScenarioId } from './practice-scenarios'
+import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import type { SpokenProgress } from './spoken-progress'
 
 export interface HomeUtterancePipelineDeps {
@@ -71,5 +72,8 @@ export interface HomeUtterancePipelineDeps {
   readonly setCorrectedGrammarText: Dispatch<SetStateAction<string>>
   readonly setGrammarCorrectionErrorReason: Dispatch<
     SetStateAction<InferenceClientErrorReason | null>
+  >
+  readonly setCommunicationSuggestions: Dispatch<
+    SetStateAction<readonly CommunicationSuggestion[]>
   >
 }
