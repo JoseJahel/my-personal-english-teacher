@@ -41,5 +41,13 @@ jobs:
       - name: Ejecutar pruebas
         run: pnpm test
 
+      - name: Instalar Chromium para Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Smoke estructural (data-testid). Baselines de screenshot se validan en local
+      # (`pnpm test:e2e` / `pnpm test:e2e:update`) por diferencias de fuentes OS.
+      - name: Pruebas e2e del shell (smoke Atelier / issue #81)
+        run: pnpm exec playwright test --grep-invert baseline
+
       - name: Compilar build de producción
         run: pnpm build

@@ -6,6 +6,10 @@ import type { AsrModelCandidateId } from '../ia/model-registry'
  */
 export const homeScreenInterfaceTexts = {
   applicationTitle: 'My Personal English Teacher',
+  /** Short product mark for the rail (Atelier shell). */
+  brandMarkLetter: 'M',
+  brandShortName: 'MPET',
+  brandProductLine: 'English Teacher',
   applicationSubtitle:
     'Practica inglés sin conexión: pronunciación, gramática y conversación con inteligencia artificial que corre en tu propio navegador.',
   /** Shorter hero copy for product UX (subtitle kept for docs/PWA). */
@@ -20,7 +24,7 @@ export const homeScreenInterfaceTexts = {
   tutorSpeakingHint: 'El tutor está hablando… espera a que termine para poder hablar tú.',
   modelsWarmingUpMessage:
     'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
-    offlineReadiness: {
+  offlineReadiness: {
     noneCached:
       'Primera vez en este navegador: se descargarán más de 1 GB de modelos. Necesitas conexión ahora; después podrás practicar sin internet.',
     partiallyCached:
@@ -28,9 +32,68 @@ export const homeScreenInterfaceTexts = {
     fullyCached:
       'Todos los modelos están guardados en este navegador. Ya puedes practicar sin conexión.',
   },
+  /** Compact offline line for the rail footer. */
+  offlineReadinessCompact: {
+    noneCached: 'Pendiente de descarga',
+    partiallyCached: 'Parcialmente listo',
+    fullyCached: 'Listo sin conexión',
+  },
   resultsSectionTitle: 'Tu turno',
   signalLabTitle: 'Laboratorio de señales (espectrograma, pitch, formantes)',
   technicalDetailsTitle: 'Detalles técnicos del pipeline',
+  /** Atelier shell navigation and feedback panel (issue #81). */
+  shell: {
+    navPractice: 'Práctica',
+    navHistory: 'Historial',
+    navSignals: 'Señales',
+    scenarioLabel: 'Escenario',
+    modeLabel: 'Modo',
+    modeConversation: 'Conversar',
+    modeDrill: 'Repetir',
+    modeDrillUnavailableTitle: 'El modo Repetir se activa en el issue de drill (#68).',
+    centerSubtitle: 'Conversación guiada · responde en inglés',
+    feedbackToggle: 'Feedback',
+    feedbackPanelTitle: 'Feedback del turno',
+    closePanelAria: 'Cerrar panel de feedback',
+    backToPractice: 'Volver a práctica',
+    historyOverlayTitle: 'Historial local',
+    signalsOverlayTitle: 'Laboratorio de señales',
+    signalsOverlayHint: 'Última utterance · laboratorio del curso',
+    tabTurn: 'Turno',
+    tabSuggest: 'Sugerencias',
+    tabSignals: 'Señales',
+    tabTech: 'Técnico',
+    emptyPanelTitle: 'Aún no hay turno',
+    emptyPanelDescription:
+      'Cuando hables, aquí verás transcripción, gramática, puntuación y palabras marcadas — como el panel de artefacto en un chat de escritorio.',
+    suggestionsEmpty: 'Las sugerencias de comunicación aparecerán aquí tras un turno (issue #60).',
+    suggestionsPlaceholderHint:
+      'Por ahora el tutor responde en el chat; el panel dedicado de sugerencias es el siguiente paso de producto.',
+    scoreBlockLabel: 'Pronunciación',
+    breakdownTitle: 'Desglose',
+    metricMfcc: 'MFCC',
+    metricPitch: 'Pitch',
+    metricEnergy: 'Energía',
+    metricFormants: 'Formantes',
+    metricUnavailable: '—',
+    techMicLabel: 'Mic',
+    techAsrLabel: 'ASR',
+    techGrammarLabel: 'Gramática',
+    techTutorLabel: 'Tutor',
+    techTtsLabel: 'TTS',
+    techScoreLabel: 'Score',
+    techAsrValue: 'whisper-small.en',
+    techGrammarValue: 'T5 · WASM',
+    techTutorValue: 'SmolLM2 + reglas',
+    techTtsValue: 'SpeechT5',
+    techScoreValue: 'MFCC · YIN · DTW',
+    techMicInactive: 'inactivo',
+    techMicListening: 'escuchando',
+    techMicStarting: 'iniciando',
+    techMicStopped: 'detenido',
+    noCaptureYet: 'Sin captura.',
+    processingPipelineLabel: 'Procesando…',
+  },
   inputLevelHintSilentShort: 'Casi no llega señal',
   inputLevelHintActiveShort: 'Señal OK — habla con naturalidad',
   liveMetersDetail: (rms: number, peak: number) =>
