@@ -116,6 +116,7 @@ function baseProps(): HomeScreenProps {
     drillScore0to100: null,
     isDrillListening: false,
     onStartDrill: () => undefined,
+    drillWordHighlights: [],
     onStopDrill: () => undefined,
     onSelectScenario: () => undefined,
     onStartMicrophone: () => undefined,
