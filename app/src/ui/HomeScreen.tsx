@@ -75,6 +75,7 @@ export interface HomeScreenProps {
   lastTutorLineEn: string
   drillStatus: DrillUiStatus
   drillScore0to100: number | null
+  drillWordHighlights: readonly WordPronunciationHighlight[]
   isDrillListening: boolean
   onStartDrill: () => void
   onStopDrill: () => void
@@ -127,6 +128,7 @@ export function HomeScreen(props: HomeScreenProps) {
     lastTutorLineEn,
     drillStatus,
     drillScore0to100,
+    drillWordHighlights,
     isDrillListening,
     onStartDrill,
     onStopDrill,
@@ -289,6 +291,7 @@ export function HomeScreen(props: HomeScreenProps) {
                 lastTutorLineEn={lastTutorLineEn}
                 drillStatus={drillStatus}
                 drillScore0to100={drillScore0to100}
+                drillWordHighlights={drillWordHighlights}
                 isDrillListening={isDrillListening}
                 onStartDrill={onStartDrill}
                 onStopDrill={onStopDrill}

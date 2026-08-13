@@ -425,6 +425,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     lastTutorLineEn: findLastTutorLineText(chatMessages),
     drillStatus,
     drillScore0to100: drillScore?.score0to100 ?? null,
+    drillWordHighlights: drillScore?.wordHighlights ?? [],
     isDrillListening,
     onStartDrill: () => {
       void startDrillRecording()
