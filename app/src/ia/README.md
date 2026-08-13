@@ -16,7 +16,8 @@ Implementado:
 - `model-registry.ts`: catálogo tipado de modelos e IDs del Hub (ASR, gramática,
   TTS y **SmolLM2** en uso) con **revisiones ancladas a SHA** del Hub. ASR
   cataloga 4 candidatos Whisper (`tiny-en`, `base-en`, `distil-small-en`,
-  **`small-en` default de producción**); override `VITE_ASR_MODEL`.
+  **`small-en` default de producción**); override `VITE_ASR_MODEL` o perfil
+  `VITE_ASR_PROFILE=latency` (`tiny-en`, issue #61).
 - `keyed-async-cache.ts`: memoización de promesas por clave; el worker la usa
   para mantener un pipeline Whisper cargado por candidato ASR sin relanzar una
   carga ya en curso.

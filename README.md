@@ -157,7 +157,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 
 - Inferencia: ASR con WebGPU cuando hay adapter (latencia viable de `small-en`); gramática, TTS y SmolLM2 **siempre en WASM** (evita kernels rotos y contaminación del worker). Nada de inferencia en el hilo principal (Web Worker `ia/inference-worker.ts`).
 - Pipeline activo post-utterance: **ASR → gramática → tutor híbrido (SmolLM2 con timeout de 10 s + respaldo de reglas) → score pronunciación → TTS del tutor**.
-- Catálogo de candidatos ASR en `ia/model-registry.ts` (override de desarrollo `VITE_ASR_MODEL`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend) para decidir el modelo definitivo antes de la Entrega Final.
+- Catálogo de candidatos ASR en `ia/model-registry.ts` (override `VITE_ASR_MODEL` o perfil `VITE_ASR_PROFILE=latency` → `tiny-en`; default de entrega `small-en`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend).
 - Paleta de diseño centralizada en tokens CSS (`app/src/index.css`, `@theme`: sage/ink/blush) consumida por toda la UI, con tests de freeze-guard.
 - Captura a tasa nativa del dispositivo; resample a 16 kHz mono antes de Whisper (`audio/audio-resampler.ts`).
 - Grafo de visualización: `MediaStreamSource → Analyser → Gain(0) → destination`. ASR: `MediaRecorder` sobre el mismo `MediaStream` real. Invariantes en `app/src/audio/CAPTURE-INVARIANTS.md`.
