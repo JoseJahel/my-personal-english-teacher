@@ -3,6 +3,7 @@
  */
 
 import type { PracticeChatMessage } from './practice-chat-messages'
+import { GrammarCorrectionDiff } from './GrammarCorrectionDiff'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import { PRACTICE_SHELL_TEST_IDS } from './practice-shell-types'
 
@@ -86,15 +87,18 @@ export function PracticeChatPanel({
               >
                 <p className="m-0 whitespace-pre-wrap">{message.text}</p>
                 {message.correctedText ? (
-                  <p
+                  <div
                     className={`mt-2 border-t pt-2 text-xs ${
                       isUser ? 'border-sage-700 text-sage-300' : 'border-sage-200 text-ink-600'
                     }`}
                   >
-                    <strong>{copy.grammarCorrectionInlineLabel}:</strong> {message.correctedText}
-                  </p>
+                    <strong className="mb-1 block">{copy.grammarCorrectionInlineLabel}:</strong>
+                    <GrammarCorrectionDiff
+                      originalText={message.text}
+                      correctedText={message.correctedText}
+                    />
+                  </div>
                 ) : null}
-              </div>
             </li>
           )
         })}
