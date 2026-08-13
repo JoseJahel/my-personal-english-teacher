@@ -21,6 +21,7 @@ import {
   type PracticeModeId,
   type PracticeShellView,
 } from './practice-shell-types'
+import { resolveAsrDemoProfile } from '../ia/model-registry'
 import { FeedbackPanel } from './FeedbackPanel'
 import { PracticeChatPanel } from './PracticeChatPanel'
 import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
@@ -274,6 +275,14 @@ export function HomeScreen(props: HomeScreenProps) {
             >
               {offlineFull}
             </p>
+            {import.meta.env.DEV && resolveAsrDemoProfile() === 'latency' ? (
+              <p
+                className="mb-3 w-full max-w-[44rem] rounded-lg bg-sage-50 px-3 py-2 text-center text-[0.72rem] text-blush-600 ring-1 ring-sage-200"
+                data-testid="asr-latency-profile-notice"
+              >
+                {homeScreenInterfaceTexts.asrLatencyProfileNotice}
+              </p>
+            ) : null}
             <PracticeChatPanel
               messages={chatMessages}
               firstTurnHintEn={firstTurnHintEn}

@@ -117,15 +117,19 @@ TTS y SmolLM2 corren siempre en WASM.
 
 | Etapa del pipeline | Backend | Latencia observada | Cumple < 2 s |
 |--------------------|---------|:------------------:|:------------:|
-| ASR (`small-en`) | WebGPU | ~3.4 s/frase | No (ver limitación L-1) |
-| ASR (`small-en`) | WASM | ~11 s/frase | No |
+| ASR perfil **precisión** (`small-en`, default) | WebGPU | ~3.4 s/frase (bench 2026-07-29) | No (L-1) |
+| ASR perfil **precisión** (`small-en`) | WASM | ~11 s/frase | No |
+| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | Pendiente re-medir en hardware de aula (§5 procedimiento) | No afirmado |
 | Gate de energía + espectrograma + pitch | CPU (dominio puro) | < 100 ms | Sí |
 | Gramática (T5) | WASM | dependiente de frase | Parcial |
 | Score de pronunciación (MFCC+DTW) | CPU | < 200 ms | Sí |
 | Tutor híbrido (SmolLM2) | WASM | timeout de 10 s + respaldo de reglas | Acotado por diseño |
 
 El DSP local (visualizaciones, gate, score) es holgadamente sub-2 s. El costo
-está en la inferencia de los modelos; ver limitaciones.
+está en la inferencia de los modelos. El perfil latencia (`VITE_ASR_PROFILE=latency`
+→ `tiny-en`) es el camino soportado para acercarse al objetivo de 2 s **sin**
+cambiar el default de entrega; sus milisegundos se rellenan con `#asr-benchmark`
+en la máquina de la demo (issue #61). No se inventan cifras para `tiny-en`.
 
 ## 5.1 Corrección de FFT/STFT frente a la DFT (issue #66)
 
@@ -207,11 +211,14 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
 
 ## 8. Limitaciones
 
-- **L-1 — Latencia ASR sobre el objetivo de 2 s.** `small-en` ronda ~3.4 s/frase
-  en WebGPU y ~11 s en WASM; el criterio "< 2 s" no se cumple para la
-  transcripción. Es una decisión consciente que prioriza precisión (WER) sobre
-  latencia; `tiny-en`/`base-en` siguen disponibles para escenarios donde la
-  latencia pese más.
+- **L-1 — Latencia ASR sobre el objetivo de 2 s.** El perfil **precisión**
+  (`small-en`, default) ronda ~3.4 s/frase en WebGPU y ~11 s en WASM; el
+  criterio "&lt; 2 s" no se cumple para esa transcripción. Existe un perfil
+  **latencia** first-class (`pnpm dev:latency` / `VITE_ASR_PROFILE=latency` →
+  `tiny-en`) para la defensa oral; su latencia numérica queda **pendiente de
+  re-medir** en el hardware de aula con `#asr-benchmark` (no se afirma &lt; 2 s
+  sin esa cifra). `VITE_ASR_MODEL` sigue pudiendo forzar `base-en` u otro
+  candidato.
 - **L-2 — WER medido sobre fixtures propias.** Las fixtures del banco son
   grabaciones del equipo, no un corpus estándar; el WER 0.000 debe leerse como
   precisión sobre ese conjunto de referencia, no como métrica generalizable a

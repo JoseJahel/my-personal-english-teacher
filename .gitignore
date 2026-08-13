@@ -9,6 +9,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.latency
 
 # Carpeta privada local de cada integrante (credenciales, .env, claves API,
 # notas personales). Cada quien mantiene la suya; nunca se versiona.

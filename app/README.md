@@ -160,6 +160,33 @@ red. Verificado en Chromium (Edge) sobre Windows.
 Si el paso 6 falla, la causa más probable es que el paso 2 quedara incompleto:
 un modelo que nunca se cargó no está en caché y no puede cargarse sin red.
 
+## Perfil latencia vs precisión (issue #61)
+
+El default de **entrega / producción** no cambia: `whisper-small.en` (perfil
+**precisión**), elegido por WER 0.000 en el banco del 2026-07-29. En WebGPU
+ronda **~3.4 s/frase** y **no cumple** el objetivo del curso de &lt; 2 s.
+
+Para una demo que prioriza rapidez existe un **perfil latencia** first-class:
+
+| Cómo | Qué carga |
+|------|-----------|
+| `pnpm dev:latency` o `start-latency-profile.bat` | `tiny-en` (`VITE_ASR_PROFILE=latency` vía `.env.latency`) |
+| `pnpm build:latency` y luego `pnpm preview` | Mismo perfil en el build local |
+| `VITE_ASR_MODEL=base-en pnpm dev` | Fuerza un candidato concreto (gana sobre el perfil) |
+
+Sin esas variables, `pnpm dev` / `pnpm build` siguen en **small-en**.
+
+**No hay cifra nueva de latencia para `tiny-en` en este ticket.** El bench
+2026-07-29 lo marcó como “rápido” sin milisegundos publicados. Re-medir en el
+hardware de aula:
+
+1. `pnpm dev`
+2. Abrir `#asr-benchmark`
+3. Correr `tiny-en` × WebGPU (y WASM si aplica) sobre las fixtures de referencia
+4. Anotar media de latencia en `Documentacion general/reporte-verificacion.md` §5
+
+Hasta esa re-medición **no se afirma** que el perfil latencia cumpla &lt; 2 s.
+
 ## Entrega local, sin despliegue en la nube
 
 La aplicación se sirve y se demuestra únicamente desde `localhost`. No hay
@@ -185,7 +212,9 @@ exponen a la red local.
 | Script              | Descripción                                          |
 | ------------------- | ---------------------------------------------------- |
 | `pnpm dev`          | Servidor de desarrollo con recarga en caliente.      |
+| `pnpm dev:latency`  | Igual que `dev`, con perfil ASR de latencia (`tiny-en`). |
 | `pnpm build`        | Verificación de tipos y build de producción.         |
+| `pnpm build:latency`| Build de producción con perfil ASR de latencia.      |
 | `pnpm preview`      | Sirve localmente el build de producción.             |
 | `pnpm lint`         | Ejecuta ESLint sobre todo el código fuente.          |
 | `pnpm format`       | Formatea el código con Prettier.                     |

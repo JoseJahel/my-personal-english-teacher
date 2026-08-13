@@ -9,7 +9,9 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "dev": "vite",
+    "dev:latency": "vite --mode latency",
     "build": "tsc --noEmit && vite build",
+    "build:latency": "tsc --noEmit && vite build --mode latency",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
