@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { computeNaiveDiscreteFourierTransform } from './dft-reference'
+import { createHannWindow, nextPowerOfTwo } from './mfcc-extraction'
 import {
   computeLogMagnitudeSpectrogram,
   computeSpectrogramValueRange,
@@ -73,8 +75,51 @@ describe('computeLogMagnitudeSpectrogram', () => {
       }
     }
     const peakFrequencyInHertz = (peakBin * sampleRateInHertz) / result.fftSize
-    expect(peakFrequencyInHertz).toBeGreaterThan(700)
-    expect(peakFrequencyInHertz).toBeLessThan(1300)
+    const binWidthInHertz = sampleRateInHertz / result.fftSize
+    expect(Math.abs(peakFrequencyInHertz - frequencyInHertz)).toBeLessThan(binWidthInHertz * 1.5)
+  })
+
+  it('matches textbook DFT peak bin and log-magnitude on the first STFT frame', () => {
+    const frequencyInHertz = 1000
+    const samples = synthesizeSineWave({
+      frequencyInHertz,
+      sampleRateInHertz,
+      durationSeconds: 0.025,
+    })
+    const result = computeLogMagnitudeSpectrogram(samples, sampleRateInHertz, {
+      frameDurationSeconds: 0.025,
+      hopDurationSeconds: 0.025,
+      maximumFrequencyInHertz: sampleRateInHertz / 2,
+    })
+    expect(result.frames.length).toBe(1)
+    const frame = result.frames[0]
+    expect(frame).toBeDefined()
+
+    const frameLength = samples.length
+    const window = createHannWindow(frameLength)
+    const fftSize = nextPowerOfTwo(frameLength)
+    const windowed = new Float64Array(fftSize)
+    for (let index = 0; index < frameLength; index += 1) {
+      windowed[index] = (samples[index] ?? 0) * (window[index] ?? 0)
+    }
+    const spectrum = computeNaiveDiscreteFourierTransform(windowed)
+    const expectedBin = Math.round((frequencyInHertz * fftSize) / sampleRateInHertz)
+    const dftPowerAtPeak =
+      (spectrum.real[expectedBin] ?? 0) ** 2 + (spectrum.imag[expectedBin] ?? 0) ** 2
+    const expectedLog = Math.log10(dftPowerAtPeak + 1e-12)
+
+    let peakBin = 0
+    let peakValue = Number.NEGATIVE_INFINITY
+    for (let bin = 1; bin < result.binCount; bin += 1) {
+      const value = frame?.[bin] ?? Number.NEGATIVE_INFINITY
+      if (value > peakValue) {
+        peakValue = value
+        peakBin = bin
+      }
+    }
+    expect(fftSize).toBe(result.fftSize)
+    expect(peakBin).toBe(expectedBin)
+    expect(Math.abs((frame?.[expectedBin] ?? 0) - expectedLog)).toBeLessThan(1e-5)
   })
 })
 

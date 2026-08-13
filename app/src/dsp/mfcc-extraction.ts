@@ -4,6 +4,8 @@
  * Foundation for pronunciation comparison (DTW over MFCC sequences).
  */
 
+import { radix2ForwardFft } from './radix2-forward-fft'
+
 /** Analysis frame length (seconds). */
 export const DEFAULT_MFCC_FRAME_DURATION_SECONDS = 0.025
 
@@ -335,56 +337,4 @@ function computePowerSpectrum(realTimeDomain: Float32Array): Float32Array {
     power[bin] = re * re + im * im
   }
   return power
-}
-
-/** In-place Cooley–Tukey radix-2 decimation-in-time FFT. Length must be power of two. */
-function radix2ForwardFft(real: Float32Array, imag: Float32Array): void {
-  const n = real.length
-  if (n === 0 || (n & (n - 1)) !== 0) {
-    throw new Error(`FFT length must be a power of two, got ${n}`)
-  }
-
-  // Bit-reversal permutation
-  let j = 0
-  for (let i = 1; i < n; i += 1) {
-    let bit = n >> 1
-    for (; j & bit; bit >>= 1) {
-      j ^= bit
-    }
-    j ^= bit
-    if (i < j) {
-      const realTemp = real[i] ?? 0
-      real[i] = real[j] ?? 0
-      real[j] = realTemp
-      const imagTemp = imag[i] ?? 0
-      imag[i] = imag[j] ?? 0
-      imag[j] = imagTemp
-    }
-  }
-
-  for (let length = 2; length <= n; length <<= 1) {
-    const angle = (-2 * Math.PI) / length
-    const wLengthReal = Math.cos(angle)
-    const wLengthImag = Math.sin(angle)
-    for (let start = 0; start < n; start += length) {
-      let wReal = 1
-      let wImag = 0
-      const half = length >> 1
-      for (let offset = 0; offset < half; offset += 1) {
-        const evenIndex = start + offset
-        const oddIndex = evenIndex + half
-        const oddReal = real[oddIndex] ?? 0
-        const oddImag = imag[oddIndex] ?? 0
-        const tReal = wReal * oddReal - wImag * oddImag
-        const tImag = wReal * oddImag + wImag * oddReal
-        real[oddIndex] = (real[evenIndex] ?? 0) - tReal
-        imag[oddIndex] = (imag[evenIndex] ?? 0) - tImag
-        real[evenIndex] = (real[evenIndex] ?? 0) + tReal
-        imag[evenIndex] = (imag[evenIndex] ?? 0) + tImag
-        const nextWReal = wReal * wLengthReal - wImag * wLengthImag
-        wImag = wReal * wLengthImag + wImag * wLengthReal
-        wReal = nextWReal
-      }
-    }
-  }
 }
