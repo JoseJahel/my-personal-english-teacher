@@ -5,12 +5,15 @@
 
 import type { DrillUiStatus } from './home-screen-status'
 import { drillStatusMessageFor } from './home-screen-status'
+import { PronunciationWordHighlights } from './PronunciationWordHighlights'
+import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import { homeScreenInterfaceTexts } from './interface-texts'
 
 export interface DrillPanelProps {
   readonly lastTutorLineEn: string
   readonly drillStatus: DrillUiStatus
   readonly drillScore0to100: number | null
+  readonly drillWordHighlights: readonly WordPronunciationHighlight[]
   readonly isDrillListening: boolean
   readonly onStartDrill: () => void
   readonly onStopDrill: () => void
@@ -20,6 +23,7 @@ export function DrillPanel({
   lastTutorLineEn,
   drillStatus,
   drillScore0to100,
+  drillWordHighlights,
   isDrillListening,
   onStartDrill,
   onStopDrill,
@@ -64,6 +68,7 @@ export function DrillPanel({
           {drillStatusMessageFor(drillStatus, drillScore0to100)}
         </p>
       </div>
+      <PronunciationWordHighlights highlights={drillWordHighlights} />
     </section>
   )
 }
