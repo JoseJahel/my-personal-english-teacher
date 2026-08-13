@@ -63,6 +63,7 @@ La suite Vitest cuenta con **44 archivos de prueba** y **280 casos**
 | Signal energy / gate | `dsp/signal-energy.test.ts` | 11 | RMS/pico, umbral de duración, rechazo de silencio |
 | MFCC | `dsp/mfcc-extraction.test.ts` | 10 | Banco mel, DCT-II, dimensiones (13 coef), pre-énfasis |
 | YIN | `dsp/pitch-detection-yin.test.ts` | 10 | F0 en banda 70–400 Hz, frames no sonoros, contorno |
+| FFT / STFT | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` | 4+ | Error vs DFT O(N²) &lt; 1e-10 (Float64); Parseval; pico en bin; STFT vs DFT |
 | Device policy | `ia/resolve-inference-device.test.ts` | 14 | WebGPU→WASM fallback, política por modelo |
 | Gramática | `ia/grammar-correction.test.ts` | 13 | Corrección post-utterance, casos límite de texto |
 | Tutor (reglas) | `ui/tutor-reply-engine.test.ts` | 18 | Respaldo determinista por escenario, insignia honesta |
@@ -125,6 +126,25 @@ TTS y SmolLM2 corren siempre en WASM.
 El DSP local (visualizaciones, gate, score) es holgadamente sub-2 s. El costo
 está en la inferencia de los modelos; ver limitaciones.
 
+## 5.1 Corrección de FFT/STFT frente a la DFT (issue #66)
+
+La FFT radix-2 de `dsp/radix2-forward-fft.ts` (compartida por espectrograma y
+MFCC) se verifica contra la **definición O(N²)** de la DFT
+(`dsp/dft-reference.ts`, solo tests; no entra al pipeline de producto):
+
+$$ X[k] = \sum_{n=0}^{N-1} x[n]\, e^{-j\,2\pi kn/N} $$
+
+| Caso | N | Precisión | Métrica | Cota |
+|------|:-:|-----------|---------|-------|
+| Impulso $x[0]=1$ | 16 | Float64 | $\max_k \|X_{\mathrm{FFT}}-X_{\mathrm{DFT}}\|$ | **&lt; 1e-10** |
+| Coseno de bin exacto | 32 | Float64 | misma | **&lt; 1e-10** |
+| Parseval $\sum\|x\|^2 = N^{-1}\sum\|X\|^2$ | 32 | Float64 | residual absoluto | **&lt; 1e-10** |
+| Primer frame STFT (Hann) vs DFT del frame ventaneado | 400→512 | Float32 vs DFT Float64 | pico en bin analítico; \|Δ\| log-mag en ese bin | **bin exacto; &lt; 1e-5** |
+
+La cota Float64 está exportada como `RADIX2_FFT_MAX_ABSOLUTE_ERROR_VS_DFT`.
+Un tono de 1 kHz a 16 kHz concentra el pico del espectrograma a menos de 1.5
+bins del bin analítico. No hay dependencia nativa: la FFT es dominio puro.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -144,6 +164,7 @@ está en la inferencia de los modelos; ver limitaciones.
 | CP-13 | Barge-in respuesta al fragmento (Case B) | Interrupción + “coffee please” | Avanza escena; no repite lista completa | `ui/interruption-turn-classifier.test.ts` |
 | CP-14 | Barge-in corte temprano (Case C) | `cutoffMs` &lt; 250 ms | Reformula frase completa | `ui/spoken-progress.test.ts` |
 | CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
+| CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los
