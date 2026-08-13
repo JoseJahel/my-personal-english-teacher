@@ -62,6 +62,41 @@ export const asrModelCandidates: Record<AsrModelCandidateId, AsrModelCandidateDe
  */
 export const DEFAULT_ASR_CANDIDATE_ID: AsrModelCandidateId = 'small-en'
 
+/** Named demo profiles (issue #61). Precision stays the production default. */
+export type AsrDemoProfileId = 'precision' | 'latency'
+
+/** Latency demo profile uses tiny-en; do not claim <2 s until re-measured. */
+export const LATENCY_ASR_DEMO_PROFILE_CANDIDATE_ID: AsrModelCandidateId = 'tiny-en'
+
+export const ASR_DEMO_PROFILE_CANDIDATES: Record<AsrDemoProfileId, AsrModelCandidateId> = {
+  precision: DEFAULT_ASR_CANDIDATE_ID,
+  latency: LATENCY_ASR_DEMO_PROFILE_CANDIDATE_ID,
+}
+
+function readViteEnvString(name: 'VITE_ASR_MODEL' | 'VITE_ASR_PROFILE'): string | undefined {
+  try {
+    // Read each key as a property (no cast) so Vite/Vitest keep this dynamic.
+    if (name === 'VITE_ASR_PROFILE') {
+      return import.meta.env.VITE_ASR_PROFILE
+    }
+    return import.meta.env.VITE_ASR_MODEL
+  } catch {
+    return undefined
+  }
+}
+
+function readAsrDemoProfileOverride(): AsrDemoProfileId | null {
+  const override = readViteEnvString('VITE_ASR_PROFILE')
+  if (override === 'latency' || override === 'precision') {
+    return override
+  }
+  return null
+}
+
+export function resolveAsrDemoProfile(): AsrDemoProfileId {
+  return readAsrDemoProfileOverride() ?? 'precision'
+}
+
 function readAsrModelOverride(): AsrModelCandidateId | null {
   try {
     // Vite injects import.meta.env in the worker bundle as well. Read the
@@ -69,7 +104,7 @@ function readAsrModelOverride(): AsrModelCandidateId | null {
     // (Vitest, `vite dev`) instead of freezing it to a transform-time snapshot
     // — see model-registry.test.ts. Production builds always inline VITE_*
     // vars at build time; this only helps at dev/test time.
-    const override = import.meta.env.VITE_ASR_MODEL
+    const override = readViteEnvString('VITE_ASR_MODEL')
     if (override && override in asrModelCandidates) {
       return override as AsrModelCandidateId
     }
@@ -80,10 +115,13 @@ function readAsrModelOverride(): AsrModelCandidateId | null {
 }
 
 /**
- * Active ASR candidate: valid `VITE_ASR_MODEL` override, else the default.
+ * Active ASR candidate: `VITE_ASR_MODEL` wins, else `VITE_ASR_PROFILE`,
+ * else the precision default (`small-en`).
  */
 export function resolveActiveAsrCandidateId(): AsrModelCandidateId {
-  return readAsrModelOverride() ?? DEFAULT_ASR_CANDIDATE_ID
+  return (
+    readAsrModelOverride() ?? ASR_DEMO_PROFILE_CANDIDATES[resolveAsrDemoProfile()]
+  )
 }
 
 const defaultAsrCandidate = asrModelCandidates[DEFAULT_ASR_CANDIDATE_ID]

@@ -36,7 +36,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 |----|-------------|-----------|--------|------------------------|--------|-------------------------|---------|
 | RF-01 | Interfaz tipo chat con botón de micrófono y feedback visual | Alta | Curso | `ui/HomeScreen.tsx`, `ui/PracticeChatPanel.tsx`, `ui/ScenarioPicker.tsx` | Implementado | `ui/practice-chat-messages.test.ts`, `ui/home-screen-status.test.ts` | Flujo escenario→chat operativo |
 | RF-02 | Visualización de waveform / nivel en tiempo real | Alta | Curso | `ui/waveform-canvas.ts`, `ui/utterance-signal-canvas.ts` (Analyser) | Implementado | `ui/waveform-canvas.test.ts`, `ui/utterance-signal-canvas.test.ts` | Render en vivo del Analyser |
-| RF-03 | Visualización de espectrograma (STFT log-magnitud) | Alta | Curso | `dsp/spectrogram.ts` + canvas UI | Implementado | `dsp/spectrogram.test.ts` | STFT por utterance |
+| RF-03 | Visualización de espectrograma (STFT log-magnitud) | Alta | Curso | `dsp/spectrogram.ts` + canvas UI; FFT radix-2 verificada vs DFT (`radix2-forward-fft.ts`, issue #66) | Implementado | `dsp/spectrogram.test.ts`, `dsp/radix2-forward-fft.test.ts` | STFT por utterance; error FFT vs DFT &lt; 1e-10 (Float64) |
 | RF-04 | Pitch tracking (contorno F0 por frame) | Alta | Curso | `dsp/pitch-detection-yin.ts` + canvas pitch | Implementado | `dsp/pitch-detection-yin.test.ts` | F0 70–400 Hz, media voiced |
 | RF-05 | Feedback visual con colores en palabras | Media | Curso | `dsp/word-pronunciation-highlights.ts`, `ui/PronunciationWordHighlights.tsx` | Implementado | `dsp/word-pronunciation-highlights.test.ts` | Clases good/medium/poor |
 | RF-06 | Captura de micrófono (Web Audio API + MediaStream) | Alta | Curso | `audio/open-microphone-stream.ts`, `audio/microphone-capture.ts`, `audio/media-recorder-utterance.ts` | Implementado | `audio/*` + `CAPTURE-INVARIANTS.md` | `getUserMedia` + MediaRecorder |
@@ -53,7 +53,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 
 | ID | Descripción | Prioridad | Fuente | Módulo / Funcionalidad | Estado | Pruebas de verificación | Métrica |
 |----|-------------|-----------|--------|------------------------|--------|-------------------------|---------|
-| RF-15 | Extracción de MFCC de implementación propia | Alta | Curso | `dsp/mfcc-extraction.ts` (FFT + banco mel + DCT-II) | Implementado | `dsp/mfcc-extraction.test.ts` | Hann 25 ms, hop 10 ms, 13 MFCC, 40 mel |
+| RF-15 | Extracción de MFCC de implementación propia | Alta | Curso | `dsp/mfcc-extraction.ts` (FFT + banco mel + DCT-II); ancla JSON issue #67 | Implementado | `dsp/mfcc-extraction.test.ts`, `dsp/mfcc-golden-vectors.test.ts` | Hann 25 ms, hop 10 ms, 13 MFCC, 40 mel; error vs dorados &lt; 1e-5 |
 | RF-16 | Detección de pitch con YIN | Alta | Curso | `dsp/pitch-detection-yin.ts` | Implementado | `dsp/pitch-detection-yin.test.ts` | Diferencia normalizada acumulada |
 | RF-17 | Estimación de formantes F1/F2/F3 | Media | Curso | `dsp/formant-estimation.ts` (LPC + picos) | Implementado | `dsp/formant-estimation.test.ts` | Mediana por utterance |
 | RF-18 | Alineación temporal DTW + distancia euclidiana | Alta | Curso | `dsp/dynamic-time-warping.ts` | Implementado | `dsp/dynamic-time-warping.test.ts` | Path DTW + distancia L2 |
@@ -72,7 +72,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RNF-03 | Caché de modelos (Cache API) + datos consultables (IndexedDB) | Alta | Equipo | Cache API (transformers.js) + `storage/database-schema.ts` | Implementado | `storage/database-schema.test.ts` | Caché híbrida |
 | RNF-04 | Persistencia de sesiones y turnos (sin audio crudo) | Media | Equipo | `storage/session-repository.ts`, `storage/practice-session-types.ts` | Implementado | `storage/practice-session-types.test.ts`, `ui/use-practice-history-bootstrap.ts` | Schema v1 IndexedDB |
 | RNF-05 | Modelos HF compatibles con browser (ONNX/quantized), anclados a SHA | Alta | Curso | `ia/model-registry.ts`, `ia/onnx-dtype.ts`, `ia/resolve-inference-device.ts` | Implementado | `ia/model-registry.test.ts`, `ia/resolve-inference-device.test.ts` | Revisiones ancladas a commit SHA |
-| RNF-06 | Latencia de respuesta < 2 s donde aplique | Media | Curso | Pipeline ASR (WebGPU) | Parcial | Bench 2026-07-29 (ver reporte) | `small-en` ~3.4 s/frase WebGPU (no cumple 2 s); ver limitaciones |
+| RNF-06 | Latencia de respuesta < 2 s donde aplique | Media | Curso | DSP local &lt; 2 s; ASR precisión `small-en` ~3.4 s; perfil latencia `tiny-en` vía `pnpm dev:latency` (issue #61) | Parcial | Bench 2026-07-29; `ia/model-registry.test.ts` (perfil) | Precisión no cumple 2 s; perfil rápido soportado; cifra tiny-en pendiente de aula |
 | RNF-07 | Navegador objetivo Chrome/Chromium con WebGPU→WASM fallback | Media | Equipo | `ia/resolve-inference-device.ts` | Implementado | `ia/resolve-inference-device.test.ts` | Auto-detección de adapter |
 | RNF-08 | Sin servicios en la nube para el producto (local-only) | Alta | Equipo | Todo el runtime; CI solo para calidad | Implementado | `docs/local-only-constraints` + `CONTRIBUTING.md` §Constraints | Demo en `localhost` |
 | RNF-09 | Interfaz, instrucciones y correcciones en español | Media | Usuario | `ui/interface-texts.ts` | Implementado | Textos centralizados | Sin toggle bilingüe |

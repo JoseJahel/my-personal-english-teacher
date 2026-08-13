@@ -10,6 +10,8 @@ export const homeScreenInterfaceTexts = {
   brandMarkLetter: 'M',
   brandShortName: 'MPET',
   brandProductLine: 'English Teacher',
+  asrLatencyProfileNotice:
+    'DEV — perfil latencia (Whisper tiny-en). El default de entrega sigue siendo small-en. No afirma < 2 s hasta re-medir en #asr-benchmark.',
   applicationSubtitle:
     'Practica inglés sin conexión: pronunciación, gramática y conversación con inteligencia artificial que corre en tu propio navegador.',
   /** Shorter hero copy for product UX (subtitle kept for docs/PWA). */

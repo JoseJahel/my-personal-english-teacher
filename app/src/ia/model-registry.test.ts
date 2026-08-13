@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   asrModelCandidates,
   DEFAULT_ASR_CANDIDATE_ID,
+  LATENCY_ASR_DEMO_PROFILE_CANDIDATE_ID,
   modelRegistry,
   resolveActiveAsrCandidateId,
+  resolveAsrDemoProfile,
 } from './model-registry'
 // Test-only cross-layer import: verifies the ui/ copy map stays in sync with
 // the ia/ candidate ids. model-registry.ts itself never imports from ui/ —
@@ -84,6 +86,34 @@ describe('resolveActiveAsrCandidateId', () => {
 
   it('ignores an invalid override and falls back to the default', () => {
     vi.stubEnv('VITE_ASR_MODEL', 'medium-en')
+    expect(resolveActiveAsrCandidateId()).toBe(DEFAULT_ASR_CANDIDATE_ID)
+  })
+
+  it('selects tiny-en when the latency demo profile is set', () => {
+    vi.stubEnv('VITE_ASR_MODEL', '')
+    vi.stubEnv('VITE_ASR_PROFILE', 'latency')
+    expect(resolveAsrDemoProfile()).toBe('latency')
+    expect(LATENCY_ASR_DEMO_PROFILE_CANDIDATE_ID).toBe('tiny-en')
+    expect(resolveActiveAsrCandidateId()).toBe('tiny-en')
+  })
+
+  it('keeps small-en on the precision demo profile', () => {
+    vi.stubEnv('VITE_ASR_MODEL', '')
+    vi.stubEnv('VITE_ASR_PROFILE', 'precision')
+    expect(resolveAsrDemoProfile()).toBe('precision')
+    expect(resolveActiveAsrCandidateId()).toBe('small-en')
+  })
+
+  it('lets VITE_ASR_MODEL win over VITE_ASR_PROFILE', () => {
+    vi.stubEnv('VITE_ASR_PROFILE', 'latency')
+    vi.stubEnv('VITE_ASR_MODEL', 'base-en')
+    expect(resolveActiveAsrCandidateId()).toBe('base-en')
+  })
+
+  it('ignores an unknown VITE_ASR_PROFILE', () => {
+    vi.stubEnv('VITE_ASR_MODEL', '')
+    vi.stubEnv('VITE_ASR_PROFILE', 'turbo')
+    expect(resolveAsrDemoProfile()).toBe('precision')
     expect(resolveActiveAsrCandidateId()).toBe(DEFAULT_ASR_CANDIDATE_ID)
   })
 })

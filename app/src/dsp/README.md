@@ -37,6 +37,10 @@ Implementado:
   - `extractMfccSequence`, `createMelFilterbank`, `hertzToMel` / `melToHertz`
   - `computeMfccVectorEuclideanDistance` (coste local; DTW también expone el genérico)
   - tests en `mfcc-extraction.test.ts` (escala mel, forma del banco, tonos vs ruido)
+  - **vectores dorados** (issue #67): `mfcc-golden-vectors.json` +
+    `mfcc-golden-vectors.test.ts`. Recetas en `mfcc-golden-signals.ts`.
+    c0 se compara con la misma cota que c1–c12 (amplitud fijada). Regenerar:
+    `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
 
 - `dynamic-time-warping.ts`: **DTW + distancia euclidiana** (dominio puro):
   - `computeDynamicTimeWarping(query, reference)` → distancia total, normalizada y path
@@ -54,9 +58,16 @@ Implementado:
   - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
+- `radix2-forward-fft.ts`: **FFT radix-2** Cooley–Tukey in-place (Float32 o
+  Float64). Única implementación usada por espectrograma y MFCC.
+  Verificada contra la DFT O(N²) (`dft-reference.ts`, solo tests): error
+  máximo absoluto &lt; 1e-10 en Float64. tests en `radix2-forward-fft.test.ts`
+  (impulso, bin exacto, Parseval).
+
 - `spectrogram.ts`: **espectrograma** log-magnitud (STFT Hann 25 ms / hop 10 ms):
   - `computeLogMagnitudeSpectrogram`, `computeSpectrogramValueRange`
-  - tests en `spectrogram.test.ts` (tono 1 kHz concentra energía en el bin esperado)
+  - tests en `spectrogram.test.ts` (tono 1 kHz en el bin analítico; primer
+    frame vs DFT del frame con Hann)
   - dibujo en UI: `ui/utterance-signal-canvas.ts` + `update-utterance-signal-views.ts`
 
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):

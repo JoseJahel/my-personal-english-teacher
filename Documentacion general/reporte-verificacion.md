@@ -62,7 +62,9 @@ La suite Vitest cuenta con **44 archivos de prueba** y **280 casos**
 | DTW | `dsp/dynamic-time-warping.test.ts` | 14 | Alineación monótona, distancia L2 acumulada, secuencias de distinto largo |
 | Signal energy / gate | `dsp/signal-energy.test.ts` | 11 | RMS/pico, umbral de duración, rechazo de silencio |
 | MFCC | `dsp/mfcc-extraction.test.ts` | 10 | Banco mel, DCT-II, dimensiones (13 coef), pre-énfasis |
+| MFCC dorados | `dsp/mfcc-golden-vectors.test.ts` | 1 | Fixture JSON; c0–c12 vs recetas sintéticas; cota 1e-5 |
 | YIN | `dsp/pitch-detection-yin.test.ts` | 10 | F0 en banda 70–400 Hz, frames no sonoros, contorno |
+| FFT / STFT | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` | 4+ | Error vs DFT O(N²) &lt; 1e-10 (Float64); Parseval; pico en bin; STFT vs DFT |
 | Device policy | `ia/resolve-inference-device.test.ts` | 14 | WebGPU→WASM fallback, política por modelo |
 | Gramática | `ia/grammar-correction.test.ts` | 13 | Corrección post-utterance, casos límite de texto |
 | Tutor (reglas) | `ui/tutor-reply-engine.test.ts` | 18 | Respaldo determinista por escenario, insignia honesta |
@@ -115,15 +117,56 @@ TTS y SmolLM2 corren siempre en WASM.
 
 | Etapa del pipeline | Backend | Latencia observada | Cumple < 2 s |
 |--------------------|---------|:------------------:|:------------:|
-| ASR (`small-en`) | WebGPU | ~3.4 s/frase | No (ver limitación L-1) |
-| ASR (`small-en`) | WASM | ~11 s/frase | No |
+| ASR perfil **precisión** (`small-en`, default) | WebGPU | ~3.4 s/frase (bench 2026-07-29) | No (L-1) |
+| ASR perfil **precisión** (`small-en`) | WASM | ~11 s/frase | No |
+| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | Pendiente re-medir en hardware de aula (§5 procedimiento) | No afirmado |
 | Gate de energía + espectrograma + pitch | CPU (dominio puro) | < 100 ms | Sí |
 | Gramática (T5) | WASM | dependiente de frase | Parcial |
 | Score de pronunciación (MFCC+DTW) | CPU | < 200 ms | Sí |
 | Tutor híbrido (SmolLM2) | WASM | timeout de 10 s + respaldo de reglas | Acotado por diseño |
 
 El DSP local (visualizaciones, gate, score) es holgadamente sub-2 s. El costo
-está en la inferencia de los modelos; ver limitaciones.
+está en la inferencia de los modelos. El perfil latencia (`VITE_ASR_PROFILE=latency`
+→ `tiny-en`) es el camino soportado para acercarse al objetivo de 2 s **sin**
+cambiar el default de entrega; sus milisegundos se rellenan con `#asr-benchmark`
+en la máquina de la demo (issue #61). No se inventan cifras para `tiny-en`.
+
+## 5.1 Corrección de FFT/STFT frente a la DFT (issue #66)
+
+La FFT radix-2 de `dsp/radix2-forward-fft.ts` (compartida por espectrograma y
+MFCC) se verifica contra la **definición O(N²)** de la DFT
+(`dsp/dft-reference.ts`, solo tests; no entra al pipeline de producto):
+
+$$ X[k] = \sum_{n=0}^{N-1} x[n]\, e^{-j\,2\pi kn/N} $$
+
+| Caso | N | Precisión | Métrica | Cota |
+|------|:-:|-----------|---------|-------|
+| Impulso $x[0]=1$ | 16 | Float64 | $\max_k \|X_{\mathrm{FFT}}-X_{\mathrm{DFT}}\|$ | **&lt; 1e-10** |
+| Coseno de bin exacto | 32 | Float64 | misma | **&lt; 1e-10** |
+| Parseval $\sum\|x\|^2 = N^{-1}\sum\|X\|^2$ | 32 | Float64 | residual absoluto | **&lt; 1e-10** |
+| Primer frame STFT (Hann) vs DFT del frame ventaneado | 400→512 | Float32 vs DFT Float64 | pico en bin analítico; \|Δ\| log-mag en ese bin | **bin exacto; &lt; 1e-5** |
+
+La cota Float64 está exportada como `RADIX2_FFT_MAX_ABSOLUTE_ERROR_VS_DFT`.
+Un tono de 1 kHz a 16 kHz concentra el pico del espectrograma a menos de 1.5
+bins del bin analítico. No hay dependencia nativa: la FFT es dominio puro.
+
+## 5.2 Vectores dorados MFCC (issue #67)
+
+`extractMfccSequence` queda anclado a un fixture versionado
+(`app/src/dsp/mfcc-golden-vectors.json`) generado con señales sintéticas
+reproducibles (tono 440 Hz, tono 1000 Hz, dos tonos 220+660 Hz, ruido LCG).
+No hay Python/librosa/Meyda en runtime ni en CI: el JSON vive en el repo.
+
+| Política | Valor |
+|----------|--------|
+| Coeficientes | 13 por frame (c0 … c12) |
+| c0 | Se compara: la amplitud está fijada en las recetas; un cambio de energía/pre-énfasis debe fallar |
+| c1–c12 | Misma cota absoluta (envolvente / DCT) |
+| Cota | `MFCC_GOLDEN_MAX_ABSOLUTE_ERROR` = **1e-5** |
+| Error observado al generar el fixture | **&lt; 1e-5** (redondeo a 9 cifras significativas; bit-idéntico en Float32 dentro de esa cota) |
+
+Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito:
+`pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
 
 ## 6. Casos de prueba y edge cases
 
@@ -144,6 +187,8 @@ está en la inferencia de los modelos; ver limitaciones.
 | CP-13 | Barge-in respuesta al fragmento (Case B) | Interrupción + “coffee please” | Avanza escena; no repite lista completa | `ui/interruption-turn-classifier.test.ts` |
 | CP-14 | Barge-in corte temprano (Case C) | `cutoffMs` &lt; 250 ms | Reformula frase completa | `ui/spoken-progress.test.ts` |
 | CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
+| CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
+| CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los
@@ -166,11 +211,14 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
 
 ## 8. Limitaciones
 
-- **L-1 — Latencia ASR sobre el objetivo de 2 s.** `small-en` ronda ~3.4 s/frase
-  en WebGPU y ~11 s en WASM; el criterio "< 2 s" no se cumple para la
-  transcripción. Es una decisión consciente que prioriza precisión (WER) sobre
-  latencia; `tiny-en`/`base-en` siguen disponibles para escenarios donde la
-  latencia pese más.
+- **L-1 — Latencia ASR sobre el objetivo de 2 s.** El perfil **precisión**
+  (`small-en`, default) ronda ~3.4 s/frase en WebGPU y ~11 s en WASM; el
+  criterio "&lt; 2 s" no se cumple para esa transcripción. Existe un perfil
+  **latencia** first-class (`pnpm dev:latency` / `VITE_ASR_PROFILE=latency` →
+  `tiny-en`) para la defensa oral; su latencia numérica queda **pendiente de
+  re-medir** en el hardware de aula con `#asr-benchmark` (no se afirma &lt; 2 s
+  sin esa cifra). `VITE_ASR_MODEL` sigue pudiendo forzar `base-en` u otro
+  candidato.
 - **L-2 — WER medido sobre fixtures propias.** Las fixtures del banco son
   grabaciones del equipo, no un corpus estándar; el WER 0.000 debe leerse como
   precisión sobre ese conjunto de referencia, no como métrica generalizable a

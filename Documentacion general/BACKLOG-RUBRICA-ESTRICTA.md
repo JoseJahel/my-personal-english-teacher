@@ -8,20 +8,32 @@
 
 Este archivo es la copia versionable en Git. El orden canónico de ejecución del lote actual está en **#80**; al reordenar, actualizar **ambos**.
 
+**Estado 2026-08-13:** el orden ideal **no cambia**. Se marcan hechos los issues ya cerrados en GitHub. **#80 permanece abierto** hasta consumir el lote (definición de hecho del meta-issue).
+
 ---
 
 ## Orden ideal de resolución (resumen)
 
-Igual que en #80. Detalle y dependencias: ver el body de ese issue.
+Igual que en #80. Detalle y dependencias: ver el body de ese issue.  
+`hecho` = issue cerrado en GitHub. El resto sigue abierto.
 
 ### Oleada 1 — Avance 2
-`#59` → `#60` → `#70` → `#68` → `#69` → `#78` → `#75` → `#57` → `#64`
+`#59` → ~~`#60` hecho~~ → `#70` → ~~`#68` hecho~~ → `#69` → `#78` → ~~`#75` hecho~~ → `#57` → `#64`  
+Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
-`#65` → `#73` → `#66` → `#67` → `#58` → `#76` → `#74` → `#71` (plantilla en paralelo; cifras al final)
+`#65` → `#73` → ~~`#66` hecho~~ → ~~`#67` hecho~~ → `#58` → `#76` → `#74` → `#71` (plantilla en paralelo; cifras al final)
 
 ### Oleada 3 — Remate Final
-`#61` → `#77` → `#79` → `#62` → `#63` → `#72`
+~~`#61` hecho~~ → `#77` → `#79` → `#62` → `#63` → `#72`
+
+### Siguiente desbloqueado (sin saltar la oleada)
+
+| Oleada | Siguiente | Luego |
+|--------|-----------|--------|
+| 1 — Avance 2 | `#59` | `#70` → `#69` + `#78` → `#57` → `#64` |
+| 2 — Laboratorio | `#65` | `#73` → `#58` → `#76` → `#74` → `#71` |
+| 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 
 ---
 
@@ -50,47 +62,48 @@ Cada ticket debe leerse como decisión de **este** producto (PWA localhost, capa
 
 ## Lote A — Cierre de rúbrica (#57–#64)
 
-| # | Issue | Notas de identidad propia |
-|---|--------|---------------------------|
-| 57 | Sync matriz/README | Honestidad del repo |
-| 58 | Energía + formantes en score | Cierra RF-09 con *nuestro* `pronunciation-score` |
-| 59 | Espectro + pitch en captura | Enunciado “tiempo real”; Analyser que ya usamos |
-| 60 | Sugerencias de comunicación | Core enunciado; aparte del tutor SmolLM2 |
-| 61 | Perfil latencia ASR | Nace del bank y `small-en` WebGPU |
-| 62 | PDF documento técnico | Artefacto de entrega del curso |
-| 63 | Filtrado ruido | RF-23 / innovación |
-| 64 | Presentación A2 | Deck + capturas de *esta* app |
+| # | Issue | Estado | Notas de identidad propia |
+|---|--------|--------|---------------------------|
+| 57 | Sync matriz/README | Abierto | Honestidad del repo |
+| 58 | Energía + formantes en score | Abierto | Cierra RF-09 con *nuestro* `pronunciation-score` |
+| 59 | Espectro + pitch en captura | Abierto | Enunciado “tiempo real”; Analyser que ya usamos |
+| 60 | Sugerencias de comunicación | Hecho (PR #84) | Core enunciado; aparte del tutor SmolLM2 |
+| 61 | Perfil latencia ASR | Hecho (PR #89) | Nace del bank y `small-en` WebGPU |
+| 62 | PDF documento técnico | Abierto | Artefacto de entrega del curso |
+| 63 | Filtrado ruido | Abierto | RF-23 / innovación |
+| 64 | Presentación A2 | Abierto | Deck + capturas de *esta* app |
 
 ---
 
 ## Lote B — Señales y producto (#65–#74) — varios **reescritos** para sonar a nosotros
 
-| # | Issue (título actual) | Identidad |
-|---|----------------------|-----------|
-| 65 | Medir/endurecer anti-alias del **resample a 16 kHz** | Extensión de decisión Avance 1 de captura nativa |
-| 66 | FFT/STFT vs DFT con error acotado | Base de nuestro espectrograma |
-| 67 | **Vectores dorados** MFCC anti-regresión | Ancla de *nuestro* extractor (no “checklist genérica”) |
-| 68 | **Drill: repetir la última línea del tutor** | Híbrido conversación+score; no banco suelto de frases |
-| 69 | Diff visual de gramática | Feedback con colores del enunciado |
-| 70 | **Ensayo de UI** sin mic ni descarga | Localhost / flag propio; no segundo producto |
-| 71 | Bitácora + evidencias | Decisión→métrica→test de *este* repo |
-| 72 | Hábitos desde historial IndexedDB | Sobre `PracticeTurnRecord` existente |
-| 73 | Pasa-banda + misma cadena user/ref TTS | Evita sesgo de ruta en *nuestro* score |
-| 74 | Métricas de borde VAD (ms) | Auto-stop que ya cableamos |
+| # | Issue (título actual) | Estado | Identidad |
+|---|----------------------|--------|-----------|
+| 65 | Medir/endurecer anti-alias del **resample a 16 kHz** | Abierto | Extensión de decisión Avance 1 de captura nativa |
+| 66 | FFT/STFT vs DFT con error acotado | Hecho (PR #87) | Base de nuestro espectrograma |
+| 67 | **Vectores dorados** MFCC anti-regresión | Hecho (PR #88) | Ancla de *nuestro* extractor (no “checklist genérica”) |
+| 68 | **Drill: repetir la última línea del tutor** | Hecho (PR #84, #85) | Híbrido conversación+score; no banco suelto de frases |
+| 69 | Diff visual de gramática | Abierto | Feedback con colores del enunciado |
+| 70 | **Ensayo de UI** sin mic ni descarga | Abierto | Localhost / flag propio; no segundo producto |
+| 71 | Bitácora + evidencias | Abierto | Decisión→métrica→test de *este* repo |
+| 72 | Hábitos desde historial IndexedDB | Abierto | Sobre `PracticeTurnRecord` existente |
+| 73 | Pasa-banda + misma cadena user/ref TTS | Abierto | Evita sesgo de ruta en *nuestro* score |
+| 74 | Métricas de borde VAD (ms) | Abierto | Auto-stop que ya cableamos |
 
 ---
 
-## Lote C — Diferenciadores propios (#75–#79)
+## Lote C — Diferenciadores propios (#75–#79) + #81 (añadido)
 
 Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snapshots):
 
-| # | Issue | Por qué es “nuestro” |
-|---|--------|----------------------|
-| 75 | No castigar pronunciación si ASR no trajo habla útil | Pedagogía + `transcription-text` / gate |
-| 76 | Mapa **F1–F2** de la utterance | Formantes que ya estimamos |
-| 77 | Normalizar números/siglas **antes del TTS** | Escenarios restaurante/aeropuerto + SpeechT5 |
-| 78 | Explicación **en español** de la corrección T5 | Decisión de producto “UI en español” |
-| 79 | Tarjeta de señales del turno en el chat | `practice-turn-signal-snapshot` ya existe |
+| # | Issue | Estado | Por qué es “nuestro” |
+|---|--------|--------|----------------------|
+| 75 | No castigar pronunciación si ASR no trajo habla útil | Hecho (PR #86) | Pedagogía + `transcription-text` / gate |
+| 76 | Mapa **F1–F2** de la utterance | Abierto | Formantes que ya estimamos |
+| 77 | Normalizar números/siglas **antes del TTS** | Abierto | Escenarios restaurante/aeropuerto + SpeechT5 |
+| 78 | Explicación **en español** de la corrección T5 | Abierto | Decisión de producto “UI en español” |
+| 79 | Tarjeta de señales del turno en el chat | Abierto | `practice-turn-signal-snapshot` ya existe |
+| 81 | Shell Atelier (añadido 2026-08-12) | Hecho (PR #82) | UI canónica; no sustituye el orden DSP/docs |
 
 ---
 
@@ -99,18 +112,18 @@ Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snap
 ### Oleada A2 (ventana de avance)
 
 1. **#59** live espectro/pitch  
-2. **#60** sugerencias  
+2. ~~**#60** sugerencias~~ (hecho)  
 3. **#70** ensayo UI  
-4. **#68** drill “repite al tutor”  
+4. ~~**#68** drill “repite al tutor”~~ (hecho)  
 5. **#69** + **#78** gramática visible + explicación ES  
-6. **#75** honestidad del score  
+6. ~~**#75** honestidad del score~~ (hecho)  
 7. **#57** + **#64** docs/presentación  
 
 ### Oleada laboratorio (nota de señales)
 
 8. **#65** anti-alias medido  
 9. **#73** pasa-banda misma cadena  
-10. **#66** / **#67** FFT + MFCC dorados  
+10. ~~**#66** / **#67** FFT + MFCC dorados~~ (hecho)  
 11. **#58** formantes/energía en score  
 12. **#76** mapa F1–F2  
 13. **#74** VAD ms  
@@ -118,7 +131,7 @@ Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snap
 
 ### Oleada remate
 
-15. **#61** latencia  
+15. ~~**#61** latencia~~ (hecho)  
 16. **#77** TTS números  
 17. **#79** tarjeta de turno  
 18. **#62** PDF  
