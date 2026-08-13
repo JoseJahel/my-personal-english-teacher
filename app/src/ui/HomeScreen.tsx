@@ -7,7 +7,6 @@ import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highl
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import type { DrillUiStatus } from './home-screen-status'
-import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { OfflineReadiness } from './offline-readiness'
 import {
   offlineReadinessCompactMessageFor,
