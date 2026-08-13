@@ -50,3 +50,10 @@ $RECYCLE.BIN/
 # llegan a guardar modelos en disco para pruebas, se ignoran aquí:
 # models/
 # *.onnx
+
+# Empaquetados pesados de documentación (usar los .md del repo, no zips).
+Documentacion general.zip
+**/Documentacion general.zip
+
+# Estado local de herramientas de revisión / automatización (no producto).
+.crosscut/
