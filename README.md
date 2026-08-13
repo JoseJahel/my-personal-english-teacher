@@ -247,7 +247,8 @@ Detalle operativo de la demo actual:
 3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
 5. Si el texto es habla real → T5 → **tutor híbrido**: SmolLM2 con memoria de los últimos 4 turnos contra un timeout de 10 s; si no responde a tiempo o produce basura, línea del motor de reglas del escenario (marcada como respaldo) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
-6. Si es tag no-habla → mensaje honesto sin gramática ni score.
+6. Si no hay habla usable, tag no-habla o texto degenerado → **no** hay score 0–100
+   (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación).
 7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` / preview de shell Atelier (solo dev) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`. Guías: `Documentacion general/IDENTIDAD-VISUAL.md`, `UI-UX-SHELL.md`.
 
 **Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio). Aparte, solo en desarrollo, una segunda IndexedDB independiente guarda las fixtures de voz del banco de pruebas ASR (con audio crudo, nunca en Git).

@@ -51,6 +51,9 @@ $RECYCLE.BIN/
 # models/
 # *.onnx
 
+# Runtime logs from deep-scan git sync hook
+.grok/hooks/state/
+
 # Empaquetados pesados de documentación (usar los .md del repo, no zips).
 Documentacion general.zip
 **/Documentacion general.zip

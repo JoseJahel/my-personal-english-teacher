@@ -20,6 +20,9 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
    o produce basura, se usa la línea del motor de reglas del escenario
    (`ui/tutor-reply-engine.ts`), marcada como respaldo en el chat.
 6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
+   Si no hay habla usable, el ASR devolvió un tag de no-habla o el texto es
+   degenerado, **no** se muestra un 0–100 (issue #75): estado `not-evaluated`
+   y copy honesto, no “mala pronunciación”.
 7. **TTS SpeechT5** reproduce la línea del tutor.
 8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación, historial
    de práctica (IndexedDB).

@@ -177,20 +177,22 @@ export function FeedbackPanel({
                 </FeedbackBlock>
               ) : null}
 
-              {pronunciationScore0to100 !== null ? (
-                <FeedbackBlock title={homeScreenInterfaceTexts.pronunciationPanelLabel}>
-                  <p className="m-0 text-[0.88rem] text-ink-900">{pronunciationStatusMessage}</p>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-sage-200">
-                    <div
-                      className="h-full rounded-full bg-sage-600 transition-[width] duration-300"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, pronunciationScore0to100))}%`,
-                      }}
-                    />
-                  </div>
-                  <PronunciationWordHighlights highlights={pronunciationWordHighlights} />
-                </FeedbackBlock>
-              ) : null}
+              <FeedbackBlock title={homeScreenInterfaceTexts.pronunciationPanelLabel}>
+                <p className="m-0 text-[0.88rem] text-ink-900">{pronunciationStatusMessage}</p>
+                {pronunciationScore0to100 !== null ? (
+                  <>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-sage-200">
+                      <div
+                        className="h-full rounded-full bg-sage-600 transition-[width] duration-300"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, pronunciationScore0to100))}%`,
+                        }}
+                      />
+                    </div>
+                    <PronunciationWordHighlights highlights={pronunciationWordHighlights} />
+                  </>
+                ) : null}
+              </FeedbackBlock>
 
               <FeedbackBlock title={shell.breakdownTitle}>
                 <div className="grid grid-cols-2 gap-2">

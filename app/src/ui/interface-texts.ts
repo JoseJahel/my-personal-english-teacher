@@ -324,6 +324,8 @@ export const homeScreenInterfaceTexts = {
     done: (score0to100: number) =>
       `Puntuación de pronunciación: ${score0to100.toFixed(1)} / 100 (mayor = más cerca de la referencia).`,
     unavailable: 'No se pudo calcular la puntuación de pronunciación para este turno.',
+    notEvaluated:
+      'No se evaluó la pronunciación: no hubo habla clara en inglés. No es una mala nota. Intenta de nuevo más cerca del micrófono y con más volumen.',
     detail: (details: {
       mfccScore: number
       pitchScore: number | null

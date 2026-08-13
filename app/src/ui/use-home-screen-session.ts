@@ -407,10 +407,14 @@ export function useHomeScreenSession(): HomeScreenProps {
     isTutorComposingReply: viewModel.isTutorComposingReply,
     pronunciationStatusMessage: viewModel.pronunciationStatusMessage,
     pronunciationDetailMessage: viewModel.pronunciationDetailMessage,
-    pronunciationScore0to100: pronunciationScore?.score0to100 ?? null,
-    pronunciationMfccScore0to100: pronunciationScore?.mfccScore0to100 ?? null,
-    pronunciationPitchScore0to100: pronunciationScore?.pitchScore0to100 ?? null,
-    pronunciationWordHighlights: pronunciationScore?.wordHighlights ?? [],
+    pronunciationScore0to100:
+      pronunciationStatus === 'done' ? (pronunciationScore?.score0to100 ?? null) : null,
+    pronunciationMfccScore0to100:
+      pronunciationStatus === 'done' ? (pronunciationScore?.mfccScore0to100 ?? null) : null,
+    pronunciationPitchScore0to100:
+      pronunciationStatus === 'done' ? (pronunciationScore?.pitchScore0to100 ?? null) : null,
+    pronunciationWordHighlights:
+      pronunciationStatus === 'done' ? (pronunciationScore?.wordHighlights ?? []) : [],
     formantsSummaryMessage: viewModel.formantsSummaryMessage,
     practiceHistoryTurns,
     practiceHistoryStatusMessage,
