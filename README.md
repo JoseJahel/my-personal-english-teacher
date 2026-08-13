@@ -206,15 +206,17 @@ La documentación del curso fija metodología iterativa (Agile-like); el trabajo
 
 ```
 /
-├── .github/workflows/ci.yml # Pipeline de integración continua
-├── Documentacion general/   # Enunciado del curso + reglas de código del equipo
+├── .github/
+│   ├── workflows/ci.yml     # Pipeline de integración continua
+│   └── issue-bodies/        # Cuerpos markdown de tickets del equipo
+├── Documentacion general/   # Enunciado, reglas, guía de issues, backlog
 ├── app/                     # Código de la aplicación (React + TypeScript + Vite)
-├── CONTRIBUTING.md          # Git, ramas y commits
+├── CONTRIBUTING.md          # Git, ramas, commits y calidad de issues
 ├── README.md
 └── .gitignore
 ```
 
-El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audio/` y `storage/`) está documentado en `app/README.md`. Las reglas de buenas prácticas y anti-patrones de código están en `Documentacion general/REGLAS-DE-CODIGO.md`.
+El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audio/` y `storage/`) está documentado en `app/README.md`. Las reglas de buenas prácticas y anti-patrones de código están en `Documentacion general/REGLAS-DE-CODIGO.md`. Cómo abrir tickets: `Documentacion general/GUIA-CREACION-ISSUES.md`. Orden del backlog de rúbrica: `Documentacion general/BACKLOG-RUBRICA-ESTRICTA.md` y issue [#80](https://github.com/JoseJahel/my-personal-english-teacher/issues/80).
 
 ## Calendario de entregas
 

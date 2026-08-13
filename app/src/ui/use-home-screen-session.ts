@@ -9,6 +9,9 @@ import { isGetUserMediaNative } from '../audio/open-microphone-stream'
 import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
+import type { CommunicationSuggestion } from '../ia/communication-suggestions'
+import { useDrillRepetition } from './use-drill-repetition'
+import { findLastTutorLineText } from './practice-chat-messages'
 import { createModelLoadHistory } from '../storage/model-load-history'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { PracticeSessionRepository } from '../storage/session-repository'
@@ -68,6 +71,9 @@ export function useHomeScreenSession(): HomeScreenProps {
   const [speechSynthesisErrorReason, setSpeechSynthesisErrorReason] =
     useState<InferenceClientErrorReason | null>(null)
   const [pronunciationStatus, setPronunciationStatus] = useState<PronunciationUiStatus>('idle')
+  const [communicationSuggestions, setCommunicationSuggestions] = useState< 
+    readonly CommunicationSuggestion[]
+  >([])
   const [pronunciationScore, setPronunciationScore] = useState<PronunciationScoreResult | null>(
     null,
   )
@@ -161,6 +167,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     setPracticeHistoryTurns,
     setPracticeHistoryStatusMessage,
     setChatMessages,
+    setCommunicationSuggestions,
     setCaptureDiagnostics,
     setMedianFormants,
     setHasCompletedCapture,
@@ -172,6 +179,16 @@ export function useHomeScreenSession(): HomeScreenProps {
   }
 
   const { transcribeCapturedAudio } = useHomeUtterancePipeline(pipelineDeps)
+  const {
+    drillStatus,
+    drillScore,
+    isDrillListening,
+    startDrillRecording,
+    stopDrillRecording,
+  } = useDrillRepetition({
+    getInferenceClient: () => inferenceClientRef.current,
+    getLastTutorLineEn: () => findLastTutorLineText(chatMessagesRef.current),
+  })
   const setSpeechSynthesisStatusIdle = useCallback(() => {
     setSpeechSynthesisStatus('idle')
   }, [])
@@ -400,6 +417,15 @@ export function useHomeScreenSession(): HomeScreenProps {
     offlineReadiness,
     selectedScenarioId,
     chatMessages,
+    communicationSuggestions,
+    lastTutorLineEn: findLastTutorLineText(chatMessages),
+    drillStatus,
+    drillScore0to100: drillScore?.score0to100 ?? null,
+    isDrillListening,
+    onStartDrill: () => {
+      void startDrillRecording()
+    },
+    onStopDrill: stopDrillRecording,
     firstTurnHintEn,
     onSelectScenario: handleSelectScenario,
     onStartMicrophone: () => {

@@ -47,6 +47,21 @@ del curso y del README:
 4. **Persona visible.** Assignee de GitHub **y** label `person:…`
    (`person:jahel`, `person:rebeca`, `person:luna`, `person:saul`,
    `person:cesar`).
+5. **Calidad del ticket.** Todo issue nuevo debe seguir la plantilla y el
+   nivel de detalle de
+   [`Documentacion general/GUIA-CREACION-ISSUES.md`](./Documentacion%20general/GUIA-CREACION-ISSUES.md):
+   contexto de producto, rutas reales, investigación, soluciones aceptables,
+   docs a consultar, criterios de aceptación medibles y asignación por
+   **reparto equitativo** (de quien menos ha aportado a quien más). Un issue
+   debe estar lo bastante completo para que un modelo de IA del equipo pueda
+   implementarlo sin reinventar el alcance del proyecto.
+6. **Backlog y cuerpos versionados.** El orden de trabajo del lote de rúbrica
+   vive en
+   [`Documentacion general/BACKLOG-RUBRICA-ESTRICTA.md`](./Documentacion%20general/BACKLOG-RUBRICA-ESTRICTA.md)
+   y en el issue meta
+   [#80](https://github.com/JoseJahel/my-personal-english-teacher/issues/80).
+   Los textos largos de tickets están en
+   [`.github/issue-bodies/`](./.github/issue-bodies/) (ver su README).
 
 Detalle técnico y lección 2026-08-03: `Documentacion general/REGLAS-DE-CODIGO.md`
 (§1.1 y Lecciones aprendidas).

@@ -54,3 +54,9 @@ $RECYCLE.BIN/
 # Runtime logs from deep-scan git sync hook
 .grok/hooks/state/
 
+# Empaquetados pesados de documentación (usar los .md del repo, no zips).
+Documentacion general.zip
+**/Documentacion general.zip
+
+# Estado local de herramientas de revisión / automatización (no producto).
+.crosscut/
