@@ -62,6 +62,7 @@ La suite Vitest cuenta con **44 archivos de prueba** y **280 casos**
 | DTW | `dsp/dynamic-time-warping.test.ts` | 14 | Alineación monótona, distancia L2 acumulada, secuencias de distinto largo |
 | Signal energy / gate | `dsp/signal-energy.test.ts` | 11 | RMS/pico, umbral de duración, rechazo de silencio |
 | MFCC | `dsp/mfcc-extraction.test.ts` | 10 | Banco mel, DCT-II, dimensiones (13 coef), pre-énfasis |
+| MFCC dorados | `dsp/mfcc-golden-vectors.test.ts` | 1 | Fixture JSON; c0–c12 vs recetas sintéticas; cota 1e-5 |
 | YIN | `dsp/pitch-detection-yin.test.ts` | 10 | F0 en banda 70–400 Hz, frames no sonoros, contorno |
 | FFT / STFT | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` | 4+ | Error vs DFT O(N²) &lt; 1e-10 (Float64); Parseval; pico en bin; STFT vs DFT |
 | Device policy | `ia/resolve-inference-device.test.ts` | 14 | WebGPU→WASM fallback, política por modelo |
@@ -145,6 +146,24 @@ La cota Float64 está exportada como `RADIX2_FFT_MAX_ABSOLUTE_ERROR_VS_DFT`.
 Un tono de 1 kHz a 16 kHz concentra el pico del espectrograma a menos de 1.5
 bins del bin analítico. No hay dependencia nativa: la FFT es dominio puro.
 
+## 5.2 Vectores dorados MFCC (issue #67)
+
+`extractMfccSequence` queda anclado a un fixture versionado
+(`app/src/dsp/mfcc-golden-vectors.json`) generado con señales sintéticas
+reproducibles (tono 440 Hz, tono 1000 Hz, dos tonos 220+660 Hz, ruido LCG).
+No hay Python/librosa/Meyda en runtime ni en CI: el JSON vive en el repo.
+
+| Política | Valor |
+|----------|--------|
+| Coeficientes | 13 por frame (c0 … c12) |
+| c0 | Se compara: la amplitud está fijada en las recetas; un cambio de energía/pre-énfasis debe fallar |
+| c1–c12 | Misma cota absoluta (envolvente / DCT) |
+| Cota | `MFCC_GOLDEN_MAX_ABSOLUTE_ERROR` = **1e-5** |
+| Error observado al generar el fixture | **&lt; 1e-5** (redondeo a 9 cifras significativas; bit-idéntico en Float32 dentro de esa cota) |
+
+Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito:
+`pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -165,6 +184,7 @@ bins del bin analítico. No hay dependencia nativa: la FFT es dominio puro.
 | CP-14 | Barge-in corte temprano (Case C) | `cutoffMs` &lt; 250 ms | Reformula frase completa | `ui/spoken-progress.test.ts` |
 | CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
 | CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
+| CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

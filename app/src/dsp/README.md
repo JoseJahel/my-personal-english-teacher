@@ -37,6 +37,10 @@ Implementado:
   - `extractMfccSequence`, `createMelFilterbank`, `hertzToMel` / `melToHertz`
   - `computeMfccVectorEuclideanDistance` (coste local; DTW también expone el genérico)
   - tests en `mfcc-extraction.test.ts` (escala mel, forma del banco, tonos vs ruido)
+  - **vectores dorados** (issue #67): `mfcc-golden-vectors.json` +
+    `mfcc-golden-vectors.test.ts`. Recetas en `mfcc-golden-signals.ts`.
+    c0 se compara con la misma cota que c1–c12 (amplitud fijada). Regenerar:
+    `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
 
 - `dynamic-time-warping.ts`: **DTW + distancia euclidiana** (dominio puro):
   - `computeDynamicTimeWarping(query, reference)` → distancia total, normalizada y path

@@ -53,7 +53,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 
 | ID | Descripción | Prioridad | Fuente | Módulo / Funcionalidad | Estado | Pruebas de verificación | Métrica |
 |----|-------------|-----------|--------|------------------------|--------|-------------------------|---------|
-| RF-15 | Extracción de MFCC de implementación propia | Alta | Curso | `dsp/mfcc-extraction.ts` (FFT + banco mel + DCT-II) | Implementado | `dsp/mfcc-extraction.test.ts` | Hann 25 ms, hop 10 ms, 13 MFCC, 40 mel |
+| RF-15 | Extracción de MFCC de implementación propia | Alta | Curso | `dsp/mfcc-extraction.ts` (FFT + banco mel + DCT-II); ancla JSON issue #67 | Implementado | `dsp/mfcc-extraction.test.ts`, `dsp/mfcc-golden-vectors.test.ts` | Hann 25 ms, hop 10 ms, 13 MFCC, 40 mel; error vs dorados &lt; 1e-5 |
 | RF-16 | Detección de pitch con YIN | Alta | Curso | `dsp/pitch-detection-yin.ts` | Implementado | `dsp/pitch-detection-yin.test.ts` | Diferencia normalizada acumulada |
 | RF-17 | Estimación de formantes F1/F2/F3 | Media | Curso | `dsp/formant-estimation.ts` (LPC + picos) | Implementado | `dsp/formant-estimation.test.ts` | Mediana por utterance |
 | RF-18 | Alineación temporal DTW + distancia euclidiana | Alta | Curso | `dsp/dynamic-time-warping.ts` | Implementado | `dsp/dynamic-time-warping.test.ts` | Path DTW + distancia L2 |
