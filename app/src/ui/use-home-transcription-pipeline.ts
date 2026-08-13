@@ -124,7 +124,7 @@ export function useHomeTranscriptionPipeline(
     setGrammarCorrectionStatus('idle')
     setCorrectedGrammarText('')
     setGrammarCorrectionErrorReason(null)
-    setPronunciationStatus('idle')
+    setPronunciationStatus('not-evaluated')
     setPronunciationScore(null)
   }, [
     setCorrectedGrammarText,

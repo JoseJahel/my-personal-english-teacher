@@ -49,6 +49,10 @@ Implementado:
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.
+- `pronunciation-score-eligibility.ts`: política #75 — no puntuar (ni mostrar
+  0–100) si no hay habla usable, el ASR devolvió un tag de no-habla o el
+  texto es degenerado; la UI usa el estado `not-evaluated` y un mensaje
+  honesto en español.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
