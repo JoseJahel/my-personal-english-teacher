@@ -10,6 +10,7 @@ import { startMicrophoneCapture, type MicrophoneCaptureSession } from '../audio/
 import type { InferenceClient } from '../ia/inference-client'
 import type { DrillUiStatus } from './home-screen-status'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
+import { resolveDrillReferenceText } from './drill-reference-text'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 
 export interface UseDrillRepetitionOptions {
@@ -35,8 +36,8 @@ export function useDrillRepetition(
   const attemptGenerationRef = useRef(0)
 
   const startDrillRecording = useCallback(async () => {
-    const tutorLineEn = options.getLastTutorLineEn().trim()
-    if (!tutorLineEn) {
+    const { isAvailable } = resolveDrillReferenceText(options.getLastTutorLineEn())
+    if (!isAvailable) {
       setDrillStatus('unavailable')
       return
     }
@@ -76,12 +77,14 @@ export function useDrillRepetition(
       try {
         const capturedAudio = await session.stop()
         const inferenceClient = options.getInferenceClient()
-        const tutorLineEn = options.getLastTutorLineEn().trim()
+        const { isAvailable, referenceTextEn } = resolveDrillReferenceText(
+          options.getLastTutorLineEn(),
+        )
 
         if (
           attemptGeneration !== attemptGenerationRef.current ||
           !inferenceClient ||
-          !tutorLineEn ||
+          !isAvailable ||
           capturedAudio.samples.length === 0
         ) {
           if (attemptGeneration === attemptGenerationRef.current) {
@@ -93,7 +96,7 @@ export function useDrillRepetition(
         const result = await runPronunciationScoringForUtterance({
           userSamples: capturedAudio.samples,
           userSampleRateInHertz: capturedAudio.sampleRate,
-          referenceEnglishText: tutorLineEn,
+          referenceEnglishText: referenceTextEn,
           synthesizeSpeech: inferenceClient.synthesizeSpeech,
         })
 
