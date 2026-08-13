@@ -4,6 +4,7 @@
 
 import type { ReactNode, RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
+import { GrammarCorrectionDiff } from './GrammarCorrectionDiff'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import { PronunciationWordHighlights } from './PronunciationWordHighlights'
 import {
@@ -163,9 +164,10 @@ export function FeedbackPanel({
 
               {correctedGrammarText ? (
                 <FeedbackBlock title={homeScreenInterfaceTexts.grammarCorrectionPanelLabel}>
-                  <p className="m-0 font-mono text-[0.88rem] leading-snug text-ink-900">
-                    {correctedGrammarText}
-                  </p>
+                  <GrammarCorrectionDiff
+                    originalText={transcribedText}
+                    correctedText={correctedGrammarText}
+                  />
                   {grammarCorrectionMadeNoChangesToTranscription ? (
                     <p className="mt-1.5 text-[0.78rem] text-ink-600 italic">
                       {
