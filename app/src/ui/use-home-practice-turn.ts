@@ -30,6 +30,7 @@ import {
   isCurrentAttemptGeneration,
   type UserTurnSignalSnapshot,
 } from './practice-turn-signal-snapshot'
+import { resolvePronunciationScoreEligibilityFromCapture } from './pronunciation-score-eligibility'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { SpokenProgress } from './spoken-progress'
 import { pickContextualTutorReply } from './tutor-reply-engine'
@@ -148,9 +149,16 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     async (
       referenceEnglishText: string,
       turnSignalSnapshot: UserTurnSignalSnapshot | null,
+      transcribedText: string = referenceEnglishText,
     ): Promise<PronunciationScoreResult | null> => {
-      if (!turnSignalSnapshot || !inferenceClientRef.current) {
-        setPronunciationStatus('unavailable')
+      const eligibility = resolvePronunciationScoreEligibilityFromCapture({
+        samples: turnSignalSnapshot?.samples,
+        sampleRateInHertz: turnSignalSnapshot?.sampleRateInHertz ?? 0,
+        transcribedText,
+        referenceEnglishText,
+      })
+      if (!eligibility.shouldScore || !turnSignalSnapshot || !inferenceClientRef.current) {
+        setPronunciationStatus(eligibility.shouldScore ? 'unavailable' : 'not-evaluated')
         setPronunciationScore(null)
         return null
       }
@@ -355,7 +363,11 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         await persistPendingSpokenProgress(null)
       }
 
-      const pronunciation = await scoreUserPronunciation(referencePhrase, turnSignalSnapshot)
+      const pronunciation = await scoreUserPronunciation(
+        referencePhrase,
+        turnSignalSnapshot,
+        transcribedTextResult,
+      )
       const spokenProgress = await speakTutorText(tutorReplyText)
       await persistPracticeTurn({
         transcribedText: transcribedTextResult,
