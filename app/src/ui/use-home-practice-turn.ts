@@ -1,7 +1,4 @@
-/**
- * Tutor reply, TTS, pronunciation score, and IndexedDB persist for one turn.
- * Includes barge-in spoken_progress handling (issue #46).
- */
+/** Tutor reply, instant voice, score, and IndexedDB persist for one turn. */
 
 import { useCallback } from 'react'
 import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
@@ -294,8 +291,6 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       const turnIndex = userTurnIndexRef.current
       const intentPhrase = pickBestIntentPhrase(transcribedTextResult, correctedText)
       const pendingSpoken = pendingSpokenProgressRef.current
-
-      // Issue #46: classify barge-in against spoken_text only; deterministic bridges.
       const interruptionResolution =
         pendingSpoken && !pendingSpoken.completed
           ? resolvePostInterruptionTutorReply({
@@ -329,7 +324,6 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       const scenarioContextEn = interruptionResolution?.llmContextNoteEn
         ? `${scenario.generationContextEn}\n\n${interruptionResolution.llmContextNoteEn}`
         : scenario.generationContextEn
-
       const startedAtGeneration = transcriptionAttemptGenerationRef.current
       const tutorOutcome = await publishUserUtteranceThenResolveTutor({
         publishUserUtterance: () => {
@@ -367,12 +361,12 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         await persistPendingSpokenProgress(null)
       }
 
+      const spokenProgress = await speakTutorText(tutorReplyText)
       const pronunciation = await scoreUserPronunciation(
         referencePhrase,
         turnSignalSnapshot,
         transcribedTextResult,
       )
-      const spokenProgress = await speakTutorText(tutorReplyText)
       await persistPracticeTurn({
         transcribedText: transcribedTextResult,
         correctedText: referencePhrase,

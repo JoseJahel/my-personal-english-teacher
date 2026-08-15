@@ -53,16 +53,16 @@ export function PracticeRail({
     >
       <div className="mb-2 flex items-center gap-2.5 border-b border-sage-200 px-1.5 pb-3">
         <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-900 font-serif text-lg text-sage-50"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink-900 font-serif text-[1.15rem] italic leading-none text-sage-50"
           aria-hidden
         >
           {homeScreenInterfaceTexts.brandMarkLetter}
         </span>
-        <div className="min-w-0">
-          <strong className="block text-sm tracking-tight text-ink-900">
+        <div className="min-w-0 pt-0.5">
+          <strong className="block font-serif text-[1.15rem] font-normal italic leading-none tracking-tight text-ink-900">
             {homeScreenInterfaceTexts.brandShortName}
           </strong>
-          <span className="block text-[0.68rem] text-ink-600">
+          <span className="mt-1 block text-[0.62rem] tracking-[0.16em] text-ink-600 uppercase">
             {homeScreenInterfaceTexts.brandProductLine}
           </span>
         </div>

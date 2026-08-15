@@ -126,12 +126,12 @@ export interface InferenceClient {
    */
   transcribe: (samples16kHz: Float32Array, asrCandidateId?: AsrModelCandidateId) => Promise<string>
   correctGrammar: (englishText: string) => Promise<string>
-  /** SpeechT5 TTS; loads on first call (not part of warm preload). */
+  /** SpeechT5 TTS; also part of the parallel warm preload. */
   synthesizeSpeech: (englishText: string) => Promise<SynthesizedSpeechResult>
   /** SmolLM2 tutor reply; loads on first call; falls back to scenario line on soft failure. */
   generateTutorReply: (input: GenerateTutorReplyInput) => Promise<TutorReplyResult>
   /**
-   * Warm-load Whisper + T5 in the worker (progress events still fire).
+   * Warm-load Whisper + T5 + SpeechT5 in parallel (progress events still fire).
    * `asrCandidateId` is a benchmark-only override; normal app flow omits it.
    */
   preloadModels: (asrCandidateId?: AsrModelCandidateId) => Promise<void>

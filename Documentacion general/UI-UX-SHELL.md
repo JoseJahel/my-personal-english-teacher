@@ -17,7 +17,7 @@
 
 ### Rail izquierdo
 
-- Marca MPET  
+- Marca **Teacher** (serif itálica) + monograma T · línea “inglés personal”  
 - Nav: **Práctica** · **Historial** · **Señales**  
 - Escenarios (restaurante / aeropuerto / entrevista)  
 - Modo: Conversar (activo) · Repetir (UI presente, deshabilitado hasta #68)  

@@ -46,4 +46,14 @@ describe('createMockHomeSessionPorts', () => {
     expect(speech.samples.length).toBeGreaterThan(0)
     client.dispose()
   })
+
+  it('fills the mock analyser with a moving wave, not a flat line', async () => {
+    const ports = createMockHomeSessionPorts()
+    const session = await ports.startSpeechCapture()
+    const buffer = new Float32Array(session.analyserNode.fftSize)
+    session.analyserNode.getFloatTimeDomainData(buffer)
+    const unique = new Set(Array.from(buffer, (sample) => sample.toFixed(5)))
+    expect(unique.size).toBeGreaterThan(8)
+    session.abort()
+  })
 })

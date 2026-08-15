@@ -9,16 +9,16 @@ Web Audio, `MediaRecorder`). Solo captura y adaptación; sin React ni modelos.
 openRealMicrophoneStream()  → MediaStream real del SO
   ├─ MediaStreamSource → Analyser → Gain(0) → destination
   │    (onda + RMS/peak en vivo vía AnalyserNode)
-  ├─ MediaStreamSource → AudioWorklet PCM tap (copia Float32, issue #93)
-  │    → STFT/YIN propios en el hilo principal (`dsp/`)
   └─ MediaRecorder sobre el mismo MediaStream
        → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92) → ASR
 ```
 
-La onda y los medidores en vivo leen el **AnalyserNode**. El espectrograma y
-el pitch **en vivo** usan PCM del worklet + `dsp/spectrogram.ts` /
-`dsp/pitch-detection-yin.ts` (no `getFloatFrequencyData`). El audio que va a
-Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo.
+La onda y los medidores en vivo leen el **AnalyserNode**. El audio que va a
+Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo. El tap
+AudioWorklet de STFT/YIN en vivo (issue #93) **no** se conecta a esta fuente:
+en arrays Realtek de Windows deja el Analyser en ~0 % aunque MediaRecorder
+sí grabe. Espectrograma y pitch de curso se calculan **post-stop** sobre el
+PCM decodificado (`dsp/spectrogram.ts`, `dsp/pitch-detection-yin.ts`).
 
 **No tocar la captura sin leer `CAPTURE-INVARIANTS.md` y re-probar mic real.**
 
@@ -36,6 +36,8 @@ Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo.
 | `audio-resampler.ts` | 44.1/48 kHz → 16 kHz vía FIR de fase lineal (`dsp/polyphase-resample.ts`); lineal solo como fallback |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
+| `speech-pcm-cache.ts` | Caché de PCM SpeechT5 por frase del tutor |
+| `play-browser-speech-synthesis.ts` | Voz local (`speechSynthesis`) si aún no hay PCM cacheado |
 | `pcm-tap-processor.js` | Worklet: solo copia PCM al hilo principal (no FFT, no ASR) |
 | `start-pcm-tap.ts` | Conecta el worklet al `MediaStreamSource` |
 | `CAPTURE-INVARIANTS.md` | Invariantes y checklist manual de mic |

@@ -58,6 +58,7 @@ export function createMockInferencePort(): InferenceClient {
     async preloadModels(): Promise<void> {
       notifyReady('automaticSpeechRecognition')
       notifyReady('grammarCorrection')
+      notifyReady('textToSpeech')
     },
     async preloadConversationModel(): Promise<void> {
       notifyReady('conversationSuggestions')
@@ -94,7 +95,11 @@ export async function startMockSpeechCapture(): Promise<SpeechCaptureSession> {
   const stubAnalyser = {
     fftSize: 2048,
     getFloatTimeDomainData(buffer: Float32Array): void {
-      buffer.fill(0.12)
+      const phase = (performance.now() / 1000) * Math.PI * 2 * 3
+      for (let index = 0; index < buffer.length; index += 1) {
+        buffer[index] =
+          0.18 * Math.sin(phase + (index / buffer.length) * Math.PI * 2)
+      }
     },
   } as AnalyserNode
 
@@ -104,7 +109,11 @@ export async function startMockSpeechCapture(): Promise<SpeechCaptureSession> {
     sourceNode: {} as MediaStreamAudioSourceNode,
     deviceLabel: MOCK_RESTAURANT_DEVICE_LABEL,
     mediaStream: { getTracks: () => [] } as unknown as MediaStream,
-    readLiveMeters: () => ({ rms: 0.15, peak: 0.22, level01: 0.22 }),
+    readLiveMeters: () => {
+      const phase = (performance.now() / 1000) * Math.PI * 2 * 3
+      const peak = 0.12 + 0.1 * (0.5 + 0.5 * Math.sin(phase))
+      return { rms: peak * 0.6, peak, level01: peak }
+    },
     stop: async () => ({ samples, sampleRate: MOCK_SAMPLE_RATE_HZ, diagnostics }),
     abort: () => {},
   }

@@ -5,7 +5,7 @@
  * never advances the scenario script and never touches chat state.
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, type MutableRefObject } from 'react'
 import { startMicrophoneCapture, type MicrophoneCaptureSession } from '../audio/microphone-capture'
 import type { InferenceClient } from '../ia/inference-client'
 import type { DrillUiStatus } from './home-screen-status'
@@ -13,11 +13,15 @@ import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring
 import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { resolveDrillReferenceText } from './drill-reference-text'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
+import { clearWaveformCanvas, startAnalyserWaveformAnimation } from './waveform-canvas'
 
 export interface UseDrillRepetitionOptions {
   readonly getInferenceClient: () => InferenceClient | null
   readonly getLastTutorLineEn: () => string
   readonly startSpeechCapture?: () => Promise<MicrophoneCaptureSession>
+  readonly canvasRef?: MutableRefObject<HTMLCanvasElement | null>
+  readonly onLiveMeters?: (meters: { rms: number; peak: number; level01: number }) => void
+  readonly onDeviceLabel?: (label: string) => void
 }
 
 export interface UseDrillRepetitionResult {
@@ -36,6 +40,17 @@ export function useDrillRepetition(
   const [isDrillListening, setIsDrillListening] = useState(false)
   const captureSessionRef = useRef<MicrophoneCaptureSession | null>(null)
   const attemptGenerationRef = useRef(0)
+  const stopWaveformAnimationRef = useRef<(() => void) | null>(null)
+
+  const stopLiveWaveform = useCallback(() => {
+    stopWaveformAnimationRef.current?.()
+    stopWaveformAnimationRef.current = null
+    const canvas = options.canvasRef?.current
+    if (canvas) {
+      clearWaveformCanvas(canvas)
+    }
+    options.onLiveMeters?.({ rms: 0, peak: 0, level01: 0 })
+  }, [options])
 
   const startDrillRecording = useCallback(async () => {
     const { isAvailable } = resolveDrillReferenceText(options.getLastTutorLineEn())
@@ -56,6 +71,19 @@ export function useDrillRepetition(
         return
       }
       captureSessionRef.current = captureSession
+      options.onDeviceLabel?.(captureSession.deviceLabel)
+      const canvas = options.canvasRef?.current
+      if (canvas) {
+        stopWaveformAnimationRef.current = startAnalyserWaveformAnimation(
+          canvas,
+          captureSession.analyserNode,
+          {
+            onMeters: (meters) => {
+              options.onLiveMeters?.(meters)
+            },
+          },
+        )
+      }
       setIsDrillListening(true)
     } catch {
       if (attemptGeneration === attemptGenerationRef.current) {
@@ -67,6 +95,7 @@ export function useDrillRepetition(
   const stopDrillRecording = useCallback(() => {
     const session = captureSessionRef.current
     captureSessionRef.current = null
+    stopLiveWaveform()
     setIsDrillListening(false)
 
     if (!session) {
@@ -123,7 +152,7 @@ export function useDrillRepetition(
         }
       }
     })()
-  }, [options])
+  }, [options, stopLiveWaveform])
 
   return {
     drillStatus,

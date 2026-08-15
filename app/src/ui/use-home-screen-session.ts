@@ -196,6 +196,13 @@ export function useHomeScreenSession(
     getInferenceClient: () => inferenceClientRef.current,
     getLastTutorLineEn: () => findLastTutorLineText(chatMessagesRef.current),
     startSpeechCapture: ports.startSpeechCapture,
+    canvasRef,
+    onLiveMeters: ({ rms, peak, level01 }) => {
+      setLiveRms(rms)
+      setLivePeak(peak)
+      setLiveInputLevel01(level01)
+    },
+    onDeviceLabel: setActiveMicrophoneLabel,
   })
   const setSpeechSynthesisStatusIdle = useCallback(() => {
     setSpeechSynthesisStatus('idle')
@@ -203,8 +210,6 @@ export function useHomeScreenSession(
 
   const { handleStartButtonClick, handleStopButtonClick } = useHomeMicrophoneSession({
     canvasRef,
-    spectrogramCanvasRef,
-    pitchTrackCanvasRef,
     speechPlaybackGenerationRef,
     speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,

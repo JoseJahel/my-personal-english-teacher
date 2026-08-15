@@ -7,8 +7,10 @@ Canonical capture design for this repo. Layer overview: `README.md` in this fold
 ```
 openRealMicrophoneStream()  → real OS mic MediaStream
   ├─ MediaStreamSource → Analyser → Gain(0) → destination   // live wave + RMS/peak
-  ├─ MediaStreamSource → AudioWorklet (PCM copy only)       // live STFT/YIN (issue #93)
   └─ MediaRecorder on same MediaStream                      // ASR after stop
+// Do not also connect an AudioWorklet tap to that same MediaStreamSource:
+// on Windows Realtek the Analyser then reads ~0% while MediaRecorder still
+// records. Live STFT/YIN (issue #93) stays post-stop on the decoded PCM.
 ```
 
 Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
@@ -23,11 +25,14 @@ Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
 3. Force `{ sampleRate }` on the capture `AudioContext`. Device rate stays
    native; 44.1/48 → 16 kHz is the FIR in `dsp/polyphase-resample.ts`
    (issue #92), not a constraint on `getUserMedia`.
-4. Skip `audioContext.resume()` after `getUserMedia`.
-5. Peak-normalize near-silence into Whisper (causes music/phone tags).
-6. Reintroduce MediaStreamTrackProcessor / live-PCM rings as the primary ASR path
+4. Force `channelCount: 1` on `getUserMedia` or `applyConstraints`. On
+   Windows Realtek arrays that yields a live unmuted track whose Analyser
+   peak stays ~0 (UI “Casi no llega señal”). Open with `{ audio: true }`.
+5. Skip `audioContext.resume()` after `getUserMedia`.
+6. Peak-normalize near-silence into Whisper (causes music/phone tags).
+7. Reintroduce MediaStreamTrackProcessor / live-PCM rings as the primary ASR path
    without a full mic regression on real Chrome/Windows hardware.
-7. Feed `AnalyserNode.getFloatFrequencyData` as the course STFT. Live spectrum
+8. Feed `AnalyserNode.getFloatFrequencyData` as the course STFT. Live spectrum
    and F0 must call `dsp/spectrogram.ts` + `dsp/pitch-detection-yin.ts` on PCM
    from the worklet tap (`audio/pcm-tap-processor.js` copies samples only).
 

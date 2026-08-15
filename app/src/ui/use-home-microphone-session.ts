@@ -25,13 +25,10 @@ import type {
   TranscriptionUiStatus,
 } from './home-screen-status'
 import type { InferenceInFlightFlags } from './home-inference-client'
-import { startLivePcmSignalViews } from './start-live-pcm-signal-views'
 import { clearWaveformCanvas, startAnalyserWaveformAnimation } from './waveform-canvas'
 
 export interface HomeMicrophoneSessionDeps {
   readonly canvasRef: MutableRefObject<HTMLCanvasElement | null>
-  readonly spectrogramCanvasRef: MutableRefObject<HTMLCanvasElement | null>
-  readonly pitchTrackCanvasRef: MutableRefObject<HTMLCanvasElement | null>
   readonly speechPlaybackGenerationRef: MutableRefObject<number>
   /** Abort in-flight tutor TTS so playMonoPcmSamples reports cutoffMs (#46). */
   readonly speechPlaybackAbortControllerRef: MutableRefObject<AbortController | null>
@@ -68,7 +65,6 @@ export interface HomeMicrophoneSessionDeps {
 export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
   const captureSessionRef = useRef<MicrophoneCaptureSession | null>(null)
   const stopWaveformAnimationRef = useRef<(() => void) | null>(null)
-  const stopLiveSignalViewsRef = useRef<(() => void) | null>(null)
   const captureAttemptGenerationRef = useRef(0)
   const voiceActivityDetectorRef = useRef(createEnergyVoiceActivityDetector())
   const autoStopTriggeredRef = useRef(false)
@@ -76,8 +72,6 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
 
   const {
     canvasRef,
-    spectrogramCanvasRef,
-    pitchTrackCanvasRef,
     speechPlaybackGenerationRef,
     speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,
@@ -105,8 +99,6 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
   const abortMicrophoneCapture = useCallback(() => {
     stopWaveformAnimationRef.current?.()
     stopWaveformAnimationRef.current = null
-    stopLiveSignalViewsRef.current?.()
-    stopLiveSignalViewsRef.current = null
     captureSessionRef.current?.abort()
     captureSessionRef.current = null
     setLiveInputLevel01(0)
@@ -163,22 +155,10 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
       voiceActivityDetectorRef.current.reset()
       autoStopTriggeredRef.current = false
 
-      void startLivePcmSignalViews({
-        audioContext: captureSession.audioContext,
-        sourceNode: captureSession.sourceNode,
-        spectrogramCanvas: spectrogramCanvasRef.current,
-        pitchTrackCanvas: pitchTrackCanvasRef.current,
-      })
-        .then((stopLiveViews) => {
-          if (attemptGeneration !== captureAttemptGenerationRef.current) {
-            stopLiveViews()
-            return
-          }
-          stopLiveSignalViewsRef.current = stopLiveViews
-        })
-        .catch((error: unknown) => {
-          console.warn('Live STFT/YIN PCM tap unavailable.', error)
-        })
+      // Do not attach the #93 AudioWorklet tap to this MediaStreamSource.
+      // On Windows Realtek arrays the tap leaves the Analyser at ~0% while
+      // MediaRecorder still records; drill (no tap) shows a live waveform.
+      // Post-stop STFT/YIN still run on the decoded utterance.
 
       const canvas = canvasRef.current
       if (canvas) {
@@ -223,8 +203,6 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
   }, [
     canvasRef,
     inferenceInFlightFlagsRef,
-    pitchTrackCanvasRef,
-    spectrogramCanvasRef,
     setActiveMicrophoneLabel,
     setCaptureDiagnostics,
     setCorrectedGrammarText,
@@ -253,8 +231,6 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
 
     stopWaveformAnimationRef.current?.()
     stopWaveformAnimationRef.current = null
-    stopLiveSignalViewsRef.current?.()
-    stopLiveSignalViewsRef.current = null
     captureAttemptGenerationRef.current += 1
     setLiveInputLevel01(0)
     setLiveRms(0)

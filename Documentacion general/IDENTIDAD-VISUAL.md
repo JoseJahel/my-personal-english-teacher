@@ -6,10 +6,12 @@
 
 ## Voz de marca
 
-- **Nombre corto:** MPET  
-- **Marca en rail:** monograma **M** en círculo oscuro, tipografía serif  
+- **Nombre corto (rail):** **Teacher**  
+- **Marca en rail:** monograma **T** en círculo oscuro + wordmark serif itálica  
+- **Línea de producto:** inglés personal  
 - **Tono:** instituto de práctica oral serio, no “startup juguete”  
-- **UI en español** · práctica oral en **inglés**
+- **UI en español** · práctica oral en **inglés**  
+- El nombre legal del producto sigue siendo *My Personal English Teacher* (título, PWA). No usar MPET ni Atelier como marca visible.
 
 ## Tipografía
 
@@ -38,7 +40,8 @@ Los tokens `sage-*` se reutilizan en clases Tailwind existentes; los valores hex
 
 ## Logo / monograma
 
-- Letra **M** en círculo `ink-900` con texto `sage-50`  
+- Letra **T** (Teacher) en círculo `ink-900` con texto `sage-50`, serif itálica  
+- Wordmark **Teacher** en Instrument Serif itálica; no MPET ni Atelier  
 - No copiar marcas de terceros (ChatGPT, Claude, etc.)
 
 ## Anti-patrones

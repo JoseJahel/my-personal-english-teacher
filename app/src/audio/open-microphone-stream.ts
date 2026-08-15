@@ -121,32 +121,10 @@ function acceptStream(
 }
 
 /**
- * Prefer voice processing (AGC + noise suppression) so quiet speakers still
- * reach Whisper. Fall back to plain { audio: true } if constraints are rejected.
- */
-async function preferVoiceProcessingOnTrack(track: MediaStreamTrack): Promise<void> {
-  try {
-    await track.applyConstraints({
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-      channelCount: 1,
-    })
-  } catch {
-    try {
-      await track.applyConstraints({
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      })
-    } catch {
-      // Browser rejected processing constraints; keep the open stream as-is.
-    }
-  }
-}
-
-/**
- * Opens a mic stream with voice-oriented processing when the browser allows it.
+ * Opens a mic the same way Teams/Discord do: `{ audio: true }` first.
+ * Do not force channelCount: 1 — on Windows Realtek arrays that returns a
+ * live track whose Analyser peak stays ~0 (lesson 2026-07-22). Chrome still
+ * applies AEC/NS/AGC by default on the simple constraint.
  * Recovery paths only run if getUserMedia is patched or returns a synthetic stream.
  */
 export async function openRealMicrophoneStream(): Promise<OpenedMicrophoneStream> {
@@ -160,26 +138,17 @@ export async function openRealMicrophoneStream(): Promise<OpenedMicrophoneStream
   const candidates = resolveGetUserMediaCandidates()
   const errors: string[] = []
 
-  // AGC / noise suppression first — quiet mics need OS-level gain before Whisper.
+  // Simplest first. Never send channelCount: 1 (deaf Analyser on some Windows drivers).
   const constraintSets: MediaStreamConstraints[] = [
-    {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-      video: false,
-    },
-    {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: false,
-    },
     { audio: true, video: false },
+    {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    },
   ]
 
   for (const candidate of candidates) {
@@ -192,10 +161,6 @@ export async function openRealMicrophoneStream(): Promise<OpenedMicrophoneStream
           candidate.name !== 'page' || !isGetUserMediaNative(),
         )
         if (opened) {
-          const track = opened.mediaStream.getAudioTracks()[0]
-          if (track) {
-            await preferVoiceProcessingOnTrack(track)
-          }
           // Drop other candidates' iframes if unused.
           for (const other of candidates) {
             if (other !== candidate) {

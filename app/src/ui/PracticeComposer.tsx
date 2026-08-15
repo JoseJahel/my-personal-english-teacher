@@ -10,6 +10,7 @@ export interface PracticeComposerProps {
   readonly canvasRef: RefObject<HTMLCanvasElement | null>
   readonly isStarting: boolean
   readonly isListening: boolean
+  readonly isDrillListening?: boolean
   readonly isTutorSpeaking: boolean
   readonly isPreparingModels: boolean
   readonly liveInputLevel01: number
@@ -24,6 +25,7 @@ export function PracticeComposer({
   canvasRef,
   isStarting,
   isListening,
+  isDrillListening = false,
   isTutorSpeaking,
   isPreparingModels,
   liveInputLevel01,
@@ -34,9 +36,10 @@ export function PracticeComposer({
   onStopMicrophone,
 }: PracticeComposerProps) {
   const levelPercent = Math.round(Math.min(1, Math.max(0, liveInputLevel01)) * 100)
-  const isLevelSilentWhileListening = isListening && livePeak < 0.01
-  const micDisabled = isStarting || isListening || isTutorSpeaking
-  const micState = isListening ? 'listening' : isStarting || isPreparingModels ? 'processing' : 'idle'
+  const showLiveCapture = isListening || isDrillListening
+  const isLevelSilentWhileListening = showLiveCapture && livePeak < 0.01
+  const micDisabled = isStarting || isListening || isDrillListening || isTutorSpeaking
+  const micState = isListening || isDrillListening ? 'listening' : isStarting || isPreparingModels ? 'processing' : 'idle'
 
   return (
     <footer
@@ -49,14 +52,14 @@ export function PracticeComposer({
           width={720}
           height={36}
           className="block h-9 w-full rounded-lg border border-sage-200 bg-sage-50"
-          aria-hidden={!isListening && !isStarting}
+          aria-hidden={!showLiveCapture && !isStarting}
         />
         <div className="mt-1.5 h-0.5 overflow-hidden rounded-sm bg-sage-200">
           <div
             className={`h-full transition-[width] duration-75 ${
               isLevelSilentWhileListening ? 'bg-amber-400' : 'bg-sage-600'
             }`}
-            style={{ width: `${isListening || isStarting ? levelPercent : 0}%` }}
+            style={{ width: `${showLiveCapture || isStarting ? levelPercent : 0}%` }}
           />
         </div>
       </div>
@@ -68,7 +71,7 @@ export function PracticeComposer({
               ? homeScreenInterfaceTexts.tutorSpeakingHint
               : homeScreenInterfaceTexts.micHelperHint}
           </p>
-          {isListening || isStarting ? (
+          {showLiveCapture || isStarting ? (
             <p className="mt-0.5 text-[0.7rem] text-ink-400">
               {homeScreenInterfaceTexts.inputLevelLabel}: {levelPercent}%
               {isLevelSilentWhileListening

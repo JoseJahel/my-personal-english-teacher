@@ -103,11 +103,11 @@ describe('useHomeScreenSession with injected mocks', () => {
     await waitFor(() =>
       Boolean(
         probe.current?.chatMessages.some(
-          (message) =>
-            message.role === 'tutor' && message.text.includes('something to drink'),
+          (message) => message.role === 'tutor' && /water/i.test(message.text),
         ),
       ),
     )
+    await waitFor(() => probe.current?.correctedGrammarText === MOCK_RESTAURANT_GRAMMAR_EN)
 
     const session = probe.current
     if (!session) {
