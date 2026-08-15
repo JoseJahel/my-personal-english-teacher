@@ -159,7 +159,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - Pipeline activo post-utterance: **ASR → gramática → tutor híbrido (SmolLM2 con timeout de 10 s + respaldo de reglas) → score pronunciación → TTS del tutor**.
 - Catálogo de candidatos ASR en `ia/model-registry.ts` (override `VITE_ASR_MODEL` o perfil `VITE_ASR_PROFILE=latency` → `tiny-en`; default de entrega `small-en`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend).
 - Paleta de diseño centralizada en tokens CSS (`app/src/index.css`, `@theme`: sage/ink/blush) consumida por toda la UI, con tests de freeze-guard.
-- Captura a tasa nativa del dispositivo; resample a 16 kHz mono antes de Whisper (`audio/audio-resampler.ts`).
+- Captura a tasa nativa del dispositivo; resample FIR de fase lineal 44.1/48 → 16 kHz antes de Whisper (`audio/audio-resampler.ts`, `dsp/polyphase-resample.ts`, issue #92).
 - Grafo de visualización: `MediaStreamSource → Analyser → Gain(0) → destination`. ASR: `MediaRecorder` sobre el mismo `MediaStream` real. Invariantes en `app/src/audio/CAPTURE-INVARIANTS.md`.
 - Estado de pantalla con hooks (`use-home-screen-session.ts`); se migrará a Context o Zustand solo si la complejidad lo exige.
 - Package manager: solo pnpm; Node 22 (`.nvmrc` + `engines` + `packageManager`).

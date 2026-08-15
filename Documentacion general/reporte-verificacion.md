@@ -213,6 +213,26 @@ El análisis llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin`
 | Presupuesto por trama | &lt; 50 ms en el test de tono 1 kHz (`analyze-live-pcm-frame.test.ts`) |
 | ASR | Sigue siendo MediaRecorder sobre el `MediaStream` crudo |
 
+## 5.5 Remuestreo FIR multi-tasa (issue #92 / #65)
+
+El path a 16 kHz de Whisper/MFCC/score **ya no es solo interpolación lineal**.
+Diseño: sinc ventaneado con Hann, fase lineal, corte **7.2 kHz** (Nyquist
+destino 8 kHz), $N=93$ a la tasa de entrada. Polifase para no convolucionar el
+prototipo largo en cada muestra de entrada.
+
+| Ruta | Método | Tono 12 kHz → residual (dB) | Retardo de grupo | Coste |
+|------|--------|----------------------------:|------------------|-------|
+| 48 kHz → 16 kHz lineal (Avance 1) | interpolación | **0.0** (alias a 4 kHz a plena escala) | 0 | 1 mezcla/salida |
+| 48 kHz → 16 kHz FIR | decimación ×3, 3 fases | **85.1** | 46 muestras @ 48 kHz (**0.96 ms**) | 31 MAC/entrada (93/salida) |
+| 44.1 kHz → 16 kHz lineal | interpolación | **2.1** | 0 | 1 mezcla/salida |
+| 44.1 kHz → 16 kHz FIR | racional **160/441** | **86.6** | 46.5 muestras @ 44.1 kHz (**1.05 ms**) | 93 MAC/salida (no 14 880) |
+
+Cifras de dB: RMS en régimen permanente vs seno de amplitud 1 (`1/√2`),
+`dsp/polyphase-resample.test.ts` y `audio/audio-resampler.test.ts`. El umbral
+exportado que aserta el test es **`FIR_MIN_ALIAS_ATTENUATION_DB = 50`**.
+Otras tasas (p. ej. 32 kHz) siguen el lineal y **no lanzan**. No se fuerza
+`sampleRate` en captura.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -236,6 +256,7 @@ El análisis llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin`
 | CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
 | CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
 | CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
+| CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

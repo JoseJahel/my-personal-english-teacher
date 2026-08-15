@@ -64,6 +64,14 @@ Implementado:
   - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
+- `polyphase-resample.ts` + `design-linear-phase-lowpass-fir.ts` (issue #92):
+  remuestreo **FIR de fase lineal** a 16 kHz. 48 kHz = decimación ×3;
+  44.1 kHz = racional 160/441 (no se aproxima a 48). Corte 7.2 kHz, Hann,
+  $N=93$ a la tasa de entrada. Un tono de 12 kHz mide ~85 dB de rechazo
+  (umbral exportado 50 dB). Coste polifásico: 31 MAC/entrada a 48 kHz, 93
+  MAC/salida a 44.1 kHz. Cableado en `audio/audio-resampler.ts` (lineal solo
+  si la tasa no es 44.1/48). Tests: `polyphase-resample.test.ts`.
+
 - `radix2-forward-fft.ts`: **FFT radix-2** Cooley–Tukey in-place (Float32 o
   Float64). Única implementación usada por espectrograma y MFCC.
   Verificada contra la DFT O(N²) (`dft-reference.ts`, solo tests): error

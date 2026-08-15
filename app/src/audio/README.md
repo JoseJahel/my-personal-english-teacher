@@ -12,7 +12,7 @@ openRealMicrophoneStream()  → MediaStream real del SO
   ├─ MediaStreamSource → AudioWorklet PCM tap (copia Float32, issue #93)
   │    → STFT/YIN propios en el hilo principal (`dsp/`)
   └─ MediaRecorder sobre el mismo MediaStream
-       → blob → decode → mono → (UI resamplea a 16 kHz) → ASR
+       → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92) → ASR
 ```
 
 La onda y los medidores en vivo leen el **AnalyserNode**. El espectrograma y
@@ -33,7 +33,7 @@ Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo.
 | `capture-diagnostics.ts` | Métricas de la utterance (RMS, pico, duración, fuente) |
 | `normalize-peak.ts` | Peak-normalize con tope de gain (no amplifica casi-silencio) |
 | `mix-to-mono.ts` | Mezcla de canales de un `AudioBuffer` a mono |
-| `audio-resampler.ts` | Resample lineal a 16 kHz (Whisper) |
+| `audio-resampler.ts` | 44.1/48 kHz → 16 kHz vía FIR de fase lineal (`dsp/polyphase-resample.ts`); lineal solo como fallback |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
 | `pcm-tap-processor.js` | Worklet: solo copia PCM al hilo principal (no FFT, no ASR) |

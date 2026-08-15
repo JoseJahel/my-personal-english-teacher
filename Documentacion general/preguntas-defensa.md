@@ -10,9 +10,9 @@
 
 ## Q1. ¿Por qué remuestrean a 16 kHz? ¿Y Nyquist?
 
-La voz útil está por debajo de ~8 kHz. El teorema exige \(f_s \ge 2 f_{\max}\); 16 kHz cumple Nyquist para esa banda y es la tasa que Whisper y nuestros MFCC esperan. Capturamos a la tasa **nativa** del dispositivo (típicamente 44.1 o 48 kHz) y bajamos en `audio/audio-resampler.ts`.
+La voz útil está por debajo de ~8 kHz. El teorema exige \(f_s \ge 2 f_{\max}\); 16 kHz cumple Nyquist para esa banda y es la tasa que Whisper y nuestros MFCC esperan. Capturamos a la tasa **nativa** del dispositivo (típicamente 44.1 o 48 kHz) y bajamos con un FIR de fase lineal (`dsp/polyphase-resample.ts`): 48 kHz es decimación ×3; 44.1 kHz es racional 160/441. Un tono de 12 kHz (zona de alias) se atenúa **≥ 50 dB** (medido ~85 dB); el lineal del Avance 1 deja ~0 dB a 48 kHz.
 
-**Fuente:** `documento-tecnico.md` §5.1; `audio/audio-resampler.ts` (`WHISPER_SAMPLE_RATE_IN_HERTZ`).
+**Fuente:** `documento-tecnico.md` §5.1; `reporte-verificacion.md` §5.5; `audio/audio-resampler.ts`.
 
 ## Q2. ¿Por qué no fuerzan `sampleRate: 16000` en `getUserMedia`?
 
@@ -28,7 +28,7 @@ La de producto es **radix-2 Cooley–Tukey propia** (`dsp/radix2-forward-fft.ts`
 
 ## Q4. ¿Cómo calculan el espectrograma?
 
-STFT con ventana Hann **25 ms**, hop **10 ms**, magnitud en escala log. Un tono de 1 kHz a 16 kHz cae a menos de 1.5 bins del bin analítico. Post-utterance se pinta en `ui/utterance-signal-canvas.ts`. El live con *nuestra* FFT sobre PCM real es el issue **#93** (el #59 de César pinta; #93 cambia la fuente).
+STFT con ventana Hann **25 ms**, hop **10 ms**, magnitud en escala log. Un tono de 1 kHz a 16 kHz cae a menos de 1.5 bins del bin analítico. Post-utterance se pinta en `ui/utterance-signal-canvas.ts`. En vivo (issue #93) la misma STFT corre sobre PCM del worklet; el `AnalyserNode` no es la FFT de curso.
 
 **Fuente:** `dsp/spectrogram.ts`; `reporte-verificacion.md` §5.1.
 
