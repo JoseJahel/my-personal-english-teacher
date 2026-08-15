@@ -17,6 +17,7 @@ import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 export interface UseDrillRepetitionOptions {
   readonly getInferenceClient: () => InferenceClient | null
   readonly getLastTutorLineEn: () => string
+  readonly startSpeechCapture?: () => Promise<MicrophoneCaptureSession>
 }
 
 export interface UseDrillRepetitionResult {
@@ -48,7 +49,8 @@ export function useDrillRepetition(
     setDrillStatus('listening')
 
     try {
-      const captureSession = await startMicrophoneCapture()
+      const startCapture = options.startSpeechCapture ?? startMicrophoneCapture
+      const captureSession = await startCapture()
       if (attemptGeneration !== attemptGenerationRef.current) {
         captureSession.abort()
         return

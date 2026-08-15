@@ -51,12 +51,13 @@ export function ensureHomeInferenceClient(
   setSpeechModelLoadingProgressPercent: Dispatch<SetStateAction<number>>,
   setTutorGenerationStatus: Dispatch<SetStateAction<TutorGenerationUiStatus>>,
   setTutorModelLoadingProgressPercent: Dispatch<SetStateAction<number>>,
+  createClient: () => InferenceClient = createInferenceClient,
 ): InferenceClient {
   if (inferenceClientRef.current) {
     return inferenceClientRef.current
   }
 
-  const inferenceClient = createInferenceClient()
+  const inferenceClient = createClient()
   inferenceClient.subscribeToModelLoadingProgress((progressMessage) => {
     if (progressMessage.modelKey === 'automaticSpeechRecognition') {
       applyModelProgress(

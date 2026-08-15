@@ -28,6 +28,7 @@ export function useHomeTranscriptionPipeline(
   ) => Promise<void>,
 ) {
   const {
+    createInferenceClient,
     inferenceClientRef,
     inferenceInFlightFlagsRef,
     lastUserCaptureRef,
@@ -203,6 +204,7 @@ export function useHomeTranscriptionPipeline(
         setSpeechModelLoadingProgressPercent,
         setTutorGenerationStatus,
         setTutorModelLoadingProgressPercent,
+        createInferenceClient,
       )
 
       const attemptGeneration = (transcriptionAttemptGenerationRef.current += 1)
@@ -266,6 +268,7 @@ export function useHomeTranscriptionPipeline(
     },
     [
       correctTranscribedGrammar,
+      createInferenceClient,
       inferenceClientRef,
       inferenceInFlightFlagsRef,
       lastUserCaptureRef,

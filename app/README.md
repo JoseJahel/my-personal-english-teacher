@@ -192,6 +192,15 @@ publicados. Re-medir en el hardware de aula:
 
 Hasta esa re-medición **no se afirma** que el perfil latencia cumpla &lt; 2 s.
 
+## Ensayo de UI sin mic ni modelos (issue #98)
+
+En `pnpm dev`, abrir **`#practice-mock`** (alias `#ensayo-ui`). Monta el
+`HomeScreen` **real** con puertos mock de restaurante: sin `getUserMedia` y
+sin descargar 1 GB. Es el enchufe para el ensayo visual de César (#70).
+`#shell-preview*` sigue siendo el maniquí estático de Playwright. El hash
+está gateado por `import.meta.env.DEV` (no aparece en `pnpm build` /
+`preview`).
+
 ## Entrega local, sin despliegue en la nube
 
 La aplicación se sirve y se demuestra únicamente desde `localhost`. No hay
