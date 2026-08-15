@@ -218,6 +218,13 @@ La documentación del curso fija metodología iterativa (Agile-like); el trabajo
 
 El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audio/` y `storage/`) está documentado en `app/README.md`. Las reglas de buenas prácticas y anti-patrones de código están en `Documentacion general/REGLAS-DE-CODIGO.md`. Cómo abrir tickets: `Documentacion general/GUIA-CREACION-ISSUES.md`. Orden del backlog de rúbrica: `Documentacion general/BACKLOG-RUBRICA-ESTRICTA.md` y issue [#80](https://github.com/JoseJahel/my-personal-english-teacher/issues/80).
 
+**Kit de defensa (issue #97), solo localhost:** riesgos y Q&A en
+[`Documentacion general/matriz-riesgos.md`](./Documentacion%20general/matriz-riesgos.md)
+y
+[`Documentacion general/preguntas-defensa.md`](./Documentacion%20general/preguntas-defensa.md)
+(plan B: `pnpm preview`, `#shell-preview*`, `pnpm dev:latency`). No hay URL
+pública del producto. El deck es el issue #64; la bitácora de evidencias, #71.
+
 ## Calendario de entregas
 
 | Entrega | Semana | Contenido |
