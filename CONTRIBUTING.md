@@ -81,6 +81,9 @@ asignación fija de módulos por persona.
 - Los cambios se integran mediante un Pull Request abierto desde la rama
   personal correspondiente hacia `main`.
 - Se sugiere al menos una revisión de otro integrante antes de hacer merge.
+- **Cerrar el PR (merge) es una regla estricta:** ver
+  [Cerrar un Pull Request](#cerrar-un-pull-request-regla-estricta).
+  Abrir el PR no termina el trabajo.
 - Antes de abrir un Pull Request, mantener la rama personal actualizada con
   `main`:
 
@@ -88,6 +91,28 @@ asignación fija de módulos por persona.
 git pull origin main
 # resolver conflictos con merge o rebase según corresponda
 ```
+
+## Cerrar un Pull Request (regla estricta)
+
+Abrir el PR **no** cierra el trabajo. La sesión que vaya a integrar el PR a
+`main` **debe quedarse pendiente** hasta que se cumplan las tres condiciones
+siguientes. Si falta una, **no hay merge**.
+
+1. **CI en verde en el último commit.** El workflow `ci` (`build-and-test`:
+   lint, typecheck, tests, e2e smoke del shell, build) está `SUCCESS`. Si
+   está en cola o en curso, esperar. Si falla, no mergear: diagnosticar y
+   corregir en la misma rama.
+2. **Test plan 100 % cerrado.** Cada casilla del cuerpo del PR (`- [ ]`)
+   debe estar marcada (`- [x]`). No se marca una casilla sin evidencia
+   (salida de comando, captura, o verificación en localhost). Un punto
+   manual (turno con micrófono y modelos, checklist de captura, etc.) no se
+   da por hecho porque el código “se ve bien”.
+3. **Sin bloqueos de integración.** El PR es `MERGEABLE`, no hay
+   `CHANGES_REQUESTED` ni hilos de review abiertos que pidan un cambio.
+
+Solo entonces se hace el merge a `main`. La sesión no se considera
+terminada al abrir el PR: termina cuando CI y test plan están cerrados y el
+merge se ejecutó, o cuando se dejó escrito por qué no se pudo mergear.
 
 ## Convención de commits
 
