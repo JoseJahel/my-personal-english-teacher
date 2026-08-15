@@ -14,11 +14,14 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
    `audio/microphone-capture.ts`).
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
 4. Al detener: MediaRecorder → decode mono → **espectrograma + pitch track** →
-   gate de energía → resample 16 kHz → Whisper → T5 → tutor híbrido → score → TTS.
-5. **Conversación híbrida**: SmolLM2 genera la respuesta del tutor con memoria
-   de los últimos 4 turnos, contra un timeout de 10 s; si no responde a tiempo
-   o produce basura, se usa la línea del motor de reglas del escenario
-   (`ui/tutor-reply-engine.ts`), marcada como respaldo en el chat.
+   gate de energía → resample 16 kHz → Whisper → T5 → **chat del usuario** →
+   tutor híbrido → score → TTS.
+5. **Feedback progresivo (issue #96):** la burbuja del estudiante (ASR +
+   corrección T5) aparece **antes** de SmolLM2/TTS. El tutor sigue híbrido
+   (memoria de 4 turnos, timeout 10 s, respaldo de reglas con insignia). El
+   micrófono solo se bloquea mientras SpeechT5 habla (half-duplex), no
+   mientras el modelo “escribe”. El rail muestra el perfil ASR
+   (`precision` / `latency`).
 6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
    Si no hay habla usable, el ASR devolvió un tag de no-habla o el texto es
    degenerado, **no** se muestra un 0–100 (issue #75): estado `not-evaluated`
@@ -175,10 +178,12 @@ Para una demo que prioriza rapidez existe un **perfil latencia** first-class:
 | `VITE_ASR_MODEL=base-en pnpm dev` | Fuerza un candidato concreto (gana sobre el perfil) |
 
 Sin esas variables, `pnpm dev` / `pnpm build` siguen en **small-en**.
+El rail muestra el perfil activo (`data-testid=asr-demo-profile-badge`).
 
-**No hay cifra nueva de latencia para `tiny-en` en este ticket.** El bench
-2026-07-29 lo marcó como “rápido” sin milisegundos publicados. Re-medir en el
-hardware de aula:
+**Presupuesto de 2 s (issue #96):** es el tramo **ASR + gramática** visible
+en el chat, no SmolLM2 ni TTS. **No hay cifra nueva de latencia para
+`tiny-en`.** El bench 2026-07-29 lo marcó como “rápido” sin milisegundos
+publicados. Re-medir en el hardware de aula:
 
 1. `pnpm dev`
 2. Abrir `#asr-benchmark`

@@ -45,7 +45,8 @@ Implementado:
   `PracticeRail` + chat centrado + `PracticeComposer` + `FeedbackPanel`
   (artefacto Turno/Sugerencias/Señales/Técnico). Historial en overlay desde el
   rail. Identidad: `Documentacion general/IDENTIDAD-VISUAL.md` +
-  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening`.
+  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening` /
+  `-composing` (#96: usuario + “Escribiendo…”, Hablar habilitado).
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.
@@ -56,8 +57,11 @@ Implementado:
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
-  ASR → gramática → tutor híbrido (**SmolLM2** + respaldo) → score de
-  pronunciación → **SpeechT5** → persistencia en IndexedDB.
+  ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
+  (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →
+  persistencia en IndexedDB. El mic no se bloquea mientras el tutor genera
+  texto; solo durante TTS. Perfil ASR en el rail
+  (`asr-demo-profile-presentation.ts`).
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en

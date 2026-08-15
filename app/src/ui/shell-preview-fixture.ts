@@ -8,7 +8,7 @@ import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { HomeScreenProps } from './HomeScreen'
 import type { PracticeChatMessage } from './practice-chat-messages'
 
-export type ShellPreviewVariant = 'idle' | 'filled' | 'listening'
+export type ShellPreviewVariant = 'idle' | 'filled' | 'listening' | 'composing'
 
 export function resolveShellPreviewVariant(hash: string): ShellPreviewVariant | null {
   switch (hash) {
@@ -19,6 +19,8 @@ export function resolveShellPreviewVariant(hash: string): ShellPreviewVariant | 
       return 'filled'
     case '#shell-preview-listening':
       return 'listening'
+    case '#shell-preview-composing':
+      return 'composing'
     default:
       return null
   }
@@ -150,6 +152,23 @@ export function createShellPreviewFilledProps(): HomeScreenProps {
       { word: 'water', score0to100: 72, band: 'medium', meanLocalDistance: 0.28 },
       { word: 'please', score0to100: 91, band: 'good', meanLocalDistance: 0.09 },
     ],
+  }
+}
+
+/**
+ * Issue #96: student bubble + grammar are on screen, tutor is still typing,
+ * Hablar stays enabled (half-duplex lock is TTS-only).
+ */
+export function createShellPreviewComposingProps(): HomeScreenProps {
+  return {
+    ...baseProps(),
+    chatMessages: sampleMessages.slice(0, 2),
+    transcribedText: 'I would like a glass of water please',
+    correctedGrammarText: 'I would like a glass of water, please.',
+    isTutorComposingReply: true,
+    isTutorSpeaking: false,
+    tutorGenerationStatusMessage: 'El tutor está escribiendo…',
+    primaryActivityMessage: 'El tutor está escribiendo…',
   }
 }
 

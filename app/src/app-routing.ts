@@ -14,6 +14,7 @@ export function shouldShowShellPreviewScreen(isDev: boolean, hash: string): bool
     hash === '#shell-preview' ||
     hash === '#shell-preview-idle' ||
     hash === '#shell-preview-filled' ||
-    hash === '#shell-preview-listening'
+    hash === '#shell-preview-listening' ||
+    hash === '#shell-preview-composing'
   )
 }

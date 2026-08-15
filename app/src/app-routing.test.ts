@@ -21,6 +21,7 @@ describe('shouldShowShellPreviewScreen', () => {
     expect(shouldShowShellPreviewScreen(true, '#shell-preview')).toBe(true)
     expect(shouldShowShellPreviewScreen(true, '#shell-preview-filled')).toBe(true)
     expect(shouldShowShellPreviewScreen(true, '#shell-preview-listening')).toBe(true)
+    expect(shouldShowShellPreviewScreen(true, '#shell-preview-composing')).toBe(true)
   })
 
   it('is false outside dev', () => {

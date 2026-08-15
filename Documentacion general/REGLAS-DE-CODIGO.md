@@ -26,6 +26,7 @@ Este archivo **evoluciona**: si una sesión o un PR fallan por una regla ausente
 | Ejecución del producto | **Solo local / client-side.** Demo en **localhost**. Sin hosting cloud ni backend remoto (ver [§1.1](#11-producto-local-y-offline--límites-no-negociables)). |
 | Commits | Conventional Commits, scope, inglés, imperativo, título ≤ 50 caracteres (ver `CONTRIBUTING.md`). |
 | PR | Idealmente un módulo / un concern. Actualizar `main` en la rama personal antes de abrir PR. |
+| Cerrar / mergear un PR | **Estricto:** CI `SUCCESS` + test plan 100 % marcado. Si queda un punto abierto, la sesión **aplica fixes o pruebas** hasta poder cerrarlo; no hay espera pasiva ni merge. Detalle en `CONTRIBUTING.md`. |
 
 ### 1.1 Producto local y offline — límites no negociables
 

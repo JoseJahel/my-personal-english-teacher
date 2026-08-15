@@ -232,6 +232,7 @@ export function HomeScreen(props: HomeScreenProps) {
           firstTurnHintEn={firstTurnHintEn}
           offlineCompactMessage={offlineCompact}
           isFullyOfflineReady={offlineReadiness === 'fully-cached'}
+          asrDemoProfile={resolveAsrDemoProfile()}
           onNavigate={handleNavigate}
           onSelectScenario={onSelectScenario}
           onSelectMode={setPracticeMode}
@@ -275,14 +276,6 @@ export function HomeScreen(props: HomeScreenProps) {
             >
               {offlineFull}
             </p>
-            {import.meta.env.DEV && resolveAsrDemoProfile() === 'latency' ? (
-              <p
-                className="mb-3 w-full max-w-[44rem] rounded-lg bg-sage-50 px-3 py-2 text-center text-[0.72rem] text-blush-600 ring-1 ring-sage-200"
-                data-testid="asr-latency-profile-notice"
-              >
-                {homeScreenInterfaceTexts.asrLatencyProfileNotice}
-              </p>
-            ) : null}
             <PracticeChatPanel
               messages={chatMessages}
               firstTurnHintEn={firstTurnHintEn}

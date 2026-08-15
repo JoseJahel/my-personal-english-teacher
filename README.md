@@ -246,7 +246,7 @@ Detalle operativo de la demo actual:
 2. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
 3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
-5. Si el texto es habla real → T5 → **tutor híbrido**: SmolLM2 con memoria de los últimos 4 turnos contra un timeout de 10 s; si no responde a tiempo o produce basura, línea del motor de reglas del escenario (marcada como respaldo) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
+5. Si el texto es habla real → T5 → **burbuja del estudiante en el chat (issue #96)** → **tutor híbrido** (SmolLM2, 10 s, respaldo de reglas con insignia) → score → **SpeechT5**. El micrófono no espera a SmolLM2; solo se bloquea mientras el tutor habla. El rail muestra el perfil ASR (`precision` / `latency`). El presupuesto de 2 s es ASR+T5, no el tutor.
 6. Si no hay habla usable, tag no-habla o texto degenerado → **no** hay score 0–100
    (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación).
 7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` / preview de shell Atelier (solo dev) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`. Guías: `Documentacion general/IDENTIDAD-VISUAL.md`, `UI-UX-SHELL.md`.
