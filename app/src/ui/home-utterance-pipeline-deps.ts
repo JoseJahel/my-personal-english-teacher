@@ -24,6 +24,7 @@ import type { CommunicationSuggestion } from '../ia/communication-suggestions'
 import type { SpokenProgress } from './spoken-progress'
 
 export interface HomeUtterancePipelineDeps {
+  readonly createInferenceClient: () => InferenceClient
   readonly inferenceClientRef: MutableRefObject<InferenceClient | null>
   readonly inferenceInFlightFlagsRef: MutableRefObject<InferenceInFlightFlags>
   readonly speechPlaybackGenerationRef: MutableRefObject<number>

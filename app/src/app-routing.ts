@@ -18,3 +18,8 @@ export function shouldShowShellPreviewScreen(isDev: boolean, hash: string): bool
     hash === '#shell-preview-composing'
   )
 }
+
+/** Real HomeScreen + injected mocks (issue #98). Socket for César #70. */
+export function shouldShowPracticeMockScreen(isDev: boolean, hash: string): boolean {
+  return isDev && (hash === '#practice-mock' || hash === '#ensayo-ui')
+}

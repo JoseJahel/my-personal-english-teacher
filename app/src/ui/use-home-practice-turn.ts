@@ -73,6 +73,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     setPracticeHistoryStatusMessage,
     setChatMessages,
     setCommunicationSuggestions,
+    createInferenceClient,
   } = deps
 
   const refreshPracticeHistory = useCallback(async () => {
@@ -120,6 +121,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         setSpeechModelLoadingProgressPercent,
         setTutorGenerationStatus,
         setTutorModelLoadingProgressPercent,
+        createInferenceClient,
       )
       return speakTutorTextWithSpokenProgress(englishText, {
         inferenceClient,
@@ -135,6 +137,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       })
     },
     [
+      createInferenceClient,
       inferenceClientRef,
       inferenceInFlightFlagsRef,
       persistPendingSpokenProgress,

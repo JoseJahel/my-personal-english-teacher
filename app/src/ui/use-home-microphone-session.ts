@@ -12,7 +12,6 @@ import {
 } from 'react'
 import {
   MicrophoneCaptureError,
-  startMicrophoneCapture,
   type CaptureDiagnostics,
   type MicrophoneCaptureSession,
 } from '../audio/microphone-capture'
@@ -63,6 +62,7 @@ export interface HomeMicrophoneSessionDeps {
     nativeSampleRate: number,
     diagnostics: CaptureDiagnostics,
   ) => Promise<void>
+  readonly startSpeechCapture: () => Promise<MicrophoneCaptureSession>
 }
 
 export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
@@ -99,6 +99,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setActiveMicrophoneLabel,
     setMicrophoneErrorDetail,
     transcribeCapturedAudio,
+    startSpeechCapture,
   } = deps
 
   const abortMicrophoneCapture = useCallback(() => {
@@ -148,7 +149,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setMicrophoneErrorDetail(null)
 
     try {
-      const captureSession = await startMicrophoneCapture()
+      const captureSession = await startSpeechCapture()
 
       if (attemptGeneration !== captureAttemptGenerationRef.current) {
         captureSession.abort()
@@ -243,6 +244,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setTranscriptionStatus,
     speechPlaybackAbortControllerRef,
     speechPlaybackGenerationRef,
+    startSpeechCapture,
   ])
 
   const handleStopButtonClick = useCallback(() => {

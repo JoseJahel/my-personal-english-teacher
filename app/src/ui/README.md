@@ -65,6 +65,11 @@ Implementado:
   persistencia en IndexedDB. El mic no se bloquea mientras el tutor genera
   texto; solo durante TTS. Perfil ASR en el rail
   (`asr-demo-profile-presentation.ts`).
+  Issue **#98:** `home-session-ports.ts` + mocks en `mock-home-session-ports.ts`.
+  `useHomeScreenSession(ports?)` acepta captura + inferencia inyectables.
+  Hash DEV **`#practice-mock`** (alias `#ensayo-ui`) monta el `HomeScreen`
+  real sin mic ni modelos — enchufe para el ensayo de UI de César (#70).
+  `#shell-preview*` sigue siendo el fixture estático de Playwright.
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en
