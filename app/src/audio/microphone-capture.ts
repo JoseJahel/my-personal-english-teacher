@@ -53,6 +53,8 @@ export interface LiveInputMeters {
 export interface MicrophoneCaptureSession {
   readonly audioContext: AudioContext
   readonly analyserNode: AnalyserNode
+  /** Same MediaStreamSource as the Analyser; live DSP taps this, never ASR. */
+  readonly sourceNode: MediaStreamAudioSourceNode
   readonly deviceLabel: string
   readonly mediaStream: MediaStream
   /** Read current input meters (call from rAF). */
@@ -290,6 +292,7 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
   return {
     audioContext,
     analyserNode,
+    sourceNode,
     deviceLabel,
     mediaStream,
     readLiveMeters,

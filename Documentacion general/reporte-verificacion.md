@@ -199,6 +199,20 @@ inyecta el espectro de UI como si fuera potencia, el número de bandas en el
 piso **sube** (≥ 10). Fixture de convención: `dsp/mfcc-chain-invariants.json`
 (TS del repo; sin Python en CI). #67 permanece verde.
 
+## 5.4 STFT/YIN en vivo sobre PCM (issue #93)
+
+Durante la escucha, un AudioWorklet **solo copia** PCM (`audio/pcm-tap-processor.js`).
+El análisis llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin`
+(las mismas funciones que post-utterance). No se usa
+`AnalyserNode.getFloatFrequencyData` como STFT de curso.
+
+| Parámetro | Valor |
+|-----------|--------|
+| Ventana / hop | 25 ms / 10 ms (igual que el espectrograma de utterance) |
+| Acumulador | Emite solo ventanas **completas**; no rellena con ceros |
+| Presupuesto por trama | &lt; 50 ms en el test de tono 1 kHz (`analyze-live-pcm-frame.test.ts`) |
+| ASR | Sigue siendo MediaRecorder sobre el `MediaStream` crudo |
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -221,6 +235,7 @@ piso **sube** (≥ 10). Fixture de convención: `dsp/mfcc-chain-invariants.json`
 | CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
 | CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
 | CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
+| CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

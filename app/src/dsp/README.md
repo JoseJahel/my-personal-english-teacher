@@ -75,6 +75,9 @@ Implementado:
   - tests en `spectrogram.test.ts` (tono 1 kHz en el bin analítico; primer
     frame vs DFT del frame con Hann)
   - dibujo en UI: `ui/utterance-signal-canvas.ts` + `update-utterance-signal-views.ts`
+  - **en vivo (issue #93):** `analyze-live-pcm-frame.ts` + acumulador
+    `pcm-frame-accumulator.ts` (hop 10 ms, ventana 25 ms, **sin** zero-pad).
+    Misma STFT que post-stop. Coste por trama documentado en el reporte §5.4.
 
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
   - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI
