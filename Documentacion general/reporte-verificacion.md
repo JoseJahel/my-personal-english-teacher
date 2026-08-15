@@ -177,6 +177,28 @@ No hay Python/librosa/Meyda en runtime ni en CI: el JSON vive en el repo.
 Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito:
 `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
 
+## 5.3 Encadenado MFCC (issue #94)
+
+Los vectores dorados (#67) no cazan un fallo de *acoplamiento*: aplicar al
+espectro de potencia la escala de **visualización** (`log10` y/o `1/N²` de
+`dsp/spectrogram.ts`) y seguir usando ese vector como entrada del banco
+mel. Cada etapa puede seguir “pasando” y las bandas caen al piso
+`log(1e-10)`.
+
+| Convención | Valor en este repo |
+|------------|--------------------|
+| Escala mel | HTK: \(2595\log_{10}(1+f/700)\) (`hertzToMel`) |
+| Banco | 40 triángulos, 0 Hz → Nyquist (8 kHz a 16 kHz), **sin** normalizar Slaney |
+| Espectro | \(\|X[k]\|^2\) sin \(1/N^2\) ni `log10` |
+| Log-mel | \(\ln\max(E_j,\,10^{-10})\) |
+| DCT | tipo II sin normalizar; **c0 se conserva** |
+
+Invariante (`dsp/mfcc-chain-audit.test.ts`): tono 1 kHz, amplitud 1, 16 kHz
+→ la banda mel de pico no está en el piso; c1–c12 no colapsan a ~0. Si se
+inyecta el espectro de UI como si fuera potencia, el número de bandas en el
+piso **sube** (≥ 10). Fixture de convención: `dsp/mfcc-chain-invariants.json`
+(TS del repo; sin Python en CI). #67 permanece verde.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -198,6 +220,7 @@ Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito
 | CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
 | CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
 | CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
+| CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

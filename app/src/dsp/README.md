@@ -41,6 +41,12 @@ Implementado:
     `mfcc-golden-vectors.test.ts`. Recetas en `mfcc-golden-signals.ts`.
     c0 se compara con la misma cota que c1–c12 (amplitud fijada). Regenerar:
     `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
+  - **Convención HTK (issue #94):** escala mel `2595·log10(1+f/700)`, 40
+    triángulos de 0 Hz a Nyquist (8 kHz a 16 kHz), **sin** normalizar a
+    energía igual (Slaney). Espectro de potencia `|X[k]|²` **sin** `1/N²` ni
+    `log10` (eso es el espectrograma de UI). `log` natural de la energía
+    mel, piso `1e-10`. DCT-II sin normalizar; **c0 se conserva**. Invariante
+    de encadenado: `mfcc-chain-audit.ts` + `mfcc-chain-invariants.json`.
 
 - `dynamic-time-warping.ts`: **DTW + distancia euclidiana** (dominio puro):
   - `computeDynamicTimeWarping(query, reference)` → distancia total, normalizada y path

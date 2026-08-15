@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "convention": "HTK",
+  "melScale": "2595*log10(1+f/700)",
+  "melFilterCount": 40,
+  "coefficientCount": 13,
+  "c0": "kept",
+  "dct": "type-II-unnormalized",
+  "sampleRateInHertz": 16000,
+  "minimumFrequencyInHertz": 0,
+  "maximumFrequencyInHertz": 8000,
+  "toneHertz": 1000,
+  "amplitude": 1,
+  "logMelFloor": 1e-10,
+  "powerSpectrum": "unnormalized |X[k]|^2; never 1/N^2 or log10 before the mel bank"
+}

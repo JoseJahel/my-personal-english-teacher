@@ -210,6 +210,11 @@ $$ m(f) = 2595 \,\log_{10}\!\left(1 + \frac{f}{700}\right) $$
 
 $$ c_i = \sum_{j=0}^{M-1} E_j \cos\!\left[\frac{\pi i}{M}\left(j + \tfrac{1}{2}\right)\right], \quad i = 0,\dots,12 $$
 
+Convención HTK de este repo (issue #94): el banco no se normaliza al estilo
+Slaney; \(c_0\) se conserva; \(|X[k]|^2\) **no** se divide por \(N^2\) ni se
+pasa a `log10` antes del banco (eso es el espectrograma de UI). Invariante
+en `dsp/mfcc-chain-audit.test.ts`.
+
 ### 5.4 Detección de pitch: YIN
 
 **YIN** refina la autocorrelación usando la **función de diferencia**:
