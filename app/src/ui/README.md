@@ -45,7 +45,8 @@ Implementado:
   `PracticeRail` + chat centrado + `PracticeComposer` + `FeedbackPanel`
   (artefacto Turno/Sugerencias/Señales/Técnico). Historial en overlay desde el
   rail. Identidad: `Documentacion general/IDENTIDAD-VISUAL.md` +
-  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening`.
+  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening` /
+  `-composing` (#96: usuario + “Escribiendo…”, Hablar habilitado).
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.

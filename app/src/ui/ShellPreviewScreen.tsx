@@ -1,10 +1,12 @@
 /**
  * DEV-only shell states for Playwright and design review (#81).
  * Hash: #shell-preview | #shell-preview-filled | #shell-preview-listening
+ * | #shell-preview-composing
  */
 
 import { HomeScreen } from './HomeScreen'
 import {
+  createShellPreviewComposingProps,
   createShellPreviewFilledProps,
   createShellPreviewIdleProps,
   createShellPreviewListeningProps,
@@ -17,7 +19,9 @@ export function ShellPreviewScreen({ variant }: { variant: ShellPreviewVariant }
       ? createShellPreviewFilledProps()
       : variant === 'listening'
         ? createShellPreviewListeningProps()
-        : createShellPreviewIdleProps()
+        : variant === 'composing'
+          ? createShellPreviewComposingProps()
+          : createShellPreviewIdleProps()
 
   return <HomeScreen {...props} />
 }

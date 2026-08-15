@@ -64,6 +64,25 @@ test.describe('practice shell — structure', () => {
     await expect(page.getByTestId('history-overlay')).toHaveCount(0)
   })
 
+  test('composing state shows user turn before tutor and keeps Hablar enabled', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/#shell-preview-composing')
+
+    await expect(page.getByTestId('chat-thread')).toContainText(
+      'I would like a glass of water please',
+    )
+    await expect(page.getByTestId('chat-thread')).toContainText('Escribiendo…')
+    await expect(page.getByTestId('chat-thread')).not.toContainText(
+      'Great choice. Would you like something to drink with that?',
+    )
+
+    const mic = page.getByTestId('mic-button')
+    await expect(mic).toBeEnabled()
+    await expect(mic).toHaveAttribute('data-state', 'idle')
+  })
+
   test('signals rail opens feedback panel on signals tab', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/#shell-preview')

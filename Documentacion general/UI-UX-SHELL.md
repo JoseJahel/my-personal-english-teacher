@@ -87,6 +87,7 @@ Fuente de constantes: `app/src/ui/practice-shell-types.ts` → `PRACTICE_SHELL_T
 | `#shell-preview` | Idle, panel vacío |
 | `#shell-preview-filled` | Turno completo (panel con datos) |
 | `#shell-preview-listening` | Mic en escucha |
+| `#shell-preview-composing` | Usuario + corrección en chat, tutor “Escribiendo…”, Hablar habilitado (#96) |
 
 Solo con `import.meta.env.DEV`.
 
