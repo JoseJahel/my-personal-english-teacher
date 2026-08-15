@@ -110,9 +110,19 @@ siguientes. Si falta una, **no hay merge**.
 3. **Sin bloqueos de integración.** El PR es `MERGEABLE`, no hay
    `CHANGES_REQUESTED` ni hilos de review abiertos que pidan un cambio.
 
+**Si aún queda un punto abierto, la sesión no se detiene.** El modelo o
+quien cierra el PR **debe aplicar el fix o la prueba que falte** (test
+automático, fixture de preview, corrida en localhost, corrección de CI)
+hasta que esa casilla se pueda marcar con evidencia. Quedarse a la espera
+pasiva (“falta un turno / lo hace el usuario”) no cierra el trabajo. Solo
+si el punto es objetivamente imposible en esa sesión (no hay micrófono
+humano y el escenario lo exige de forma irreemplazable) se deja escrito en
+el PR qué falta; en cualquier otro caso se añade la prueba o el arreglo y
+se vuelve a verificar.
+
 Solo entonces se hace el merge a `main`. La sesión no se considera
 terminada al abrir el PR: termina cuando CI y test plan están cerrados y el
-merge se ejecutó, o cuando se dejó escrito por qué no se pudo mergear.
+merge se ejecutó.
 
 ## Convención de commits
 
