@@ -233,6 +233,21 @@ exportado que aserta el test es **`FIR_MIN_ALIAS_ATTENUATION_DB = 50`**.
 Otras tasas (p. ej. 32 kHz) siguen el lineal y **no lanzan**. No se fuerza
 `sampleRate` en captura.
 
+## 5.6 Sesgo de locutor vs error (issue #95)
+
+Protocolo sintético (fuente armónica + 3 formantes) sobre
+`scorePronunciationFromMonoPcm`. Hablantes A/B del protocolo #29 (120 / 210 Hz).
+
+| Condición | Score | Δ | d MFCC extra |
+|-----------|------:|--:|-------------:|
+| Identidad | 100.0 | 0 | 0 |
+| Locutor 120→210 Hz, mismas vocales | 88.6 | **11.4** | 3.24 |
+| Error de vocal, mismo F0 | 90.8 | **9.2** | 3.00 |
+
+Ratio Δlocutor/Δerror = **1.23** ≥ 1 → política **`drill-only`**. Conversación
+no muestra 0–100 (`deferred-to-drill`). #75 (sin habla útil / `[Music]`) sigue
+cortando antes. Tests: `dsp/measure-speaker-bias.test.ts`.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -257,6 +272,7 @@ Otras tasas (p. ej. 32 kHz) siguen el lineal y **no lanzan**. No se fuerza
 | CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
 | CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
 | CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
+| CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.4 ≳ Δerror 9.2; ratio 1.23; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

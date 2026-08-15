@@ -22,10 +22,10 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
    micrófono solo se bloquea mientras SpeechT5 habla (half-duplex), no
    mientras el modelo “escribe”. El rail muestra el perfil ASR
    (`precision` / `latency`).
-6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
-   Si no hay habla usable, el ASR devolvió un tag de no-habla o el texto es
-   degenerado, **no** se muestra un 0–100 (issue #75): estado `not-evaluated`
-   y copy honesto, no “mala pronunciación”.
+6. **Score de pronunciación**: el 0–100 vive en modo **Repetir** (issue #95:
+   Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS
+   (`deferred-to-drill`). #75 sigue: sin habla usable / `[Music]` →
+   `not-evaluated`, no “mala pronunciación”.
 7. **TTS SpeechT5** reproduce la línea del tutor.
 8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación, historial
    de práctica (IndexedDB).

@@ -10,6 +10,7 @@ import { startMicrophoneCapture, type MicrophoneCaptureSession } from '../audio/
 import type { InferenceClient } from '../ia/inference-client'
 import type { DrillUiStatus } from './home-screen-status'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
+import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { resolveDrillReferenceText } from './drill-reference-text'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 
@@ -85,7 +86,8 @@ export function useDrillRepetition(
           attemptGeneration !== attemptGenerationRef.current ||
           !inferenceClient ||
           !isAvailable ||
-          capturedAudio.samples.length === 0
+          capturedAudio.samples.length === 0 ||
+          !hasUsableSpeechEnergy(capturedAudio.samples, capturedAudio.sampleRate)
         ) {
           if (attemptGeneration === attemptGenerationRef.current) {
             setDrillStatus('unavailable')

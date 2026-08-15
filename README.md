@@ -119,7 +119,7 @@ La Web Speech API de Chrome delega el reconocimiento de voz en los servidores de
 
 Nadie habla exactamente a la velocidad de la referencia, y sin alineación temporal la distancia castiga el ritmo en lugar de la pronunciación. Dynamic Time Warping alinea las secuencias de features y la distancia euclidiana frame a frame se acumula sobre ese alineamiento, conservando la métrica sugerida en la documentación del curso pero aplicada donde tiene sentido.
 
-**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`; la UI orquesta user PCM + TTS de la frase (corregida) y muestra el score 0–100 con desglose MFCC/pitch.
+**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`. El 0–100 vive en modo **Repetir** (issue #95: Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS.
 
 ### Referencia de pronunciación generada con SpeechT5
 
@@ -253,9 +253,9 @@ Detalle operativo de la demo actual:
 2. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
 3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
-5. Si el texto es habla real → T5 → **burbuja del estudiante en el chat (issue #96)** → **tutor híbrido** (SmolLM2, 10 s, respaldo de reglas con insignia) → score → **SpeechT5**. El micrófono no espera a SmolLM2; solo se bloquea mientras el tutor habla. El rail muestra el perfil ASR (`precision` / `latency`). El presupuesto de 2 s es ASR+T5, no el tutor.
+5. Si el texto es habla real → T5 → **burbuja del estudiante en el chat (issue #96)** → **tutor híbrido** (SmolLM2, 10 s, respaldo de reglas con insignia) → **SpeechT5**. El 0–100 de conversación no se muestra (issue #95: Δlocutor ≳ Δerror). El micrófono no espera a SmolLM2; solo se bloquea mientras el tutor habla. El rail muestra el perfil ASR (`precision` / `latency`). El presupuesto de 2 s es ASR+T5, no el tutor.
 6. Si no hay habla usable, tag no-habla o texto degenerado → **no** hay score 0–100
-   (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación).
+   (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación). El 0–100 vive en **Repetir**.
 7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` / preview de shell Atelier (solo dev) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`. Guías: `Documentacion general/IDENTIDAD-VISUAL.md`, `UI-UX-SHELL.md`.
 
 **Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio). Aparte, solo en desarrollo, una segunda IndexedDB independiente guarda las fixtures de voz del banco de pruebas ASR (con audio crudo, nunca en Git).

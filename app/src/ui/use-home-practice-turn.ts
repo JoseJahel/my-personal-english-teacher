@@ -34,7 +34,10 @@ import {
   publishUserUtteranceThenResolveTutor,
   resolvePracticeTutorReply,
 } from './progressive-tutor-turn'
-import { resolvePronunciationScoreEligibilityFromCapture } from './pronunciation-score-eligibility'
+import {
+  resolveConversationPronunciationSkipStatus,
+  resolvePronunciationScoreEligibilityFromCapture,
+} from './pronunciation-score-eligibility'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { SpokenProgress } from './spoken-progress'
 import { pickContextualTutorReply } from './tutor-reply-engine'
@@ -162,7 +165,9 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         referenceEnglishText,
       })
       if (!eligibility.shouldScore || !turnSignalSnapshot || !inferenceClientRef.current) {
-        setPronunciationStatus(eligibility.shouldScore ? 'unavailable' : 'not-evaluated')
+        setPronunciationStatus(
+          resolveConversationPronunciationSkipStatus(eligibility),
+        )
         setPronunciationScore(null)
         return null
       }

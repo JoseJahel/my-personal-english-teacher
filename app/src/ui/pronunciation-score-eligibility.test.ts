@@ -3,6 +3,11 @@ import {
   pronunciationStatusMessageFor,
   type PronunciationUiStatus,
 } from './home-screen-status'
+import {
+  SPEAKER_BIAS_MEAN_ERROR_DELTA_SCORE,
+  SPEAKER_BIAS_MEAN_SPEAKER_DELTA_SCORE,
+  SPEAKER_BIAS_SPEAKER_TO_ERROR_SCORE_RATIO,
+} from '../dsp/speaker-bias-invariants'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import {
   resolvePronunciationScoreEligibility,
@@ -18,8 +23,20 @@ const usableSpeech = {
 } as const
 
 describe('resolvePronunciationScoreEligibility', () => {
-  it('allows scoring a real English utterance with usable energy', () => {
-    expect(resolvePronunciationScoreEligibility(usableSpeech)).toEqual({ shouldScore: true })
+  it('defers conversation 0–100 to drill when speaker bias ≳ pronunciation error', () => {
+    expect(resolvePronunciationScoreEligibility(usableSpeech)).toEqual({
+      shouldScore: false,
+      reason: 'conversation-deferred-to-drill',
+    })
+  })
+
+  it('still allows a 0–100 when the speaker-bias policy is not applied (drill)', () => {
+    expect(
+      resolvePronunciationScoreEligibility({
+        ...usableSpeech,
+        applyConversationSpeakerBiasPolicy: false,
+      }),
+    ).toEqual({ shouldScore: true })
   })
 
   it('refuses an empty recording so silence cannot become a poor score', () => {
@@ -93,5 +110,15 @@ describe('pronunciationStatusMessageFor not-evaluated', () => {
     expect(message.toLowerCase()).toMatch(/no se evalu/)
     expect(message).not.toMatch(/12/)
     expect(message).not.toMatch(/\/ 100/)
+  })
+
+  it('explains the drill-only policy without calling the turn a bad grade', () => {
+    const message = pronunciationStatusMessageFor('deferred-to-drill', 12)
+    expect(message).toBe(homeScreenInterfaceTexts.pronunciationStatusMessages.deferredToDrill)
+    expect(message).toContain(String(SPEAKER_BIAS_MEAN_SPEAKER_DELTA_SCORE))
+    expect(message).toContain(String(SPEAKER_BIAS_MEAN_ERROR_DELTA_SCORE))
+    expect(message).toContain(String(SPEAKER_BIAS_SPEAKER_TO_ERROR_SCORE_RATIO))
+    expect(message.toLowerCase()).toMatch(/no es que lo hayas dicho mal/)
+    expect(message).not.toMatch(/12 \/ 100/)
   })
 })

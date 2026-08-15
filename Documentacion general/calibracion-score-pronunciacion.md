@@ -132,8 +132,27 @@ Distribución de distancias del panel (media por tier):
 - `dsp/run-pronunciation-score-calibration.test.ts` — protocolo 8×2×4, fit del
   panel, alineación de constantes de producción, score≈50 en half-distance.  
 - `dsp/pronunciation-score.test.ts` — score relativo matching vs mismatch.
+- `dsp/measure-speaker-bias.test.ts` — protocolo locutor vs error (issue #95).
 
-## 6. Limitaciones
+## 6. Sesgo de locutor vs error (issue #95)
+
+Protocolo sintético sobre `scorePronunciationFromMonoPcm` (sin WAV en Git):
+misma secuencia de vocales /a i u/ con F0 **120 Hz** (hablante A) vs **210 Hz**
+(hablante B), frente a mismo F0 y **otras vocales** (error documentado).
+
+| Condición | Score medio | Δ vs identidad | d MFCC extra |
+|-----------|------------:|---------------:|-------------:|
+| Mismo locutor, mismas vocales | **100.0** | 0 | 0 |
+| Cambio de locutor (120→210 Hz) | **88.6** | **11.4** | **3.24** |
+| Error de vocal (mismo F0) | **90.8** | **9.2** | **3.00** |
+| Ratio Δlocutor / Δerror | **1.23** | — | — |
+
+**Decisión de producto:** locutor ≳ error. El 0–100 de **conversación se
+apaga** (`deferred-to-drill`). La cifra vive en modo **Repetir** (#68). Copy:
+no se acusa al estudiante (“no es que lo hayas dicho mal”). Constantes:
+`dsp/speaker-bias-invariants.ts`. #75 sigue cortando silencio/`[Music]`.
+
+## 7. Limitaciones
 
 - El panel versionado en el repo es un **corpus de calibración offline**
   multi-condición / multi-hablante; no incluye audio crudo (prohibido por
@@ -141,5 +160,6 @@ Distribución de distancias del panel (media por tier):
 - Con hablantes reales en la demo del aula se espera re-medir distancias y
   re-fijar constantes si el RMSE del panel nuevo supera ~15 puntos.  
 - El score compara contra **TTS de referencia**, no contra un hablante nativo
-  grabado; la normalización por locutor (z-score MFCC + pitch centrado) mitiga
-  identidad vocal, no la elimina del todo.
+  grabado. Issue #95 midió que z-score + pitch relativo **no** bastan: el
+  cambio de F0 mueve el 0–100 tanto o más que cambiar las vocales. Por eso
+  conversación no muestra esa nota.

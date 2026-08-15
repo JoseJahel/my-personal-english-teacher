@@ -100,9 +100,9 @@ Híbrido. La apertura es guion curado. Cada turno: SmolLM2 con memoria de **4** 
 
 ## Q16. ¿El 0–100 está calibrado?
 
-Mapeo \(\mathrm{score}=100\exp(-\ln 2\cdot d/d_{1/2})\). Producción: \(d_{1/2}\) MFCC **16.5**, pitch **11.2**, peso MFCC **0.78** (issue #29, panel 8 frases × 2 hablantes × 4 tiers). Features z-score / pitch relativo para no comparar identidad absoluta contra SpeechT5. **Sesgo locutor vs error:** issue #95, aún abierto.
+Mapeo \(\mathrm{score}=100\exp(-\ln 2\cdot d/d_{1/2})\). Producción: \(d_{1/2}\) MFCC **16.5**, pitch **11.2**, peso MFCC **0.78** (issue #29). Issue **#95** midió locutor vs error en *nuestro* score: mismo contenido a 120 vs 210 Hz baja el score **11.4** puntos; cambiar vocales al mismo F0 baja **9.2** (ratio **1.23**). Por eso el 0–100 de conversación se **apaga** y vive en **Repetir**. No inventamos Δ.
 
-**Fuente:** `dsp/pronunciation-score-calibration-constants.ts`; `calibracion-score-pronunciacion.md`.
+**Fuente:** `dsp/speaker-bias-invariants.ts`; `calibracion-score-pronunciacion.md` §6.
 
 ## Q17. ¿El gate de energía y el VAD son lo mismo?
 
