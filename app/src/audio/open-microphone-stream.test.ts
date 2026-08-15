@@ -91,10 +91,28 @@ describe('openRealMicrophoneStream', () => {
     expect(opened.deviceId).toBe('usb-1')
     expect(typeof opened.release).toBe('function')
     expect(getUserMedia).toHaveBeenCalledTimes(1)
-    expect(applyConstraints).toHaveBeenCalledWith(
-      expect.objectContaining({ echoCancellation: true, noiseSuppression: true }),
-    )
+    expect(getUserMedia).toHaveBeenCalledWith({ audio: true, video: false })
+    expect(applyConstraints).not.toHaveBeenCalled()
     expect(track.enabled).toBe(true)
+  })
+
+  it('never asks getUserMedia or applyConstraints for channelCount: 1', async () => {
+    const applyConstraints = vi.fn().mockResolvedValue(undefined)
+    const track = fakeAudioTrack({ label: 'Realtek Array', applyConstraints })
+    const getUserMedia = vi.fn().mockResolvedValue(fakeMediaStream([track]))
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia, enumerateDevices: vi.fn().mockResolvedValue([]) },
+    })
+
+    await openRealMicrophoneStream()
+
+    for (const [, constraints] of getUserMedia.mock.calls.entries()) {
+      const audio = constraints[0]?.audio
+      if (audio && typeof audio === 'object') {
+        expect(audio).not.toHaveProperty('channelCount')
+      }
+    }
+    expect(applyConstraints).not.toHaveBeenCalled()
   })
 
   it('throws immediately on permission-denied without retrying other constraint sets', async () => {
@@ -120,7 +138,7 @@ describe('openRealMicrophoneStream', () => {
     })
 
     await expect(openRealMicrophoneStream()).rejects.toBeInstanceOf(MicrophoneCaptureError)
-    expect(getUserMedia).toHaveBeenCalledTimes(3)
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
     expect(syntheticTrack.stop).toHaveBeenCalled()
   })
 
