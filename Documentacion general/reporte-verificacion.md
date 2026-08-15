@@ -119,11 +119,20 @@ TTS y SmolLM2 corren siempre en WASM.
 |--------------------|---------|:------------------:|:------------:|
 | ASR perfil **precisión** (`small-en`, default) | WebGPU | ~3.4 s/frase (bench 2026-07-29) | No (L-1) |
 | ASR perfil **precisión** (`small-en`) | WASM | ~11 s/frase | No |
-| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | Pendiente re-medir en hardware de aula (§5 procedimiento) | No afirmado |
+| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | **No medido** en este hardware (issue #96: no se inventa la cifra; re-medir en `#asr-benchmark`) | No afirmado |
 | Gate de energía + espectrograma + pitch | CPU (dominio puro) | < 100 ms | Sí |
 | Gramática (T5) | WASM | dependiente de frase | Parcial |
 | Score de pronunciación (MFCC+DTW) | CPU | < 200 ms | Sí |
 | Tutor híbrido (SmolLM2) | WASM | timeout de 10 s + respaldo de reglas | Acotado por diseño |
+
+**Definición del presupuesto de 2 s (issue #96 / RNF-06).** El enunciado se
+aplica al **feedback inmediato** (transcripción Whisper + corrección T5
+visible en el chat), no al turno entero con SmolLM2 y SpeechT5. El chat
+publica la burbuja del estudiante en cuanto cierra ASR+T5; el tutor puede
+tardar hasta 10 s (o caer al respaldo) **después**. `small-en` sigue sin
+cumplir 2 s en el tramo ASR (~3.4 s WebGPU). `tiny-en` **no tiene cifra
+nueva**: la fila de arriba queda en “no medido” hasta una corrida de
+`#asr-benchmark` en el hardware de aula.
 
 El DSP local (visualizaciones, gate, score) es holgadamente sub-2 s. El costo
 está en la inferencia de los modelos. El perfil latencia (`VITE_ASR_PROFILE=latency`

@@ -14,6 +14,7 @@ import {
   grammarCorrectionStatusMessageFor,
   microphoneStatusMessageFor,
   pronunciationStatusMessageFor,
+  isTutorPlaybackActive,
   shouldShowTutorModelPreparingBanner,
   shouldShowTutorTypingIndicator,
   speechSynthesisStatusMessageFor,
@@ -125,12 +126,7 @@ export function buildHomeScreenViewModel(input: HomeScreenViewModelInput): HomeS
       ? captureDiagnosticsMessageFor(input.captureDiagnostics)
       : null
 
-  const isTutorSpeaking =
-    input.tutorGenerationStatus === 'loading-model' ||
-    input.tutorGenerationStatus === 'generating' ||
-    input.speechSynthesisStatus === 'loading-model' ||
-    input.speechSynthesisStatus === 'synthesizing' ||
-    input.speechSynthesisStatus === 'playing'
+  const isTutorSpeaking = isTutorPlaybackActive(input.speechSynthesisStatus)
 
   const isTutorPreparingConversationModel = shouldShowTutorModelPreparingBanner(
     input.tutorGenerationStatus,

@@ -315,3 +315,8 @@ export function shouldShowTutorModelPreparingBanner(status: TutorGenerationUiSta
 export function shouldShowTutorTypingIndicator(status: TutorGenerationUiStatus): boolean {
   return status === 'generating'
 }
+
+/** Half-duplex lock: only SpeechT5 playback, not SmolLM2 thinking (issue #96). */
+export function isTutorPlaybackActive(status: SpeechSynthesisUiStatus): boolean {
+  return status === 'loading-model' || status === 'synthesizing' || status === 'playing'
+}

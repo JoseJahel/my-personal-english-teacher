@@ -25,6 +25,7 @@ export const PRACTICE_SHELL_TEST_IDS = {
   railNavPractice: 'rail-nav-practice',
   railNavHistory: 'rail-nav-history',
   railNavSignals: 'rail-nav-signals',
+  asrDemoProfileBadge: 'asr-demo-profile-badge',
   tabTurn: 'panel-tab-turn',
   tabSuggest: 'panel-tab-suggest',
   tabSignals: 'panel-tab-signals',

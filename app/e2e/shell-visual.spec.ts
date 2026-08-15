@@ -14,6 +14,10 @@ test.describe('practice shell — structure', () => {
 
     await expect(page.getByTestId('practice-shell')).toBeVisible()
     await expect(page.getByTestId('practice-rail')).toBeVisible()
+    const asrBadge = page.getByTestId('asr-demo-profile-badge')
+    await expect(asrBadge).toBeVisible()
+    await expect(asrBadge).toHaveAttribute('data-asr-profile', 'precision')
+    await expect(asrBadge).toContainText('small-en')
     await expect(page.getByTestId('practice-center')).toBeVisible()
     await expect(page.getByTestId('practice-composer')).toBeVisible()
     await expect(page.getByTestId('chat-thread')).toBeVisible()

@@ -30,11 +30,14 @@ import {
   isCurrentAttemptGeneration,
   type UserTurnSignalSnapshot,
 } from './practice-turn-signal-snapshot'
+import {
+  publishUserUtteranceThenResolveTutor,
+  resolvePracticeTutorReply,
+} from './progressive-tutor-turn'
 import { resolvePronunciationScoreEligibilityFromCapture } from './pronunciation-score-eligibility'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { SpokenProgress } from './spoken-progress'
 import { pickContextualTutorReply } from './tutor-reply-engine'
-import { resolveTutorReplyWithFallback } from './tutor-reply-orchestration'
 import { speakTutorTextWithSpokenProgress } from './tutor-speech-playback'
 import { awaitWithTimeout } from './await-with-timeout'
 
@@ -51,6 +54,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     userTurnIndexRef,
     selectedScenarioIdRef,
     chatMessagesRef,
+    transcriptionAttemptGenerationRef,
     setTranscriptionStatus,
     setModelLoadingProgressPercent,
     setGrammarCorrectionStatus,
@@ -318,41 +322,33 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         ? `${scenario.generationContextEn}\n\n${interruptionResolution.llmContextNoteEn}`
         : scenario.generationContextEn
 
-      setChatMessages((currentMessages) => [...currentMessages, userMessage])
-      setTutorGenerationStatus('generating')
-
-      const inferenceClient = inferenceClientRef.current
-      inferenceInFlightFlagsRef.current.tutorGeneration = true
-      let tutorReplyText = fallbackReplyText
-      let usedFallback = true
-      try {
-        if (inferenceClient) {
-          const result = await resolveTutorReplyWithFallback({
-            generateTutorReply: inferenceClient.generateTutorReply,
-            requestInput: {
-              scenarioContextEn,
-              historyTurnsEn,
-              userUtteranceEn: intentPhrase,
-              fallbackReplyEn: fallbackReplyText,
+      const startedAtGeneration = transcriptionAttemptGenerationRef.current
+      const tutorOutcome = await publishUserUtteranceThenResolveTutor({
+        publishUserUtterance: () => {
+          setChatMessages((currentMessages) => [...currentMessages, userMessage])
+          setTutorGenerationStatus('generating')
+        },
+        resolveTutorReply: () =>
+          resolvePracticeTutorReply({
+            generateTutorReply: inferenceClientRef.current?.generateTutorReply,
+            markTutorGenerationInFlight: (inFlight) => {
+              inferenceInFlightFlagsRef.current.tutorGeneration = inFlight
             },
-          })
-          if (
-            interruptionResolution &&
-            (result.usedFallback ||
-              interruptionResolution.classification === 'digression' ||
-              interruptionResolution.classification === 'early_cutoff')
-          ) {
-            tutorReplyText = interruptionResolution.replyText
-            usedFallback = true
-          } else {
-            tutorReplyText = result.tutorReplyText
-            usedFallback = result.usedFallback
-          }
-        }
-      } finally {
-        inferenceInFlightFlagsRef.current.tutorGeneration = false
+            scenarioContextEn,
+            historyTurnsEn,
+            userUtteranceEn: intentPhrase,
+            fallbackReplyEn: fallbackReplyText,
+            interruptionResolution,
+          }),
+        startedAtGeneration,
+        readCurrentGeneration: () => transcriptionAttemptGenerationRef.current,
+      })
+
+      if (!tutorOutcome.applied) {
+        return
       }
 
+      const { tutorReplyText, usedFallback } = tutorOutcome.result
       setChatMessages((currentMessages) => [
         ...currentMessages,
         createTutorReplyMessage(tutorReplyText, nextChatMessageId('tutor'), usedFallback),
@@ -392,6 +388,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       setCommunicationSuggestions,
       setTutorGenerationStatus,
       speakTutorText,
+      transcriptionAttemptGenerationRef,
       userTurnIndexRef,
     ],
   )
