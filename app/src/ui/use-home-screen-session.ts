@@ -195,6 +195,8 @@ export function useHomeScreenSession(): HomeScreenProps {
 
   const { handleStartButtonClick, handleStopButtonClick } = useHomeMicrophoneSession({
     canvasRef,
+    spectrogramCanvasRef,
+    pitchTrackCanvasRef,
     speechPlaybackGenerationRef,
     speechPlaybackAbortControllerRef,
     inferenceInFlightFlagsRef,

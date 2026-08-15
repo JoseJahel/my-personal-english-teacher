@@ -254,10 +254,12 @@ export const homeScreenInterfaceTexts = {
     workerUnavailable: 'El proceso de síntesis de voz dejó de responder inesperadamente.',
   },
   liveWaveformLabel: 'Onda en vivo (tiempo)',
-  spectrogramPanelLabel: 'Espectrograma (última utterance)',
-  spectrogramPanelHint: 'Eje X: tiempo · Eje Y: frecuencia (bajas abajo) · color: energía log',
-  pitchTrackPanelLabel: 'Pitch tracking YIN (última utterance)',
-  pitchTrackPanelHint: 'Contorno F0 ~70–400 Hz; marcas abajo = frames no voiced',
+  spectrogramPanelLabel: 'Espectrograma STFT (en vivo y última utterance)',
+  spectrogramPanelHint:
+    'STFT propia (radix-2), no el FFT del Analyser. En vivo mientras hablas; al detener, la utterance completa.',
+  pitchTrackPanelLabel: 'Pitch YIN (en vivo y última utterance)',
+  pitchTrackPanelHint:
+    'YIN propio ~70–400 Hz sobre PCM real. En vivo mientras hablas; al detener, el contorno completo.',
   formantsPanelLabel: 'Formantes (LPC, mediana de la utterance)',
   formantsPanelHint:
     'F1/F2/F3 estimados por envolvente LPC + picos; útiles para vocales (aproximación educativa).',

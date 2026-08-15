@@ -56,6 +56,8 @@ Implementado:
   honesto en español.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
+- `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN **en vivo** sobre PCM
+  del worklet; mismas funciones `dsp/` que post-stop.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
   ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
   (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →

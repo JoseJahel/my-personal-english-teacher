@@ -262,7 +262,7 @@ export function FeedbackPanel({
               width={320}
               height={100}
               className={`h-[100px] w-full rounded-lg bg-sage-950 ${
-                hasCompletedCapture ? '' : 'opacity-40'
+                hasCompletedCapture || isListening ? '' : 'opacity-40'
               }`}
             />
           </div>
@@ -275,7 +275,7 @@ export function FeedbackPanel({
               width={320}
               height={72}
               className={`h-[72px] w-full rounded-lg bg-sage-950 ${
-                hasCompletedCapture ? '' : 'opacity-40'
+                hasCompletedCapture || isListening ? '' : 'opacity-40'
               }`}
             />
           </div>

@@ -9,13 +9,16 @@ Web Audio, `MediaRecorder`). Solo captura y adaptación; sin React ni modelos.
 openRealMicrophoneStream()  → MediaStream real del SO
   ├─ MediaStreamSource → Analyser → Gain(0) → destination
   │    (onda + RMS/peak en vivo vía AnalyserNode)
+  ├─ MediaStreamSource → AudioWorklet PCM tap (copia Float32, issue #93)
+  │    → STFT/YIN propios en el hilo principal (`dsp/`)
   └─ MediaRecorder sobre el mismo MediaStream
        → blob → decode → mono → (UI resamplea a 16 kHz) → ASR
 ```
 
-La visualización y los medidores en vivo leen el **AnalyserNode** del grafo
-Web Audio. El audio que va a Whisper sale del **MediaRecorder** sobre el
-`MediaStream` crudo (no del grafo sintético ni de ScriptProcessor).
+La onda y los medidores en vivo leen el **AnalyserNode**. El espectrograma y
+el pitch **en vivo** usan PCM del worklet + `dsp/spectrogram.ts` /
+`dsp/pitch-detection-yin.ts` (no `getFloatFrequencyData`). El audio que va a
+Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo.
 
 **No tocar la captura sin leer `CAPTURE-INVARIANTS.md` y re-probar mic real.**
 
@@ -33,6 +36,8 @@ Web Audio. El audio que va a Whisper sale del **MediaRecorder** sobre el
 | `audio-resampler.ts` | Resample lineal a 16 kHz (Whisper) |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
+| `pcm-tap-processor.js` | Worklet: solo copia PCM al hilo principal (no FFT, no ASR) |
+| `start-pcm-tap.ts` | Conecta el worklet al `MediaStreamSource` |
 | `CAPTURE-INVARIANTS.md` | Invariantes y checklist manual de mic |
 
 ## VAD (Avance 2)
