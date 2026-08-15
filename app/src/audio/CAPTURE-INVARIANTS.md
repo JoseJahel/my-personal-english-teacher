@@ -20,7 +20,9 @@ Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
    (label becomes `MediaStreamAudioDestinationNode` = synthetic).
 2. Drive the live waveform only from a ScriptProcessor ring that can “look alive”
    without following the user’s voice.
-3. Force `{ sampleRate }` on the capture `AudioContext`.
+3. Force `{ sampleRate }` on the capture `AudioContext`. Device rate stays
+   native; 44.1/48 → 16 kHz is the FIR in `dsp/polyphase-resample.ts`
+   (issue #92), not a constraint on `getUserMedia`.
 4. Skip `audioContext.resume()` after `getUserMedia`.
 5. Peak-normalize near-silence into Whisper (causes music/phone tags).
 6. Reintroduce MediaStreamTrackProcessor / live-PCM rings as the primary ASR path
