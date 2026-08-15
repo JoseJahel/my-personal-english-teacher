@@ -2,7 +2,6 @@ import type { GenerateTutorReplyInput, TutorReplyResult } from '../ia/inference-
 import type { TutorReplyHistoryTurn } from '../ia/inference-worker-protocol'
 import type { PostInterruptionTutorResolution } from './interruption-resume-bridges'
 import { isCurrentAttemptGeneration } from './practice-turn-signal-snapshot'
-import { resolveTutorReplyWithFallback } from './tutor-reply-orchestration'
 
 export interface PublishUserThenResolveTutorInput<T> {
   readonly publishUserUtterance: () => void
@@ -16,7 +15,7 @@ export type PublishUserThenResolveTutorResult<T> =
   | { readonly applied: false; readonly result: T }
 
 /**
- * Issue #96: put the student bubble on screen first, then wait for SmolLM2.
+ * Issue #96: put the student bubble on screen first, then the tutor line.
  * A newer utterance (generation bump) discards a late tutor reply.
  */
 export async function publishUserUtteranceThenResolveTutor<T>(
@@ -53,35 +52,20 @@ export async function resolvePracticeTutorReply(
   input: ResolvePracticeTutorReplyInput,
 ): Promise<PracticeTutorReplyResolution> {
   input.markTutorGenerationInFlight(true)
-  let tutorReplyText = input.fallbackReplyEn
-  let usedFallback = true
   try {
-    if (input.generateTutorReply) {
-      const result = await resolveTutorReplyWithFallback({
-        generateTutorReply: input.generateTutorReply,
-        requestInput: {
-          scenarioContextEn: input.scenarioContextEn,
-          historyTurnsEn: [...input.historyTurnsEn],
-          userUtteranceEn: input.userUtteranceEn,
-          fallbackReplyEn: input.fallbackReplyEn,
-        },
-      })
-      const interruption = input.interruptionResolution
-      if (
-        interruption &&
-        (result.usedFallback ||
-          interruption.classification === 'digression' ||
-          interruption.classification === 'early_cutoff')
-      ) {
-        tutorReplyText = interruption.replyText
-        usedFallback = true
-      } else {
-        tutorReplyText = result.tutorReplyText
-        usedFallback = result.usedFallback
+    if (input.interruptionResolution) {
+      return {
+        tutorReplyText: input.interruptionResolution.replyText,
+        usedFallback: false,
       }
+    }
+    // Instant path: the contextual script is the product reply. SmolLM2 must
+    // not sit on the 10 s timeout before the tutor speaks.
+    return {
+      tutorReplyText: input.fallbackReplyEn,
+      usedFallback: false,
     }
   } finally {
     input.markTutorGenerationInFlight(false)
   }
-  return { tutorReplyText, usedFallback }
 }

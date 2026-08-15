@@ -63,8 +63,28 @@ describe('resolvePracticeTutorReply', () => {
 
     expect(outcome).toEqual({
       tutorReplyText: 'Still or sparkling water?',
-      usedFallback: true,
+      usedFallback: false,
     })
     expect(inFlight).toEqual([true, false])
+  })
+
+  it('returns the scripted line immediately without waiting for SmolLM2', async () => {
+    const generateTutorReply = (): Promise<never> => new Promise(() => {})
+    const startedAt = Date.now()
+    const outcome = await resolvePracticeTutorReply({
+      generateTutorReply,
+      markTutorGenerationInFlight: () => {},
+      scenarioContextEn: 'restaurant',
+      historyTurnsEn: [],
+      userUtteranceEn: 'water please',
+      fallbackReplyEn: 'Certainly — water. Would you like a main dish with that?',
+      interruptionResolution: null,
+    })
+
+    expect(Date.now() - startedAt).toBeLessThan(50)
+    expect(outcome).toEqual({
+      tutorReplyText: 'Certainly — water. Would you like a main dish with that?',
+      usedFallback: false,
+    })
   })
 })

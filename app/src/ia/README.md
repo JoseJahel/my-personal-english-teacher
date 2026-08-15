@@ -53,9 +53,10 @@ Implementado:
     `asrCandidateId` opcional (solo banco de pruebas; el flujo normal de la
     app lo omite y usa el candidato activo).
   - salidas: progreso, `model-ready`, ASR/gramática/TTS/tutor result|error.
-- `inference-worker.ts`: orquestador; preload Whisper+T5; TTS y SmolLM2 on
-  demand; cachea un pipeline Whisper por candidato ASR (`KeyedAsyncCache`) y
-  aplica `set-preferred-device` antes de procesar cualquier otro mensaje.
+- `inference-worker.ts`: orquestador; **preload en paralelo** Whisper+T5+SpeechT5
+  (`warm-model-preload.ts`); SmolLM2 al elegir escenario; cachea un pipeline
+  Whisper por candidato ASR (`KeyedAsyncCache`) y aplica `set-preferred-device`
+  antes de procesar cualquier otro mensaje.
 - `inference-client.ts`: `transcribe`, `correctGrammar`, `synthesizeSpeech`,
   `generateTutorReply`, `preloadModels`, `preloadConversationModel` +
   listeners; builders puros de mensajes; `forcedDevice` opcional al crear el

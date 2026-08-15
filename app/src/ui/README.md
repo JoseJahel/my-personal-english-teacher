@@ -26,10 +26,10 @@ Implementado:
   (`pickContextualTutorReply`) — respuesta instantánea y veraz que sirve de
   respaldo cuando SmolLM2 no responde a tiempo (tests en
   `tutor-reply-engine.test.ts`).
-- `tutor-reply-orchestration.ts`: enfrenta SmolLM2 contra el motor de reglas
-  con un timeout de 10 s (`resolveTutorReplyWithFallback`); el resultado
-  siempre indica de forma veraz si se usó el respaldo (tests en
-  `tutor-reply-orchestration.test.ts`).
+- `tutor-reply-orchestration.ts`: timeout de 10 s si se llama a SmolLM2.
+  El turno de práctica **no espera** al LLM: `resolvePracticeTutorReply`
+  publica al instante la línea del motor de reglas y la voz (caché SpeechT5
+  o `speechSynthesis` local).
 - `spoken-progress.ts` / `interruption-turn-classifier.ts` /
   `interruption-resume-bridges.ts` / `tutor-speech-playback.ts`: barge-in del
   tutor (issue #46) — `spoken_progress` desde `cutoffMs`, clasificación solo
@@ -57,8 +57,9 @@ Implementado:
   vocal; la nota está en **Repetir**.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
-- `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN **en vivo** sobre PCM
-  del worklet; mismas funciones `dsp/` que post-stop.
+- `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN sobre PCM del worklet
+  **existe**, pero **no** se conecta durante la captura (deja el Analyser en
+  ~0 % en arrays Realtek). Espectrograma/pitch de producto van **post-stop**.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
   ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
   (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →
@@ -67,8 +68,9 @@ Implementado:
   (`asr-demo-profile-presentation.ts`).
   Issue **#98:** `home-session-ports.ts` + mocks en `mock-home-session-ports.ts`.
   `useHomeScreenSession(ports?)` acepta captura + inferencia inyectables.
-  Hash DEV **`#practice-mock`** (alias `#ensayo-ui`) monta el `HomeScreen`
-  real sin mic ni modelos — enchufe para el ensayo de UI de César (#70).
+  Hash DEV **`#practice-mock`** (alias `#ensayo-ui`) pide confirmación; no
+  monta el mock solo. Tras “práctica real” se recuerda y se ignora el hash.
+  Forzar ensayo: `?forzar-ensayo=1#practice-mock` (César #70).
   `#shell-preview*` sigue siendo el fixture estático de Playwright.
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).

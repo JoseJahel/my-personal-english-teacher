@@ -27,9 +27,9 @@ export const OFFLINE_READINESS_MODEL_KEYS = [
 
 /**
  * Three states rather than two, because the models load at different moments:
- * ASR and grammar preload on mount, SmolLM2 on scenario selection, and TTS on
- * the first tutor reply. A learner who has only spoken once genuinely sits in
- * between, and saying "ready offline" there would be a lie.
+ * ASR, grammar and SpeechT5 preload on mount; SmolLM2 on scenario selection.
+ * A learner who has not picked a scenario yet sits in between, and saying
+ * "ready offline" there would be a lie.
  */
 export type OfflineReadiness = 'none-cached' | 'partially-cached' | 'fully-cached'
 

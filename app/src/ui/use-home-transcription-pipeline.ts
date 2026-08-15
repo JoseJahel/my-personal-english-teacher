@@ -8,6 +8,7 @@ import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { InferenceClientError } from '../ia/inference-client'
 import { isDegenerateTranscript, isNonSpeechTranscript } from '../ia/transcription-text'
 import type { CaptureDiagnostics } from '../audio/microphone-capture'
+import { applyGrammarCorrectionToLastUserMessage } from './apply-grammar-correction-to-messages'
 import { ensureHomeInferenceClient } from './home-inference-client'
 import type { HomeUtterancePipelineDeps } from './home-utterance-pipeline-deps'
 import {
@@ -55,21 +56,13 @@ export function useHomeTranscriptionPipeline(
     setTranscriptionErrorReason,
     setCorrectedGrammarText,
     setGrammarCorrectionErrorReason,
+    setChatMessages,
   } = deps
 
   const correctTranscribedGrammar = useCallback(
-    async (
-      transcribedTextResult: string,
-      attemptGeneration: number,
-      turnSignalSnapshot: UserTurnSignalSnapshot,
-    ) => {
+    async (transcribedTextResult: string, attemptGeneration: number) => {
       if (!transcribedTextResult.trim() || !inferenceClientRef.current) {
         setGrammarCorrectionStatus('idle')
-        void appendSuccessfulPracticeTurn(
-          transcribedTextResult,
-          transcribedTextResult,
-          turnSignalSnapshot,
-        )
         return
       }
 
@@ -84,10 +77,12 @@ export function useHomeTranscriptionPipeline(
         }
         setCorrectedGrammarText(correctedText)
         setGrammarCorrectionStatus('done')
-        void appendSuccessfulPracticeTurn(
-          transcribedTextResult,
-          correctedText,
-          turnSignalSnapshot,
+        setChatMessages((current) =>
+          applyGrammarCorrectionToLastUserMessage(
+            current,
+            transcribedTextResult,
+            correctedText,
+          ),
         )
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
@@ -96,11 +91,6 @@ export function useHomeTranscriptionPipeline(
         const reason = error instanceof InferenceClientError ? error.reason : 'worker-unavailable'
         setGrammarCorrectionErrorReason(reason)
         setGrammarCorrectionStatus('error')
-        void appendSuccessfulPracticeTurn(
-          transcribedTextResult,
-          transcribedTextResult,
-          turnSignalSnapshot,
-        )
         console.error(error)
       } finally {
         if (attemptGeneration === transcriptionAttemptGenerationRef.current) {
@@ -109,9 +99,9 @@ export function useHomeTranscriptionPipeline(
       }
     },
     [
-      appendSuccessfulPracticeTurn,
       inferenceClientRef,
       inferenceInFlightFlagsRef,
+      setChatMessages,
       setCorrectedGrammarText,
       setGrammarCorrectionErrorReason,
       setGrammarCorrectionStatus,
@@ -174,23 +164,6 @@ export function useHomeTranscriptionPipeline(
 
       pronunciationAttemptGenerationRef.current += 1
       setHasCompletedCapture(true)
-      const formants = updateUtteranceSignalViews({
-        samples,
-        sampleRateInHertz: nativeSampleRate,
-        spectrogramCanvas: spectrogramCanvasRef.current,
-        pitchTrackCanvas: pitchTrackCanvasRef.current,
-      })
-      const turnSignalSnapshot = createUserTurnSignalSnapshot(
-        samples,
-        nativeSampleRate,
-        formants,
-      )
-      lastUserCaptureRef.current = {
-        samples: turnSignalSnapshot.samples,
-        sampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
-      }
-      setMedianFormants(formants)
-      medianFormantsRef.current = formants
 
       const samples16kHz = resampleToWhisperRate(samples, nativeSampleRate)
       const inferenceClient = ensureHomeInferenceClient(
@@ -216,8 +189,28 @@ export function useHomeTranscriptionPipeline(
       setGrammarCorrectionErrorReason(null)
       setCorrectedGrammarText('')
 
+      const transcriptionPromise = inferenceClient.transcribe(samples16kHz)
+
+      const formants = updateUtteranceSignalViews({
+        samples,
+        sampleRateInHertz: nativeSampleRate,
+        spectrogramCanvas: spectrogramCanvasRef.current,
+        pitchTrackCanvas: pitchTrackCanvasRef.current,
+      })
+      const turnSignalSnapshot = createUserTurnSignalSnapshot(
+        samples,
+        nativeSampleRate,
+        formants,
+      )
+      lastUserCaptureRef.current = {
+        samples: turnSignalSnapshot.samples,
+        sampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
+      }
+      setMedianFormants(formants)
+      medianFormantsRef.current = formants
+
       try {
-        const transcribedTextResult = await inferenceClient.transcribe(samples16kHz)
+        const transcribedTextResult = await transcriptionPromise
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
         }
@@ -247,11 +240,12 @@ export function useHomeTranscriptionPipeline(
 
         setTranscribedText(transcribedTextResult)
         setTranscriptionStatus('done')
-        void correctTranscribedGrammar(
+        void appendSuccessfulPracticeTurn(
           transcribedTextResult,
-          attemptGeneration,
+          transcribedTextResult,
           turnSignalSnapshot,
         )
+        void correctTranscribedGrammar(transcribedTextResult, attemptGeneration)
       } catch (error) {
         if (attemptGeneration !== transcriptionAttemptGenerationRef.current) {
           return
@@ -267,6 +261,7 @@ export function useHomeTranscriptionPipeline(
       }
     },
     [
+      appendSuccessfulPracticeTurn,
       correctTranscribedGrammar,
       createInferenceClient,
       inferenceClientRef,

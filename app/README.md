@@ -13,9 +13,10 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 2. Captura de micrófono real (`audio/open-microphone-stream.ts` +
    `audio/microphone-capture.ts`).
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
-4. Al detener: MediaRecorder → decode mono → **espectrograma + pitch track** →
-   gate de energía → resample 16 kHz → Whisper → T5 → **chat del usuario** →
-   tutor híbrido → score → TTS.
+4. Al detener: MediaRecorder → decode mono → Whisper **en paralelo** con
+   espectrograma/pitch → gate de energía → resample 16 kHz → **chat del
+   usuario** → tutor de reglas al instante → voz (`speechSynthesis` o
+   PCM cacheado). T5 y el score no bloquean la respuesta oral.
 5. **Feedback progresivo (issue #96):** la burbuja del estudiante (ASR +
    corrección T5) aparece **antes** de SmolLM2/TTS. El tutor sigue híbrido
    (memoria de 4 turnos, timeout 10 s, respaldo de reglas con insignia). El
@@ -194,9 +195,12 @@ Hasta esa re-medición **no se afirma** que el perfil latencia cumpla &lt; 2 s.
 
 ## Ensayo de UI sin mic ni modelos (issue #98)
 
-En `pnpm dev`, abrir **`#practice-mock`** (alias `#ensayo-ui`). Monta el
-`HomeScreen` **real** con puertos mock de restaurante: sin `getUserMedia` y
-sin descargar 1 GB. Es el enchufe para el ensayo visual de César (#70).
+En `pnpm dev`, el ensayo de UI **no entra solo**. `#practice-mock` (alias
+`#ensayo-ui`) muestra primero una puerta: el botón por defecto va a la
+práctica real y deja recordado no volver a abrir el mock. El ensayo (sin
+mic, mismo turno de restaurante) solo arranca si confirmas o si usas
+`?forzar-ensayo=1#practice-mock` (César / issue #70). `?ensayo=1` **no**
+activa el mock. La demo con micrófono es `http://127.0.0.1:5173/` sin hash.
 `#shell-preview*` sigue siendo el maniquí estático de Playwright. El hash
 está gateado por `import.meta.env.DEV` (no aparece en `pnpm build` /
 `preview`).

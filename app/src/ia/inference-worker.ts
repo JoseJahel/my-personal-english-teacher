@@ -1,6 +1,6 @@
 /**
  * Inference Web Worker: ASR, grammar, TTS, and SmolLM2 tutor replies.
- * Lazy-loads and memoizes each pipeline; warm preload covers ASR + grammar only.
+ * Lazy-loads and memoizes each pipeline; warm preload overlaps ASR + grammar + TTS.
  */
 
 import type {
@@ -11,30 +11,29 @@ import type {
 } from '@huggingface/transformers'
 import { loadSpeechRecognizer, transcribeAudioSamples } from './automatic-speech-recognition'
 import type { ModelDownloadProgressEvent as SpeechRecognitionProgressEvent } from './automatic-speech-recognition'
-import { generateTutorReply, loadConversationSuggestionGenerator } from './conversation-suggestions'
+import { loadConversationSuggestionGenerator } from './conversation-suggestions'
 import { correctEnglishGrammar, loadGrammarCorrector } from './grammar-correction'
 import { KeyedAsyncCache } from './keyed-async-cache'
 import { AggregateModelDownloadProgress } from './model-download-progress'
 import type {
   CorrectGrammarRequestMessage,
-  GenerateTutorReplyRequestMessage,
   InferenceWorkerRequestMessage,
   InferenceWorkerResponseMessage,
   PreloadConversationModelRequestMessage,
   PreloadModelsRequestMessage,
-  SynthesizeSpeechRequestMessage,
   TranscribeRequestMessage,
 } from './inference-worker-protocol'
 import type { AsrModelCandidateId, ModelRegistryKey } from './model-registry'
 import { resolveActiveAsrCandidateId } from './model-registry'
 import { deviceForModelKey, resolvePreferredOnnxDevice } from './resolve-inference-device'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
+import { loadTextToSpeechSynthesizer } from './text-to-speech-synthesis'
 import {
-  loadTextToSpeechSynthesizer,
-  prepareTextForSpeechSynthesis,
-  synthesizeSpeechFromText,
-} from './text-to-speech-synthesis'
+  handleGenerateTutorReplyMessage,
+  handleSynthesizeSpeechMessage,
+} from './inference-worker-speech-jobs'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
+import { isWarmPreloadSuccessful, runWarmModelPreload } from './warm-model-preload'
 
 function postResponse(message: InferenceWorkerResponseMessage): void {
   self.postMessage(message)
@@ -264,19 +263,31 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
 }
 
 /**
- * Load ASR then grammar in series (memory-friendly) so the first utterance
- * only pays inference latency when the user has already been on the page a bit.
+ * Overlap Whisper + T5 + SpeechT5 downloads. SmolLM2 still waits for a
+ * scenario pick so it does not steal bandwidth from the first-turn models.
  */
 async function handlePreloadModelsMessage(message: PreloadModelsRequestMessage): Promise<void> {
   const { requestId } = message
   const candidateId = resolveAsrCandidateIdForMessage(message)
   try {
-    await getSpeechRecognizer(candidateId)
-    emitModelReady('automaticSpeechRecognition')
-    await getGrammarCorrector()
-    emitModelReady('grammarCorrection')
-    // TTS loads on first use; SmolLM2 preloads separately when the learner
-    // picks a scenario (see preload-conversation-model).
+    const result = await runWarmModelPreload({
+      loadSpeechRecognizer: async () => {
+        await getSpeechRecognizer(candidateId)
+        emitModelReady('automaticSpeechRecognition')
+      },
+      loadGrammarCorrector: async () => {
+        await getGrammarCorrector()
+        emitModelReady('grammarCorrection')
+      },
+      loadTextToSpeech: async () => {
+        await getTextToSpeechSynthesizer()
+        emitModelReady('textToSpeech')
+      },
+    })
+    if (!isWarmPreloadSuccessful(result)) {
+      postResponse({ type: 'preload-models-error', requestId, reason: 'model-load-failed' })
+      return
+    }
     postResponse({ type: 'preload-models-result', requestId })
   } catch (error) {
     console.error('Model preload failed.', error)
@@ -302,106 +313,6 @@ async function handlePreloadConversationModelMessage(
   }
 }
 
-async function handleGenerateTutorReplyMessage(
-  message: GenerateTutorReplyRequestMessage,
-): Promise<void> {
-  const { requestId, scenarioContextEn, historyTurnsEn, userUtteranceEn, fallbackReplyEn } = message
-
-  let generator: TextGenerationPipeline
-  try {
-    generator = await getConversationGenerator()
-    emitModelReady('conversationSuggestions')
-  } catch (error) {
-    console.error('Failed to load SmolLM2 conversation model.', error)
-    // Soft-fail: still return the curated scenario line so the demo continues.
-    const fallback = fallbackReplyEn.trim()
-    if (fallback) {
-      postResponse({
-        type: 'generate-tutor-reply-result',
-        requestId,
-        tutorReplyText: fallback,
-        usedFallback: true,
-      })
-      return
-    }
-    postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'model-load-failed' })
-    return
-  }
-
-  try {
-    const result = await generateTutorReply(generator, {
-      scenarioContextEn,
-      historyTurnsEn,
-      userUtteranceEn,
-      fallbackReplyEn,
-    })
-    postResponse({
-      type: 'generate-tutor-reply-result',
-      requestId,
-      tutorReplyText: result.tutorReplyText,
-      usedFallback: result.usedFallback,
-    })
-  } catch (error) {
-    console.error('Tutor reply generation failed.', error)
-    const fallback = fallbackReplyEn.trim()
-    if (fallback) {
-      postResponse({
-        type: 'generate-tutor-reply-result',
-        requestId,
-        tutorReplyText: fallback,
-        usedFallback: true,
-      })
-      return
-    }
-    postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'generation-failed' })
-  }
-}
-
-async function handleSynthesizeSpeechMessage(
-  message: SynthesizeSpeechRequestMessage,
-): Promise<void> {
-  const { requestId, inputText } = message
-  const preparedText = prepareTextForSpeechSynthesis(inputText)
-  if (!preparedText) {
-    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'empty-text' })
-    return
-  }
-
-  let synthesizer: TextToAudioPipeline
-  try {
-    synthesizer = await getTextToSpeechSynthesizer()
-    emitModelReady('textToSpeech')
-  } catch (error) {
-    console.error('Failed to load the text-to-speech model.', error)
-    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'model-load-failed' })
-    return
-  }
-
-  try {
-    const synthesized = await synthesizeSpeechFromText(synthesizer, preparedText)
-    if (synthesized.samples.length === 0) {
-      postResponse({ type: 'synthesize-speech-error', requestId, reason: 'synthesis-failed' })
-      return
-    }
-
-    const audioSamples = synthesized.samples
-    const response: InferenceWorkerResponseMessage = {
-      type: 'synthesize-speech-result',
-      requestId,
-      audioSamples,
-      sampleRateInHertz: synthesized.sampleRateInHertz,
-    }
-    // Transfer PCM buffer to the main thread (worker postMessage transfer list).
-    const workerScope = self as unknown as {
-      postMessage: (message: unknown, transfer: Transferable[]) => void
-    }
-    workerScope.postMessage(response, [audioSamples.buffer])
-  } catch (error) {
-    console.error('Speech synthesis failed.', error)
-    postResponse({ type: 'synthesize-speech-error', requestId, reason: 'synthesis-failed' })
-  }
-}
-
 self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMessage>) => {
   const message = event.data
   switch (message.type) {
@@ -418,10 +329,18 @@ self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMess
       void handlePreloadConversationModelMessage(message)
       break
     case 'synthesize-speech':
-      void handleSynthesizeSpeechMessage(message)
+      void handleSynthesizeSpeechMessage(message, {
+        getTextToSpeechSynthesizer,
+        emitModelReady: () => emitModelReady('textToSpeech'),
+        postResponse,
+      })
       break
     case 'generate-tutor-reply':
-      void handleGenerateTutorReplyMessage(message)
+      void handleGenerateTutorReplyMessage(message, {
+        getConversationGenerator,
+        emitModelReady: () => emitModelReady('conversationSuggestions'),
+        postResponse,
+      })
       break
     case 'set-preferred-device':
       // Worker-wide pin: ALL pipelines (ASR/grammar/TTS/SmolLM2) read this device.
