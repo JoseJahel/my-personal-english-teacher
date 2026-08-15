@@ -27,6 +27,10 @@ Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hech
 ### Oleada 3 — Remate Final
 ~~`#61` hecho~~ → `#77` → `#79` → `#62` → `#63` → `#72`
 
+### Oleada 4 — Laboratorio y defensa (Jahel, #92–#98)
+No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
+`#97` → `#96` → `#93` (tras o con `#59`) → `#92` (coordina `#65`) → `#95` → `#94` → `#98` (enchufa `#70`)
+
 ### Siguiente desbloqueado (sin saltar la oleada)
 
 | Oleada | Siguiente | Luego |
@@ -34,6 +38,7 @@ Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hech
 | 1 — Avance 2 | `#59` | `#70` → `#69` + `#78` → `#57` → `#64` |
 | 2 — Laboratorio | `#65` | `#73` → `#58` → `#76` → `#74` → `#71` |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
+| 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
 
 ---
 
@@ -107,6 +112,22 @@ Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snap
 
 ---
 
+## Lote D — Laboratorio y defensa (Jahel, #92–#98)
+
+Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aula en **este** producto. Asignación a Jahel a petición; no redistribuye #57–#79.
+
+| # | Issue | Estado | Relación con el lote ya abierto |
+|---|--------|--------|---------------------------|
+| 92 | Remuestreo FIR **44.1 y 48** + polifase | Abierto | #65 es el FIR mínimo; este cubre 44.1 racional y coste |
+| 93 | STFT/YIN live sobre **PCM real** | Abierto | #59 pinta; este usa *nuestra* FFT/YIN, no el Analyser |
+| 94 | Auditoría de **encadenado** MFCC | Abierto | #67 son dorados; este caza el bug de escala entre etapas |
+| 95 | Sesgo de locutor vs error, política de score | Abierto | #29 calibra umbral; este mide Δ y decide conversación/drill |
+| 96 | Chat ASR+T5 **sin** esperar tutor | Abierto | #61 es el perfil; este define el presupuesto 2 s como feedback |
+| 97 | Kit de defensa **local** | Abierto | Riesgos + Q&A con *nuestras* cifras; sin host cloud |
+| 98 | Contratos + mocks inyectables | Abierto | #70 deja de ser maniquí: mismo `HomeScreen` |
+
+---
+
 ## Orden de implementación (máximo valor de producto)
 
 ### Oleada A2 (ventana de avance)
@@ -136,6 +157,16 @@ Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snap
 17. **#79** tarjeta de turno  
 18. **#62** PDF  
 19. **#63** / **#72** ruido y hábitos  
+
+### Oleada laboratorio y defensa (en paralelo a A2 solo #97/#96)
+
+20. **#97** kit defensa  
+21. **#96** feedback progresivo  
+22. **#93** PCM live (con #59)  
+23. **#92** FIR multi-tasa  
+24. **#95** sesgo locutor  
+25. **#94** encadenado MFCC  
+26. **#98** mocks (con #70)  
 
 ---
 

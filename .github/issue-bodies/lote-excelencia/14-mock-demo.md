@@ -12,7 +12,7 @@
 La demo real requiere mic, WebGPU/WASM y >1 GB de modelos. Si el aula falla, se cae el 20 % de presentación. Hace falta un **modo simulado local** que recorra el flujo UI completo **sin red y sin mic**, solo en DEV o con flag explícito.
 
 ## 2. Problema
-No hay `?mock=1` (o equivalente) que inyecte: waveform fake, transcripción, gramática, tutor, score, TTS silencioso o beep, sugerencias.
+No hay un modo de ensayo (hash DEV) que inyecte: waveform fake, transcripción, gramática, tutor, score, TTS silencioso o beep, sugerencias.
 
 ## 3. Objetivo
 Flag documentado (`import.meta.env.DEV` + query `mock=1` o `VITE_DEMO_MOCK=1`) que sustituya capturas e inferencia por implementaciones mock **con los mismos contratos de UI**, permitiendo ensayo del guion de 10–15 min.
@@ -47,6 +47,6 @@ Robustez de demo en localhost (sin cloud). Ensayos del equipo sin descargar mode
 - [ ] lint/test/build
 
 ## 14. DoD
-PR mergeado; comentario con URL local de ejemplo `http://localhost:5173/?mock=1`.
+PR mergeado; comentario con URL local de ejemplo `http://localhost:5173/#shell-preview`.
 
 **Labels:** `avance-2`, `entrega-final`, `type:story`, `layer:ui`, `person:cesar`, `enhancement`
