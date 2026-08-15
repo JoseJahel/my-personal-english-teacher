@@ -353,7 +353,18 @@ export function computeWordErrorRate(reference: string, hypothesis: string): Wor
 | TTS | `Xenova/speecht5_tts` (+ HiFiGAN) | WASM |
 | Tutor | `HuggingFaceTB/SmolLM2-360M-Instruct` | WASM |
 
-### 8.4 Bibliografía y recursos
+### 8.4 Kit de defensa local (issue #97)
+
+Artefactos orales de aula, versionados junto a este documento. **No** sustituyen
+el deck de 10–15 min (issue #64) ni la bitácora de evidencias (issue #71):
+
+- [matriz-riesgos.md](./matriz-riesgos.md) — riesgos reales (WebGPU, 1 GB,
+  mic sordo, score vs locutor) con dueño y mitigación local.
+- [preguntas-defensa.md](./preguntas-defensa.md) — Q&A DSP/IA con cifra o
+  path de este repo, más el **plan B 100 % local** (`pnpm preview`,
+  `#shell-preview*`, `dev:latency`). Sin host cloud.
+
+### 8.5 Bibliografía y recursos
 
 - Documentación de `@huggingface/transformers` (transformers.js) y ONNX Runtime Web.
 - MDN Web Docs: Web Audio API, MediaStream/MediaRecorder, Service Workers/PWA.
@@ -368,6 +379,8 @@ export function computeWordErrorRate(reference: string, hypothesis: string): Wor
 ---
 
 *Documentos hermanos: [matriz-trazabilidad.md](./matriz-trazabilidad.md) ·
-[reporte-verificacion.md](./reporte-verificacion.md). Este documento y sus
+[reporte-verificacion.md](./reporte-verificacion.md) ·
+[matriz-riesgos.md](./matriz-riesgos.md) ·
+[preguntas-defensa.md](./preguntas-defensa.md). Este documento y sus
 diagramas Mermaid/ecuaciones KaTeX se versionan en Markdown y se exportan a PDF
 para la entrega.*
