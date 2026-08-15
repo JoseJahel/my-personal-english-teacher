@@ -305,6 +305,7 @@ export function HomeScreen(props: HomeScreenProps) {
             canvasRef={canvasRef}
             isStarting={isStarting}
             isListening={isListening}
+            isDrillListening={isDrillListening}
             isTutorSpeaking={isTutorSpeaking}
             isPreparingModels={isPreparingModels}
             liveInputLevel01={liveInputLevel01}

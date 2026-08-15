@@ -6,10 +6,10 @@ import type { AsrModelCandidateId } from '../ia/model-registry'
  */
 export const homeScreenInterfaceTexts = {
   applicationTitle: 'My Personal English Teacher',
-  /** Short product mark for the rail (Atelier shell). */
-  brandMarkLetter: 'M',
-  brandShortName: 'MPET',
-  brandProductLine: 'English Teacher',
+  /** Short product mark for the rail. Visible name of the tutor product. */
+  brandMarkLetter: 'T',
+  brandShortName: 'Teacher',
+  brandProductLine: 'inglés personal',
   asrDemoProfile: {
     precisionRailLabel: 'Perfil precisión · small-en',
     latencyRailLabel: 'Perfil latencia · tiny-en',
@@ -32,6 +32,14 @@ export const homeScreenInterfaceTexts = {
   tutorSpeakingHint: 'El tutor está hablando… espera a que termine para poder hablar tú.',
   modelsWarmingUpMessage:
     'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
+  practiceMockBanner:
+    'Modo ensayo: no hay micrófono real ni modelos. Hablar/Detener no graba tu voz; cada parada inserta el mismo turno de ejemplo (restaurante). Para practicar de verdad, sal de este modo.',
+  practiceMockExitLabel: 'Salir al micrófono real',
+  practiceMockGateTitle: 'Esto no es el micrófono real',
+  practiceMockGateBody:
+    'Llegaste a una ruta de ensayo de interfaz. No se abre el micrófono y cada Detener inventa el mismo turno de restaurante. Si quieres practicar o probar la captura, entra a la práctica real.',
+  practiceMockGateRealLabel: 'Ir a la práctica real',
+  practiceMockGateEnterLabel: 'Entrar al ensayo (sin mic)',
   offlineReadiness: {
     noneCached:
       'Primera vez en este navegador: se descargarán más de 1 GB de modelos. Necesitas conexión ahora; después podrás practicar sin internet.',
