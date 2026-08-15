@@ -24,6 +24,9 @@ export const DEFAULT_MFCC_PRE_EMPHASIS_COEFFICIENT = 0.97
 /** Lowest mel-filter edge (Hz). */
 export const DEFAULT_MFCC_MINIMUM_FREQUENCY_HZ = 0
 
+/** Floor before log-mel. Avoids log(0); 1e-10 is the HTK-style speech default. */
+export const MFCC_LOG_MEL_ENERGY_FLOOR = 1e-10
+
 /**
  * Highest mel-filter edge (Hz). When omitted, uses Nyquist (sampleRate / 2).
  * At 16 kHz that is 8 kHz — standard for speech MFCC.
@@ -270,18 +273,25 @@ function computeMfccCoefficientsForFrame(
     windowed[index] = (frameSamples[index] ?? 0) * (window[index] ?? 0)
   }
 
-  const powerSpectrum = computePowerSpectrum(windowed)
+  const powerSpectrum = computeMfccPowerSpectrum(windowed)
   const melEnergies = applyMelFilterbank(powerSpectrum, filterbank)
-  const logMelEnergies = new Float32Array(melEnergies.length)
-  for (let index = 0; index < melEnergies.length; index += 1) {
-    // Floor avoids log(0); 1e-10 is standard in speech toolkits.
-    logMelEnergies[index] = Math.log(Math.max(melEnergies[index] ?? 0, 1e-10))
-  }
+  const logMelEnergies = computeLogMelEnergies(melEnergies)
 
   return discreteCosineTransformType2(logMelEnergies, coefficientCount)
 }
 
-function applyMelFilterbank(
+/** Natural log of mel-band energy, floored. Not log10 (that is spectrogram UI). */
+export function computeLogMelEnergies(melEnergies: Float32Array): Float32Array {
+  const logMelEnergies = new Float32Array(melEnergies.length)
+  for (let index = 0; index < melEnergies.length; index += 1) {
+    logMelEnergies[index] = Math.log(
+      Math.max(melEnergies[index] ?? 0, MFCC_LOG_MEL_ENERGY_FLOOR),
+    )
+  }
+  return logMelEnergies
+}
+
+export function applyMelFilterbank(
   powerSpectrum: Float32Array,
   filterbank: readonly Float32Array[],
 ): Float32Array {
@@ -320,9 +330,10 @@ function discreteCosineTransformType2(
 
 /**
  * Real power spectrum |X[k]|² for k = 0..N/2 via in-place radix-2 FFT.
- * Input is zero-padded real frame of length fftSize.
+ * Unnormalized: do not divide by N² or convert to log10 here (spectrogram UI
+ * does that; mixing the two floors the mel bank — issue #94).
  */
-function computePowerSpectrum(realTimeDomain: Float32Array): Float32Array {
+export function computeMfccPowerSpectrum(realTimeDomain: Float32Array): Float32Array {
   const fftSize = realTimeDomain.length
   const real = new Float32Array(fftSize)
   const imag = new Float32Array(fftSize)
