@@ -60,6 +60,7 @@ export type PronunciationUiStatus =
   | 'done'
   | 'unavailable'
   | 'not-evaluated'
+  | 'deferred-to-drill'
 /** Drill status: repeat the tutor's last line and get scored against it. */
 export type DrillUiStatus = 'idle' | 'listening' | 'scoring' | 'done' | 'unavailable'
 /** Tutor reply generation status (SmolLM2; loads on scenario selection). */
@@ -250,6 +251,8 @@ export function pronunciationStatusMessageFor(
       return homeScreenInterfaceTexts.pronunciationStatusMessages.unavailable
     case 'not-evaluated':
       return homeScreenInterfaceTexts.pronunciationStatusMessages.notEvaluated
+    case 'deferred-to-drill':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.deferredToDrill
   }
 }
 export function drillStatusMessageFor(

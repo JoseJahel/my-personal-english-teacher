@@ -50,10 +50,11 @@ Implementado:
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.
-- `pronunciation-score-eligibility.ts`: política #75 — no puntuar (ni mostrar
-  0–100) si no hay habla usable, el ASR devolvió un tag de no-habla o el
-  texto es degenerado; la UI usa el estado `not-evaluated` y un mensaje
-  honesto en español.
+- `pronunciation-score-eligibility.ts`: política #75 — no puntuar si no hay
+  habla usable, tag de no-habla o texto degenerado (`not-evaluated`). Issue
+  **#95**: conversación tampoco muestra 0–100 (`deferred-to-drill`) porque
+  el cambio de locutor sintético mueve el score tanto o más que un error de
+  vocal; la nota está en **Repetir**.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
 - `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN **en vivo** sobre PCM

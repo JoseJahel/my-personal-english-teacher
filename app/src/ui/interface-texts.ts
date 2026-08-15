@@ -329,13 +329,15 @@ export const homeScreenInterfaceTexts = {
       `Puntuación local ${score0to100.toFixed(1)} / 100 (${band})`,
   },
   pronunciationStatusMessages: {
-    idle: 'Tras hablar, se compara tu audio con una referencia sintetizada (MFCC + DTW).',
+    idle: 'En conversación no hay 0–100 contra el TTS (el locutor sintético mueve el score tanto o más que un error de vocal). El 0–100 está en modo Repetir.',
     scoring: 'Calculando puntuación de pronunciación (MFCC / pitch + DTW)...',
     done: (score0to100: number) =>
       `Puntuación de pronunciación: ${score0to100.toFixed(1)} / 100 (mayor = más cerca de la referencia).`,
     unavailable: 'No se pudo calcular la puntuación de pronunciación para este turno.',
     notEvaluated:
       'No se evaluó la pronunciación: no hubo habla clara en inglés. No es una mala nota. Intenta de nuevo más cerca del micrófono y con más volumen.',
+    deferredToDrill:
+      'No hay 0–100 en este turno de conversación: cambiar de locutor sintético (120→210 Hz) mueve ~11.4 puntos y pronunciar otras vocales ~9.2 (ratio 1.23). No es que lo hayas dicho mal. Practica la frase del tutor en Repetir.',
     detail: (details: {
       mfccScore: number
       pitchScore: number | null

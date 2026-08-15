@@ -61,6 +61,10 @@ Implementado:
   - defaults calibrados (issue #29): `pronunciation-score-calibration-constants.ts`
   - protocolo multi-hablante + fit: `run-pronunciation-score-calibration.ts`
   - tests en `pronunciation-score.test.ts`, `run-pronunciation-score-calibration.test.ts`
+  - **Sesgo locutor (issue #95):** `measure-speaker-bias.ts` +
+    `synthetic-voiced-phrase.ts`. Δlocutor **11.4** ≳ Δerror **9.2**
+    (ratio **1.23**) → 0–100 solo en drill. Invariantes:
+    `speaker-bias-invariants.ts`.
   - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
