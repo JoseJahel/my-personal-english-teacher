@@ -20,6 +20,12 @@ describe('prepareTextForSpeechSynthesis', () => {
     const prepared = prepareTextForSpeechSynthesis(longText)
     expect(prepared.length).toBeLessThanOrEqual(MAXIMUM_TTS_INPUT_CHARACTERS)
   })
+
+  it('normalizes numbers, prices, and codes before returning (#77)', () => {
+    expect(prepareTextForSpeechSynthesis('Gate B12 boards at 3:30 p.m., ticket is $12')).toBe(
+      'Gate B twelve boards at three thirty p m, ticket is twelve dollars',
+    )
+  })
 })
 
 describe('normalizeTextToSpeechPipelineOutput', () => {
