@@ -10,6 +10,8 @@ import {
 } from './practice-shell-types'
 import type { PracticeScenarioId } from './practice-scenarios'
 import { listPracticeScenarioIds } from './practice-scenarios'
+import type { AsrDemoProfileId } from '../ia/model-registry'
+import { resolveAsrDemoProfileRailPresentation } from './asr-demo-profile-presentation'
 
 export interface PracticeRailProps {
   readonly activeView: PracticeShellView
@@ -19,6 +21,7 @@ export interface PracticeRailProps {
   readonly firstTurnHintEn: string
   readonly offlineCompactMessage: string
   readonly isFullyOfflineReady: boolean
+  readonly asrDemoProfile: AsrDemoProfileId
   readonly onNavigate: (view: PracticeShellView) => void
   readonly onSelectScenario: (scenarioId: PracticeScenarioId) => void
   readonly onSelectMode: (mode: PracticeModeId) => void
@@ -32,6 +35,7 @@ export function PracticeRail({
   firstTurnHintEn,
   offlineCompactMessage,
   isFullyOfflineReady,
+  asrDemoProfile,
   onNavigate,
   onSelectScenario,
   onSelectMode,
@@ -39,6 +43,7 @@ export function PracticeRail({
   const shell = homeScreenInterfaceTexts.shell
   const scenarioLabels = homeScreenInterfaceTexts.practiceScenarios
   const scenarioIds = listPracticeScenarioIds()
+  const asrProfile = resolveAsrDemoProfileRailPresentation(asrDemoProfile)
 
   return (
     <aside
@@ -48,16 +53,16 @@ export function PracticeRail({
     >
       <div className="mb-2 flex items-center gap-2.5 border-b border-sage-200 px-1.5 pb-3">
         <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink-900 font-serif text-lg text-sage-50"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink-900 font-serif text-[1.15rem] italic leading-none text-sage-50"
           aria-hidden
         >
           {homeScreenInterfaceTexts.brandMarkLetter}
         </span>
-        <div className="min-w-0">
-          <strong className="block text-sm tracking-tight text-ink-900">
+        <div className="min-w-0 pt-0.5">
+          <strong className="block font-serif text-[1.15rem] font-normal italic leading-none tracking-tight text-ink-900">
             {homeScreenInterfaceTexts.brandShortName}
           </strong>
-          <span className="block text-[0.68rem] text-ink-600">
+          <span className="mt-1 block text-[0.62rem] tracking-[0.16em] text-ink-600 uppercase">
             {homeScreenInterfaceTexts.brandProductLine}
           </span>
         </div>
@@ -145,6 +150,16 @@ export function PracticeRail({
       </div>
 
       <div className="mt-auto pt-3">
+        <p
+          className={`mb-2 px-1.5 text-[0.68rem] ${
+            asrProfile.tone === 'latency' ? 'font-semibold text-blush-600' : 'text-ink-600'
+          }`}
+          data-testid={PRACTICE_SHELL_TEST_IDS.asrDemoProfileBadge}
+          data-asr-profile={asrProfile.tone}
+          title={asrProfile.title}
+        >
+          {asrProfile.label}
+        </p>
         <p className="mb-2 flex items-center gap-1.5 px-1.5 text-[0.72rem] text-ink-600">
           <i
             className={`inline-block h-1.5 w-1.5 rounded-full ${

@@ -44,8 +44,14 @@ import { useHomeMicrophoneSession } from './use-home-microphone-session'
 import { useHomeUtterancePipeline } from './use-home-utterance-pipeline'
 import { usePracticeHistoryBootstrap } from './use-practice-history-bootstrap'
 import type { HomeScreenProps } from './HomeScreen'
+import {
+  PRODUCTION_HOME_SESSION_PORTS,
+  type HomeSessionPorts,
+} from './home-session-ports'
 
-export function useHomeScreenSession(): HomeScreenProps {
+export function useHomeScreenSession(
+  ports: HomeSessionPorts = PRODUCTION_HOME_SESSION_PORTS,
+): HomeScreenProps {
   const [selectedScenarioId, setSelectedScenarioId] =
     useState<PracticeScenarioId>(DEFAULT_SCENARIO_ID)
   const [chatMessages, setChatMessages] = useState<PracticeChatMessage[]>(() =>
@@ -137,6 +143,7 @@ export function useHomeScreenSession(): HomeScreenProps {
   }, [chatMessages])
 
   const pipelineDeps = {
+    createInferenceClient: ports.createInferenceClient,
     inferenceClientRef,
     inferenceInFlightFlagsRef,
     speechPlaybackGenerationRef,
@@ -188,6 +195,14 @@ export function useHomeScreenSession(): HomeScreenProps {
   } = useDrillRepetition({
     getInferenceClient: () => inferenceClientRef.current,
     getLastTutorLineEn: () => findLastTutorLineText(chatMessagesRef.current),
+    startSpeechCapture: ports.startSpeechCapture,
+    canvasRef,
+    onLiveMeters: ({ rms, peak, level01 }) => {
+      setLiveRms(rms)
+      setLivePeak(peak)
+      setLiveInputLevel01(level01)
+    },
+    onDeviceLabel: setActiveMicrophoneLabel,
   })
   const setSpeechSynthesisStatusIdle = useCallback(() => {
     setSpeechSynthesisStatus('idle')
@@ -216,6 +231,7 @@ export function useHomeScreenSession(): HomeScreenProps {
     setActiveMicrophoneLabel,
     setMicrophoneErrorDetail,
     transcribeCapturedAudio,
+    startSpeechCapture: ports.startSpeechCapture,
   })
 
   const ensurePracticeSession = useCallback(async (scenarioId: PracticeScenarioId) => {
@@ -271,12 +287,13 @@ export function useHomeScreenSession(): HomeScreenProps {
         setSpeechModelLoadingProgressPercent,
         setTutorGenerationStatus,
         setTutorModelLoadingProgressPercent,
+        ports.createInferenceClient,
       )
       void inferenceClient.preloadConversationModel().catch((error: unknown) => {
         console.warn('SmolLM2 preload failed; will retry on first tutor reply.', error)
       })
     },
-    [ensurePracticeSession, microphoneStatus],
+    [ensurePracticeSession, microphoneStatus, ports.createInferenceClient],
   )
 
   useEffect(() => {
@@ -306,6 +323,7 @@ export function useHomeScreenSession(): HomeScreenProps {
       setSpeechModelLoadingProgressPercent,
       setTutorGenerationStatus,
       setTutorModelLoadingProgressPercent,
+      ports.createInferenceClient,
     )
     const unsubscribeFromModelReady = inferenceClient.subscribeToModelReady((readyMessage) => {
       modelLoadHistory.markLoaded(readyMessage.modelKey)
@@ -321,7 +339,7 @@ export function useHomeScreenSession(): HomeScreenProps {
       cancelled = true
       unsubscribeFromModelReady()
     }
-  }, [modelLoadHistory])
+  }, [modelLoadHistory, ports.createInferenceClient])
 
   useEffect(() => {
     let cancelled = false

@@ -119,11 +119,20 @@ TTS y SmolLM2 corren siempre en WASM.
 |--------------------|---------|:------------------:|:------------:|
 | ASR perfil **precisión** (`small-en`, default) | WebGPU | ~3.4 s/frase (bench 2026-07-29) | No (L-1) |
 | ASR perfil **precisión** (`small-en`) | WASM | ~11 s/frase | No |
-| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | Pendiente re-medir en hardware de aula (§5 procedimiento) | No afirmado |
+| ASR perfil **latencia** (`tiny-en`, `pnpm dev:latency`) | WebGPU / WASM | **No medido** en este hardware (issue #96: no se inventa la cifra; re-medir en `#asr-benchmark`) | No afirmado |
 | Gate de energía + espectrograma + pitch | CPU (dominio puro) | < 100 ms | Sí |
 | Gramática (T5) | WASM | dependiente de frase | Parcial |
 | Score de pronunciación (MFCC+DTW) | CPU | < 200 ms | Sí |
 | Tutor híbrido (SmolLM2) | WASM | timeout de 10 s + respaldo de reglas | Acotado por diseño |
+
+**Definición del presupuesto de 2 s (issue #96 / RNF-06).** El enunciado se
+aplica al **feedback inmediato** (transcripción Whisper + corrección T5
+visible en el chat), no al turno entero con SmolLM2 y SpeechT5. El chat
+publica la burbuja del estudiante en cuanto cierra ASR+T5; el tutor puede
+tardar hasta 10 s (o caer al respaldo) **después**. `small-en` sigue sin
+cumplir 2 s en el tramo ASR (~3.4 s WebGPU). `tiny-en` **no tiene cifra
+nueva**: la fila de arriba queda en “no medido” hasta una corrida de
+`#asr-benchmark` en el hardware de aula.
 
 El DSP local (visualizaciones, gate, score) es holgadamente sub-2 s. El costo
 está en la inferencia de los modelos. El perfil latencia (`VITE_ASR_PROFILE=latency`
@@ -168,6 +177,77 @@ No hay Python/librosa/Meyda en runtime ni en CI: el JSON vive en el repo.
 Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito:
 `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
 
+## 5.3 Encadenado MFCC (issue #94)
+
+Los vectores dorados (#67) no cazan un fallo de *acoplamiento*: aplicar al
+espectro de potencia la escala de **visualización** (`log10` y/o `1/N²` de
+`dsp/spectrogram.ts`) y seguir usando ese vector como entrada del banco
+mel. Cada etapa puede seguir “pasando” y las bandas caen al piso
+`log(1e-10)`.
+
+| Convención | Valor en este repo |
+|------------|--------------------|
+| Escala mel | HTK: \(2595\log_{10}(1+f/700)\) (`hertzToMel`) |
+| Banco | 40 triángulos, 0 Hz → Nyquist (8 kHz a 16 kHz), **sin** normalizar Slaney |
+| Espectro | \(\|X[k]\|^2\) sin \(1/N^2\) ni `log10` |
+| Log-mel | \(\ln\max(E_j,\,10^{-10})\) |
+| DCT | tipo II sin normalizar; **c0 se conserva** |
+
+Invariante (`dsp/mfcc-chain-audit.test.ts`): tono 1 kHz, amplitud 1, 16 kHz
+→ la banda mel de pico no está en el piso; c1–c12 no colapsan a ~0. Si se
+inyecta el espectro de UI como si fuera potencia, el número de bandas en el
+piso **sube** (≥ 10). Fixture de convención: `dsp/mfcc-chain-invariants.json`
+(TS del repo; sin Python en CI). #67 permanece verde.
+
+## 5.4 STFT/YIN en vivo sobre PCM (issue #93)
+
+Durante la escucha, un AudioWorklet **solo copia** PCM (`audio/pcm-tap-processor.js`).
+El análisis llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin`
+(las mismas funciones que post-utterance). No se usa
+`AnalyserNode.getFloatFrequencyData` como STFT de curso.
+
+| Parámetro | Valor |
+|-----------|--------|
+| Ventana / hop | 25 ms / 10 ms (igual que el espectrograma de utterance) |
+| Acumulador | Emite solo ventanas **completas**; no rellena con ceros |
+| Presupuesto por trama | &lt; 50 ms en el test de tono 1 kHz (`analyze-live-pcm-frame.test.ts`) |
+| ASR | Sigue siendo MediaRecorder sobre el `MediaStream` crudo |
+
+## 5.5 Remuestreo FIR multi-tasa (issue #92 / #65)
+
+El path a 16 kHz de Whisper/MFCC/score **ya no es solo interpolación lineal**.
+Diseño: sinc ventaneado con Hann, fase lineal, corte **7.2 kHz** (Nyquist
+destino 8 kHz), $N=93$ a la tasa de entrada. Polifase para no convolucionar el
+prototipo largo en cada muestra de entrada.
+
+| Ruta | Método | Tono 12 kHz → residual (dB) | Retardo de grupo | Coste |
+|------|--------|----------------------------:|------------------|-------|
+| 48 kHz → 16 kHz lineal (Avance 1) | interpolación | **0.0** (alias a 4 kHz a plena escala) | 0 | 1 mezcla/salida |
+| 48 kHz → 16 kHz FIR | decimación ×3, 3 fases | **85.1** | 46 muestras @ 48 kHz (**0.96 ms**) | 31 MAC/entrada (93/salida) |
+| 44.1 kHz → 16 kHz lineal | interpolación | **2.1** | 0 | 1 mezcla/salida |
+| 44.1 kHz → 16 kHz FIR | racional **160/441** | **86.6** | 46.5 muestras @ 44.1 kHz (**1.05 ms**) | 93 MAC/salida (no 14 880) |
+
+Cifras de dB: RMS en régimen permanente vs seno de amplitud 1 (`1/√2`),
+`dsp/polyphase-resample.test.ts` y `audio/audio-resampler.test.ts`. El umbral
+exportado que aserta el test es **`FIR_MIN_ALIAS_ATTENUATION_DB = 50`**.
+Otras tasas (p. ej. 32 kHz) siguen el lineal y **no lanzan**. No se fuerza
+`sampleRate` en captura.
+
+## 5.6 Sesgo de locutor vs error (issue #95)
+
+Protocolo sintético (fuente armónica + 3 formantes) sobre
+`scorePronunciationFromMonoPcm`. Hablantes A/B del protocolo #29 (120 / 210 Hz).
+
+| Condición | Score | Δ | d MFCC extra |
+|-----------|------:|--:|-------------:|
+| Identidad | 100.0 | 0 | 0 |
+| Locutor 120→210 Hz, mismas vocales | 88.6 | **11.4** | 3.24 |
+| Error de vocal, mismo F0 | 90.8 | **9.2** | 3.00 |
+
+Ratio Δlocutor/Δerror = **1.23** ≥ 1 → política **`drill-only`**. Conversación
+no muestra 0–100 (`deferred-to-drill`). #75 (sin habla útil / `[Music]`) sigue
+cortando antes. Tests: `dsp/measure-speaker-bias.test.ts`.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -189,6 +269,10 @@ Regenerar el JSON solo si el equipo **decide** cambiar el extractor a propósito
 | CP-15 | Persistencia spoken_progress (Case D) | Pending en sesión + reload | IndexedDB conserva cutoff | `storage/session-repository.test.ts` |
 | CP-16 | FFT vs DFT (issue #66) | Impulso / coseno / Parseval / frame STFT | Error acotado &lt; 1e-10 (Float64) y &lt; 1e-5 (log-mag STFT) | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` |
 | CP-17 | MFCC vectores dorados (issue #67) | Tonos 440/1000, dos tonos, ruido LCG | c0–c12 dentro de 1e-5 del JSON versionado | `dsp/mfcc-golden-vectors.test.ts` |
+| CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
+| CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
+| CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
+| CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.4 ≳ Δerror 9.2; ratio 1.23; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los

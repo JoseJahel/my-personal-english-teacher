@@ -12,7 +12,6 @@ import {
 } from 'react'
 import {
   MicrophoneCaptureError,
-  startMicrophoneCapture,
   type CaptureDiagnostics,
   type MicrophoneCaptureSession,
 } from '../audio/microphone-capture'
@@ -60,6 +59,7 @@ export interface HomeMicrophoneSessionDeps {
     nativeSampleRate: number,
     diagnostics: CaptureDiagnostics,
   ) => Promise<void>
+  readonly startSpeechCapture: () => Promise<MicrophoneCaptureSession>
 }
 
 export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
@@ -93,6 +93,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setActiveMicrophoneLabel,
     setMicrophoneErrorDetail,
     transcribeCapturedAudio,
+    startSpeechCapture,
   } = deps
 
   const abortMicrophoneCapture = useCallback(() => {
@@ -140,7 +141,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setMicrophoneErrorDetail(null)
 
     try {
-      const captureSession = await startMicrophoneCapture()
+      const captureSession = await startSpeechCapture()
 
       if (attemptGeneration !== captureAttemptGenerationRef.current) {
         captureSession.abort()
@@ -153,6 +154,11 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
       setMicrophoneStatus('listening')
       voiceActivityDetectorRef.current.reset()
       autoStopTriggeredRef.current = false
+
+      // Do not attach the #93 AudioWorklet tap to this MediaStreamSource.
+      // On Windows Realtek arrays the tap leaves the Analyser at ~0% while
+      // MediaRecorder still records; drill (no tap) shows a live waveform.
+      // Post-stop STFT/YIN still run on the decoded utterance.
 
       const canvas = canvasRef.current
       if (canvas) {
@@ -216,6 +222,7 @@ export function useHomeMicrophoneSession(deps: HomeMicrophoneSessionDeps) {
     setTranscriptionStatus,
     speechPlaybackAbortControllerRef,
     speechPlaybackGenerationRef,
+    startSpeechCapture,
   ])
 
   const handleStopButtonClick = useCallback(() => {

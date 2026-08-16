@@ -181,6 +181,22 @@ exige $f_s \ge 2 f_{\max}$ para evitar *aliasing*:
 
 $$ f_s \ge 2 f_{\max} $$
 
+La captura sigue a la tasa **nativa** del dispositivo (no se fuerza
+`sampleRate` en `getUserMedia`). El paso a 16 kHz es un FIR de **fase lineal**
+(sinc ventaneado con Hann, $N=93$ a la tasa de entrada) en
+`dsp/polyphase-resample.ts`:
+
+- $48\,\text{kHz}\to 16\,\text{kHz}$: decimación entera $\times 3$ (3 fases, 31
+  MAC/entrada).
+- $44.1\,\text{kHz}\to 16\,\text{kHz}$: racional $160/441$ (no se trata 44.1
+  como 48). 93 MAC/salida, no los 14 880 del prototipo a tasa alta.
+
+Corte $7.2\,\text{kHz}$ (Nyquist destino $=8\,\text{kHz}$). Un tono de 12 kHz
+queda $\ge 50\,\text{dB}$ por debajo; el interpolador lineal del Avance 1 lo
+deja pasar casi entero (0 dB a 48 kHz). Cifras y retardo de grupo (~1 ms) en
+`reporte-verificacion.md` §5.5. Otras tasas caen al interpolador lineal
+documentado.
+
 ### 5.2 Transformada Discreta de Fourier (DFT) y espectrograma
 
 El análisis espectral parte de la **DFT** de una trama de $N$ muestras:
@@ -209,6 +225,11 @@ $$ m(f) = 2595 \,\log_{10}\!\left(1 + \frac{f}{700}\right) $$
 5. **DCT-II** para decorrelacionar y quedarse con los primeros 13 coeficientes:
 
 $$ c_i = \sum_{j=0}^{M-1} E_j \cos\!\left[\frac{\pi i}{M}\left(j + \tfrac{1}{2}\right)\right], \quad i = 0,\dots,12 $$
+
+Convención HTK de este repo (issue #94): el banco no se normaliza al estilo
+Slaney; \(c_0\) se conserva; \(|X[k]|^2\) **no** se divide por \(N^2\) ni se
+pasa a `log10` antes del banco (eso es el espectrograma de UI). Invariante
+en `dsp/mfcc-chain-audit.test.ts`.
 
 ### 5.4 Detección de pitch: YIN
 
@@ -353,10 +374,23 @@ export function computeWordErrorRate(reference: string, hypothesis: string): Wor
 | TTS | `Xenova/speecht5_tts` (+ HiFiGAN) | WASM |
 | Tutor | `HuggingFaceTB/SmolLM2-360M-Instruct` | WASM |
 
-### 8.4 Bibliografía y recursos
+### 8.4 Kit de defensa local (issue #97)
+
+Artefactos orales de aula, versionados junto a este documento. **No** sustituyen
+el deck de 10–15 min (issue #64) ni la bitácora de evidencias (issue #71):
+
+- [matriz-riesgos.md](./matriz-riesgos.md) — riesgos reales (WebGPU, 1 GB,
+  mic sordo, score vs locutor) con dueño y mitigación local.
+- [preguntas-defensa.md](./preguntas-defensa.md) — Q&A DSP/IA con cifra o
+  path de este repo, más el **plan B 100 % local** (`pnpm preview`,
+  `#shell-preview*`, `dev:latency`). Sin host cloud.
+
+### 8.5 Bibliografía y recursos
 
 - Documentación de `@huggingface/transformers` (transformers.js) y ONNX Runtime Web.
 - MDN Web Docs: Web Audio API, MediaStream/MediaRecorder, Service Workers/PWA.
+- Oppenheim, A. V. & Schafer, R. W. *Discrete-Time Signal Processing*
+  (decimación, fase lineal, bancos polifásicos).
 - De Cheveigné, A. & Kawahara, H. (2002). *YIN, a fundamental frequency
   estimator for speech and music.* JASA.
 - Davis, S. & Mermelstein, P. (1980). *Comparison of parametric representations
@@ -368,6 +402,8 @@ export function computeWordErrorRate(reference: string, hypothesis: string): Wor
 ---
 
 *Documentos hermanos: [matriz-trazabilidad.md](./matriz-trazabilidad.md) ·
-[reporte-verificacion.md](./reporte-verificacion.md). Este documento y sus
+[reporte-verificacion.md](./reporte-verificacion.md) ·
+[matriz-riesgos.md](./matriz-riesgos.md) ·
+[preguntas-defensa.md](./preguntas-defensa.md). Este documento y sus
 diagramas Mermaid/ecuaciones KaTeX se versionan en Markdown y se exportan a PDF
 para la entrega.*

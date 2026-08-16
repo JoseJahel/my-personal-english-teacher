@@ -13,16 +13,20 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 2. Captura de micrófono real (`audio/open-microphone-stream.ts` +
    `audio/microphone-capture.ts`).
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
-4. Al detener: MediaRecorder → decode mono → **espectrograma + pitch track** →
-   gate de energía → resample 16 kHz → Whisper → T5 → tutor híbrido → score → TTS.
-5. **Conversación híbrida**: SmolLM2 genera la respuesta del tutor con memoria
-   de los últimos 4 turnos, contra un timeout de 10 s; si no responde a tiempo
-   o produce basura, se usa la línea del motor de reglas del escenario
-   (`ui/tutor-reply-engine.ts`), marcada como respaldo en el chat.
-6. **Score de pronunciación**: TTS de la frase (corregida) → MFCC + DTW → 0–100.
-   Si no hay habla usable, el ASR devolvió un tag de no-habla o el texto es
-   degenerado, **no** se muestra un 0–100 (issue #75): estado `not-evaluated`
-   y copy honesto, no “mala pronunciación”.
+4. Al detener: MediaRecorder → decode mono → Whisper **en paralelo** con
+   espectrograma/pitch → gate de energía → resample 16 kHz → **chat del
+   usuario** → tutor de reglas al instante → voz (`speechSynthesis` o
+   PCM cacheado). T5 y el score no bloquean la respuesta oral.
+5. **Feedback progresivo (issue #96):** la burbuja del estudiante (ASR +
+   corrección T5) aparece **antes** de SmolLM2/TTS. El tutor sigue híbrido
+   (memoria de 4 turnos, timeout 10 s, respaldo de reglas con insignia). El
+   micrófono solo se bloquea mientras SpeechT5 habla (half-duplex), no
+   mientras el modelo “escribe”. El rail muestra el perfil ASR
+   (`precision` / `latency`).
+6. **Score de pronunciación**: el 0–100 vive en modo **Repetir** (issue #95:
+   Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS
+   (`deferred-to-drill`). #75 sigue: sin habla usable / `[Music]` →
+   `not-evaluated`, no “mala pronunciación”.
 7. **TTS SpeechT5** reproduce la línea del tutor.
 8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación, historial
    de práctica (IndexedDB).
@@ -175,10 +179,12 @@ Para una demo que prioriza rapidez existe un **perfil latencia** first-class:
 | `VITE_ASR_MODEL=base-en pnpm dev` | Fuerza un candidato concreto (gana sobre el perfil) |
 
 Sin esas variables, `pnpm dev` / `pnpm build` siguen en **small-en**.
+El rail muestra el perfil activo (`data-testid=asr-demo-profile-badge`).
 
-**No hay cifra nueva de latencia para `tiny-en` en este ticket.** El bench
-2026-07-29 lo marcó como “rápido” sin milisegundos publicados. Re-medir en el
-hardware de aula:
+**Presupuesto de 2 s (issue #96):** es el tramo **ASR + gramática** visible
+en el chat, no SmolLM2 ni TTS. **No hay cifra nueva de latencia para
+`tiny-en`.** El bench 2026-07-29 lo marcó como “rápido” sin milisegundos
+publicados. Re-medir en el hardware de aula:
 
 1. `pnpm dev`
 2. Abrir `#asr-benchmark`
@@ -186,6 +192,18 @@ hardware de aula:
 4. Anotar media de latencia en `Documentacion general/reporte-verificacion.md` §5
 
 Hasta esa re-medición **no se afirma** que el perfil latencia cumpla &lt; 2 s.
+
+## Ensayo de UI sin mic ni modelos (issue #98)
+
+En `pnpm dev`, el ensayo de UI **no entra solo**. `#practice-mock` (alias
+`#ensayo-ui`) muestra primero una puerta: el botón por defecto va a la
+práctica real y deja recordado no volver a abrir el mock. El ensayo (sin
+mic, mismo turno de restaurante) solo arranca si confirmas o si usas
+`?forzar-ensayo=1#practice-mock` (César / issue #70). `?ensayo=1` **no**
+activa el mock. La demo con micrófono es `http://127.0.0.1:5173/` sin hash.
+`#shell-preview*` sigue siendo el maniquí estático de Playwright. El hash
+está gateado por `import.meta.env.DEV` (no aparece en `pnpm build` /
+`preview`).
 
 ## Entrega local, sin despliegue en la nube
 

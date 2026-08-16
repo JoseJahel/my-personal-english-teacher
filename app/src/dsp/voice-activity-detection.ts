@@ -70,7 +70,8 @@ export function createEnergyVoiceActivityDetector(
 
   let state: VoiceActivityState = 'waiting-for-speech'
   let hasHeardSpeech = false
-  let speechStartedAtMs: number | null = null
+  let speechSegmentStartedAtMs: number | null = null
+  let accumulatedSpeechMs = 0
   let silenceStartedAtMs: number | null = null
   let sessionStartedAtMs: number | null = null
   let autoStopEmitted = false
@@ -80,10 +81,9 @@ export function createEnergyVoiceActivityDetector(
   }
 
   function speechDurationMs(nowMs: number): number {
-    if (speechStartedAtMs === null) {
-      return 0
-    }
-    return Math.max(0, nowMs - speechStartedAtMs)
+    const openSegmentMs =
+      speechSegmentStartedAtMs === null ? 0 : Math.max(0, nowMs - speechSegmentStartedAtMs)
+    return accumulatedSpeechMs + openSegmentMs
   }
 
   function silenceDurationMs(nowMs: number): number {
@@ -106,11 +106,17 @@ export function createEnergyVoiceActivityDetector(
     if (speaking) {
       if (!hasHeardSpeech) {
         hasHeardSpeech = true
-        speechStartedAtMs = nowMs
+      }
+      if (speechSegmentStartedAtMs === null) {
+        speechSegmentStartedAtMs = nowMs
       }
       state = 'in-speech'
       silenceStartedAtMs = null
     } else if (hasHeardSpeech) {
+      if (speechSegmentStartedAtMs !== null) {
+        accumulatedSpeechMs += Math.max(0, nowMs - speechSegmentStartedAtMs)
+        speechSegmentStartedAtMs = null
+      }
       if (silenceStartedAtMs === null) {
         silenceStartedAtMs = nowMs
       }
@@ -148,7 +154,8 @@ export function createEnergyVoiceActivityDetector(
   function reset(): void {
     state = 'waiting-for-speech'
     hasHeardSpeech = false
-    speechStartedAtMs = null
+    speechSegmentStartedAtMs = null
+    accumulatedSpeechMs = 0
     silenceStartedAtMs = null
     sessionStartedAtMs = null
     autoStopEmitted = false

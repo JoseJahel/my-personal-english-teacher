@@ -26,10 +26,10 @@ Implementado:
   (`pickContextualTutorReply`) — respuesta instantánea y veraz que sirve de
   respaldo cuando SmolLM2 no responde a tiempo (tests en
   `tutor-reply-engine.test.ts`).
-- `tutor-reply-orchestration.ts`: enfrenta SmolLM2 contra el motor de reglas
-  con un timeout de 10 s (`resolveTutorReplyWithFallback`); el resultado
-  siempre indica de forma veraz si se usó el respaldo (tests en
-  `tutor-reply-orchestration.test.ts`).
+- `tutor-reply-orchestration.ts`: timeout de 10 s si se llama a SmolLM2.
+  El turno de práctica **no espera** al LLM: `resolvePracticeTutorReply`
+  publica al instante la línea del motor de reglas y la voz (caché SpeechT5
+  o `speechSynthesis` local).
 - `spoken-progress.ts` / `interruption-turn-classifier.ts` /
   `interruption-resume-bridges.ts` / `tutor-speech-playback.ts`: barge-in del
   tutor (issue #46) — `spoken_progress` desde `cutoffMs`, clasificación solo
@@ -45,19 +45,33 @@ Implementado:
   `PracticeRail` + chat centrado + `PracticeComposer` + `FeedbackPanel`
   (artefacto Turno/Sugerencias/Señales/Técnico). Historial en overlay desde el
   rail. Identidad: `Documentacion general/IDENTIDAD-VISUAL.md` +
-  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening`.
+  `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening` /
+  `-composing` (#96: usuario + “Escribiendo…”, Hablar habilitado).
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → score DSP.
-- `pronunciation-score-eligibility.ts`: política #75 — no puntuar (ni mostrar
-  0–100) si no hay habla usable, el ASR devolvió un tag de no-habla o el
-  texto es degenerado; la UI usa el estado `not-evaluated` y un mensaje
-  honesto en español.
+- `pronunciation-score-eligibility.ts`: política #75 — no puntuar si no hay
+  habla usable, tag de no-habla o texto degenerado (`not-evaluated`). Issue
+  **#95**: conversación tampoco muestra 0–100 (`deferred-to-drill`) porque
+  el cambio de locutor sintético mueve el score tanto o más que un error de
+  vocal; la nota está en **Repetir**.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
+- `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN sobre PCM del worklet
+  **existe**, pero **no** se conecta durante la captura (deja el Analyser en
+  ~0 % en arrays Realtek). Espectrograma/pitch de producto van **post-stop**.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
-  ASR → gramática → tutor híbrido (**SmolLM2** + respaldo) → score de
-  pronunciación → **SpeechT5** → persistencia en IndexedDB.
+  ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
+  (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →
+  persistencia en IndexedDB. El mic no se bloquea mientras el tutor genera
+  texto; solo durante TTS. Perfil ASR en el rail
+  (`asr-demo-profile-presentation.ts`).
+  Issue **#98:** `home-session-ports.ts` + mocks en `mock-home-session-ports.ts`.
+  `useHomeScreenSession(ports?)` acepta captura + inferencia inyectables.
+  Hash DEV **`#practice-mock`** (alias `#ensayo-ui`) pide confirmación; no
+  monta el mock solo. Tras “práctica real” se recuerda y se ignora el hash.
+  Forzar ensayo: `?forzar-ensayo=1#practice-mock` (César #70).
+  `#shell-preview*` sigue siendo el fixture estático de Playwright.
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en

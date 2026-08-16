@@ -27,5 +27,12 @@ Textos listos para pegar o actualizar issues de GitHub del proyecto
 | `07-adaptive-noise.md` | Filtrado adaptativo de ruido |
 | `08-a2-presentation.md` | Presentación Avance 2 |
 | `lote-excelencia/09-fir-antialias.md` … `18-vad-metrics.md` | Lote de excelencia / señales y producto |
+| `lote-excelencia/19-resample-multirate-fir.md` | #92 remuestreo FIR 44.1/48 (Jahel) |
+| `lote-excelencia/20-live-pcm-stft-yin.md` | #93 STFT/YIN live sobre PCM (Jahel) |
+| `lote-excelencia/21-mfcc-chain-audit.md` | #94 auditoría encadenado MFCC (Jahel) |
+| `lote-excelencia/22-speaker-bias-score.md` | #95 sesgo de locutor en score (Jahel) |
+| `lote-excelencia/23-progressive-feedback.md` | #96 chat ASR+T5 sin esperar tutor (Jahel) |
+| `lote-excelencia/24-defense-kit-local.md` | #97 kit defensa local (Jahel) |
+| `lote-excelencia/25-layer-contracts-mocks.md` | #98 contratos + mocks (Jahel) |
 
 Los números de archivo son el orden de redacción del lote; los números de issue en GitHub pueden diferir — cruza siempre con #80 y el backlog versionado.

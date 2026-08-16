@@ -41,6 +41,12 @@ Implementado:
     `mfcc-golden-vectors.test.ts`. Recetas en `mfcc-golden-signals.ts`.
     c0 se compara con la misma cota que c1–c12 (amplitud fijada). Regenerar:
     `pnpm exec jiti src/dsp/write-mfcc-golden-vectors.ts` desde `app/`.
+  - **Convención HTK (issue #94):** escala mel `2595·log10(1+f/700)`, 40
+    triángulos de 0 Hz a Nyquist (8 kHz a 16 kHz), **sin** normalizar a
+    energía igual (Slaney). Espectro de potencia `|X[k]|²` **sin** `1/N²` ni
+    `log10` (eso es el espectrograma de UI). `log` natural de la energía
+    mel, piso `1e-10`. DCT-II sin normalizar; **c0 se conserva**. Invariante
+    de encadenado: `mfcc-chain-audit.ts` + `mfcc-chain-invariants.json`.
 
 - `dynamic-time-warping.ts`: **DTW + distancia euclidiana** (dominio puro):
   - `computeDynamicTimeWarping(query, reference)` → distancia total, normalizada y path
@@ -55,8 +61,20 @@ Implementado:
   - defaults calibrados (issue #29): `pronunciation-score-calibration-constants.ts`
   - protocolo multi-hablante + fit: `run-pronunciation-score-calibration.ts`
   - tests en `pronunciation-score.test.ts`, `run-pronunciation-score-calibration.test.ts`
+  - **Sesgo locutor (issue #95):** `measure-speaker-bias.ts` +
+    `synthetic-voiced-phrase.ts`. Δlocutor **11.4** ≳ Δerror **9.2**
+    (ratio **1.23**) → 0–100 solo en drill. Invariantes:
+    `speaker-bias-invariants.ts`.
   - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
+
+- `polyphase-resample.ts` + `design-linear-phase-lowpass-fir.ts` (issue #92):
+  remuestreo **FIR de fase lineal** a 16 kHz. 48 kHz = decimación ×3;
+  44.1 kHz = racional 160/441 (no se aproxima a 48). Corte 7.2 kHz, Hann,
+  $N=93$ a la tasa de entrada. Un tono de 12 kHz mide ~85 dB de rechazo
+  (umbral exportado 50 dB). Coste polifásico: 31 MAC/entrada a 48 kHz, 93
+  MAC/salida a 44.1 kHz. Cableado en `audio/audio-resampler.ts` (lineal solo
+  si la tasa no es 44.1/48). Tests: `polyphase-resample.test.ts`.
 
 - `radix2-forward-fft.ts`: **FFT radix-2** Cooley–Tukey in-place (Float32 o
   Float64). Única implementación usada por espectrograma y MFCC.
@@ -69,6 +87,9 @@ Implementado:
   - tests en `spectrogram.test.ts` (tono 1 kHz en el bin analítico; primer
     frame vs DFT del frame con Hann)
   - dibujo en UI: `ui/utterance-signal-canvas.ts` + `update-utterance-signal-views.ts`
+  - **en vivo (issue #93):** `analyze-live-pcm-frame.ts` + acumulador
+    `pcm-frame-accumulator.ts` (hop 10 ms, ventana 25 ms, **sin** zero-pad).
+    Misma STFT que post-stop. Coste por trama documentado en el reporte §5.4.
 
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
   - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI

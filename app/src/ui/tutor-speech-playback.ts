@@ -3,6 +3,7 @@
  * Extracted from the practice-turn hook so the hook stays under the line budget.
  */
 
+import { playEnglishWithBrowserSpeechSynthesis } from '../audio/play-browser-speech-synthesis'
 import { playMonoPcmSamples } from '../audio/play-pcm-mono'
 import type { InferenceClient, InferenceClientErrorReason } from '../ia/inference-client'
 import { InferenceClientError } from '../ia/inference-client'
@@ -10,6 +11,7 @@ import { createStorageId } from '../storage/practice-session-types'
 import { awaitWithTimeout } from './await-with-timeout'
 import type { SpeechSynthesisUiStatus } from './home-screen-status'
 import { SPEECH_SYNTHESIS_TIMEOUT_MS } from './home-session-helpers'
+import { resolveTutorSpeechSource } from './resolve-tutor-speech-source'
 import { buildSpokenProgress, type SpokenProgress } from './spoken-progress'
 
 export interface SpeakTutorTextDeps {
@@ -49,11 +51,7 @@ export async function speakTutorTextWithSpokenProgress(
   deps.setSpeechModelLoadingProgressPercent(0)
 
   try {
-    const synthesized = await awaitWithTimeout(
-      deps.inferenceClient.synthesizeSpeech(englishText),
-      SPEECH_SYNTHESIS_TIMEOUT_MS,
-      new Error('Tutor speech synthesis timed out.'),
-    )
+    const speechSource = await resolveTutorSpeechSource(englishText)
     if (playbackGeneration !== deps.speechPlaybackGenerationRef.current) {
       const aborted = buildSpokenProgress({
         utteranceId,
@@ -65,17 +63,14 @@ export async function speakTutorTextWithSpokenProgress(
       return aborted
     }
     deps.setSpeechSynthesisStatus('playing')
+    const playback = await playResolvedTutorSpeech(speechSource, {
+      inferenceClient: deps.inferenceClient,
+      signal: abortController.signal,
+    })
     const totalDurationMs =
-      synthesized.sampleRateInHertz > 0
-        ? (synthesized.samples.length / synthesized.sampleRateInHertz) * 1000
-        : undefined
-    const playback = await awaitWithTimeout(
-      playMonoPcmSamples(synthesized.samples, synthesized.sampleRateInHertz, {
-        signal: abortController.signal,
-      }),
-      SPEECH_SYNTHESIS_TIMEOUT_MS,
-      new Error('Tutor speech playback timed out.'),
-    )
+      speechSource.kind === 'cached-pcm' && speechSource.sampleRateInHertz > 0
+        ? (speechSource.samples.length / speechSource.sampleRateInHertz) * 1000
+        : playback.cutoffMs
     if (playbackGeneration !== deps.speechPlaybackGenerationRef.current) {
       const progress = buildSpokenProgress({
         utteranceId,
@@ -122,4 +117,45 @@ export async function speakTutorTextWithSpokenProgress(
       deps.markSpeechSynthesisInFlight(false)
     }
   }
+}
+
+async function playResolvedTutorSpeech(
+  speechSource: Awaited<ReturnType<typeof resolveTutorSpeechSource>>,
+  options: {
+    readonly inferenceClient: InferenceClient
+    readonly signal: AbortSignal
+  },
+) {
+  if (speechSource.kind === 'cached-pcm') {
+    return awaitWithTimeout(
+      playMonoPcmSamples(speechSource.samples, speechSource.sampleRateInHertz, {
+        signal: options.signal,
+      }),
+      SPEECH_SYNTHESIS_TIMEOUT_MS,
+      new Error('Tutor speech playback timed out.'),
+    )
+  }
+
+  if (typeof globalThis.speechSynthesis !== 'undefined') {
+    return awaitWithTimeout(
+      playEnglishWithBrowserSpeechSynthesis(speechSource.text, {
+        signal: options.signal,
+      }),
+      SPEECH_SYNTHESIS_TIMEOUT_MS,
+      new Error('Tutor speech playback timed out.'),
+    )
+  }
+
+  const synthesized = await awaitWithTimeout(
+    options.inferenceClient.synthesizeSpeech(speechSource.text),
+    SPEECH_SYNTHESIS_TIMEOUT_MS,
+    new Error('Tutor speech synthesis timed out.'),
+  )
+  return awaitWithTimeout(
+    playMonoPcmSamples(synthesized.samples, synthesized.sampleRateInHertz, {
+      signal: options.signal,
+    }),
+    SPEECH_SYNTHESIS_TIMEOUT_MS,
+    new Error('Tutor speech playback timed out.'),
+  )
 }

@@ -49,6 +49,18 @@ describe('createEnergyVoiceActivityDetector', () => {
     expect(vad.pushFrame(SILENCE, 400 + 600).shouldAutoStop).toBe(false)
   })
 
+  it('does not treat a short open-click as enough speech to auto-stop', () => {
+    const vad = createEnergyVoiceActivityDetector({
+      minimumSpeechMs: 380,
+      silenceHangoverMs: 1100,
+      maximumUtteranceMs: 60_000,
+    })
+    vad.pushFrame(SPEECH, 0)
+    vad.pushFrame(SILENCE, 40)
+    expect(vad.pushFrame(SILENCE, 40 + 1100).shouldAutoStop).toBe(false)
+    expect(vad.pushFrame(SILENCE, 40 + 2000).shouldAutoStop).toBe(false)
+  })
+
   it('requires minimum speech duration before hangover can fire', () => {
     const vad = createEnergyVoiceActivityDetector({
       minimumSpeechMs: 500,

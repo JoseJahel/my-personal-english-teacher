@@ -6,12 +6,18 @@ import type { AsrModelCandidateId } from '../ia/model-registry'
  */
 export const homeScreenInterfaceTexts = {
   applicationTitle: 'My Personal English Teacher',
-  /** Short product mark for the rail (Atelier shell). */
-  brandMarkLetter: 'M',
-  brandShortName: 'MPET',
-  brandProductLine: 'English Teacher',
-  asrLatencyProfileNotice:
-    'DEV — perfil latencia (Whisper tiny-en). El default de entrega sigue siendo small-en. No afirma < 2 s hasta re-medir en #asr-benchmark.',
+  /** Short product mark for the rail. Visible name of the tutor product. */
+  brandMarkLetter: 'T',
+  brandShortName: 'Teacher',
+  brandProductLine: 'inglés personal',
+  asrDemoProfile: {
+    precisionRailLabel: 'Perfil precisión · small-en',
+    latencyRailLabel: 'Perfil latencia · tiny-en',
+    precisionTitle:
+      'Default de entrega (Whisper small-en). El presupuesto de 2 s es el tramo ASR + gramática, no el tutor.',
+    latencyTitle:
+      'Perfil latencia (Whisper tiny-en). No afirma < 2 s hasta re-medir en #asr-benchmark. El default de entrega sigue siendo small-en.',
+  },
   applicationSubtitle:
     'Practica inglés sin conexión: pronunciación, gramática y conversación con inteligencia artificial que corre en tu propio navegador.',
   /** Shorter hero copy for product UX (subtitle kept for docs/PWA). */
@@ -26,6 +32,14 @@ export const homeScreenInterfaceTexts = {
   tutorSpeakingHint: 'El tutor está hablando… espera a que termine para poder hablar tú.',
   modelsWarmingUpMessage:
     'Preparando los modelos de voz en segundo plano… La primera frase puede tardar un poco más.',
+  practiceMockBanner:
+    'Modo ensayo: no hay micrófono real ni modelos. Hablar/Detener no graba tu voz; cada parada inserta el mismo turno de ejemplo (restaurante). Para practicar de verdad, sal de este modo.',
+  practiceMockExitLabel: 'Salir al micrófono real',
+  practiceMockGateTitle: 'Esto no es el micrófono real',
+  practiceMockGateBody:
+    'Llegaste a una ruta de ensayo de interfaz. No se abre el micrófono y cada Detener inventa el mismo turno de restaurante. Si quieres practicar o probar la captura, entra a la práctica real.',
+  practiceMockGateRealLabel: 'Ir a la práctica real',
+  practiceMockGateEnterLabel: 'Entrar al ensayo (sin mic)',
   offlineReadiness: {
     noneCached:
       'Primera vez en este navegador: se descargarán más de 1 GB de modelos. Necesitas conexión ahora; después podrás practicar sin internet.',
@@ -254,10 +268,12 @@ export const homeScreenInterfaceTexts = {
     workerUnavailable: 'El proceso de síntesis de voz dejó de responder inesperadamente.',
   },
   liveWaveformLabel: 'Onda en vivo (tiempo)',
-  spectrogramPanelLabel: 'Espectrograma (última utterance)',
-  spectrogramPanelHint: 'Eje X: tiempo · Eje Y: frecuencia (bajas abajo) · color: energía log',
-  pitchTrackPanelLabel: 'Pitch tracking YIN (última utterance)',
-  pitchTrackPanelHint: 'Contorno F0 ~70–400 Hz; marcas abajo = frames no voiced',
+  spectrogramPanelLabel: 'Espectrograma STFT (en vivo y última utterance)',
+  spectrogramPanelHint:
+    'STFT propia (radix-2), no el FFT del Analyser. En vivo mientras hablas; al detener, la utterance completa.',
+  pitchTrackPanelLabel: 'Pitch YIN (en vivo y última utterance)',
+  pitchTrackPanelHint:
+    'YIN propio ~70–400 Hz sobre PCM real. En vivo mientras hablas; al detener, el contorno completo.',
   formantsPanelLabel: 'Formantes (LPC, mediana de la utterance)',
   formantsPanelHint:
     'F1/F2/F3 estimados por envolvente LPC + picos; útiles para vocales (aproximación educativa).',
@@ -327,13 +343,15 @@ export const homeScreenInterfaceTexts = {
       `Puntuación local ${score0to100.toFixed(1)} / 100 (${band})`,
   },
   pronunciationStatusMessages: {
-    idle: 'Tras hablar, se compara tu audio con una referencia sintetizada (MFCC + DTW).',
+    idle: 'En conversación no hay 0–100 contra el TTS (el locutor sintético mueve el score tanto o más que un error de vocal). El 0–100 está en modo Repetir.',
     scoring: 'Calculando puntuación de pronunciación (MFCC / pitch + DTW)...',
     done: (score0to100: number) =>
       `Puntuación de pronunciación: ${score0to100.toFixed(1)} / 100 (mayor = más cerca de la referencia).`,
     unavailable: 'No se pudo calcular la puntuación de pronunciación para este turno.',
     notEvaluated:
       'No se evaluó la pronunciación: no hubo habla clara en inglés. No es una mala nota. Intenta de nuevo más cerca del micrófono y con más volumen.',
+    deferredToDrill:
+      'No hay 0–100 en este turno de conversación: cambiar de locutor sintético (120→210 Hz) mueve ~11.4 puntos y pronunciar otras vocales ~9.2 (ratio 1.23). No es que lo hayas dicho mal. Practica la frase del tutor en Repetir.',
     detail: (details: {
       mfccScore: number
       pitchScore: number | null

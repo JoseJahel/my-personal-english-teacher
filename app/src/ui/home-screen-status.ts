@@ -60,6 +60,7 @@ export type PronunciationUiStatus =
   | 'done'
   | 'unavailable'
   | 'not-evaluated'
+  | 'deferred-to-drill'
 /** Drill status: repeat the tutor's last line and get scored against it. */
 export type DrillUiStatus = 'idle' | 'listening' | 'scoring' | 'done' | 'unavailable'
 /** Tutor reply generation status (SmolLM2; loads on scenario selection). */
@@ -250,6 +251,8 @@ export function pronunciationStatusMessageFor(
       return homeScreenInterfaceTexts.pronunciationStatusMessages.unavailable
     case 'not-evaluated':
       return homeScreenInterfaceTexts.pronunciationStatusMessages.notEvaluated
+    case 'deferred-to-drill':
+      return homeScreenInterfaceTexts.pronunciationStatusMessages.deferredToDrill
   }
 }
 export function drillStatusMessageFor(
@@ -314,4 +317,9 @@ export function shouldShowTutorModelPreparingBanner(status: TutorGenerationUiSta
 /** "El tutor está escribiendo…" bubble while `generateTutorReply` runs. */
 export function shouldShowTutorTypingIndicator(status: TutorGenerationUiStatus): boolean {
   return status === 'generating'
+}
+
+/** Half-duplex lock: only SpeechT5 playback, not SmolLM2 thinking (issue #96). */
+export function isTutorPlaybackActive(status: SpeechSynthesisUiStatus): boolean {
+  return status === 'loading-model' || status === 'synthesizing' || status === 'playing'
 }

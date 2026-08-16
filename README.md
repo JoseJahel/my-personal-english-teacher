@@ -119,7 +119,7 @@ La Web Speech API de Chrome delega el reconocimiento de voz en los servidores de
 
 Nadie habla exactamente a la velocidad de la referencia, y sin alineación temporal la distancia castiga el ritmo en lugar de la pronunciación. Dynamic Time Warping alinea las secuencias de features y la distancia euclidiana frame a frame se acumula sobre ese alineamiento, conservando la métrica sugerida en la documentación del curso pero aplicada donde tiene sentido.
 
-**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`; la UI orquesta user PCM + TTS de la frase (corregida) y muestra el score 0–100 con desglose MFCC/pitch.
+**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`. El 0–100 vive en modo **Repetir** (issue #95: Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS.
 
 ### Referencia de pronunciación generada con SpeechT5
 
@@ -159,7 +159,7 @@ Las utilidades de Tailwind se aplican directamente en el propio JSX, lo que evit
 - Pipeline activo post-utterance: **ASR → gramática → tutor híbrido (SmolLM2 con timeout de 10 s + respaldo de reglas) → score pronunciación → TTS del tutor**.
 - Catálogo de candidatos ASR en `ia/model-registry.ts` (override `VITE_ASR_MODEL` o perfil `VITE_ASR_PROFILE=latency` → `tiny-en`; default de entrega `small-en`) y banco de pruebas dev-only en `#asr-benchmark` (WER + latencia por candidato × backend).
 - Paleta de diseño centralizada en tokens CSS (`app/src/index.css`, `@theme`: sage/ink/blush) consumida por toda la UI, con tests de freeze-guard.
-- Captura a tasa nativa del dispositivo; resample a 16 kHz mono antes de Whisper (`audio/audio-resampler.ts`).
+- Captura a tasa nativa del dispositivo; resample FIR de fase lineal 44.1/48 → 16 kHz antes de Whisper (`audio/audio-resampler.ts`, `dsp/polyphase-resample.ts`, issue #92).
 - Grafo de visualización: `MediaStreamSource → Analyser → Gain(0) → destination`. ASR: `MediaRecorder` sobre el mismo `MediaStream` real. Invariantes en `app/src/audio/CAPTURE-INVARIANTS.md`.
 - Estado de pantalla con hooks (`use-home-screen-session.ts`); se migrará a Context o Zustand solo si la complejidad lo exige.
 - Package manager: solo pnpm; Node 22 (`.nvmrc` + `engines` + `packageManager`).
@@ -218,6 +218,13 @@ La documentación del curso fija metodología iterativa (Agile-like); el trabajo
 
 El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audio/` y `storage/`) está documentado en `app/README.md`. Las reglas de buenas prácticas y anti-patrones de código están en `Documentacion general/REGLAS-DE-CODIGO.md`. Cómo abrir tickets: `Documentacion general/GUIA-CREACION-ISSUES.md`. Orden del backlog de rúbrica: `Documentacion general/BACKLOG-RUBRICA-ESTRICTA.md` y issue [#80](https://github.com/JoseJahel/my-personal-english-teacher/issues/80).
 
+**Kit de defensa (issue #97), solo localhost:** riesgos y Q&A en
+[`Documentacion general/matriz-riesgos.md`](./Documentacion%20general/matriz-riesgos.md)
+y
+[`Documentacion general/preguntas-defensa.md`](./Documentacion%20general/preguntas-defensa.md)
+(plan B: `pnpm preview`, `#shell-preview*`, `pnpm dev:latency`). No hay URL
+pública del producto. El deck es el issue #64; la bitácora de evidencias, #71.
+
 ## Calendario de entregas
 
 | Entrega | Semana | Contenido |
@@ -233,7 +240,7 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 | Capa | Qué hay hoy | Qué falta (Avance 2 / final) |
 |------|-------------|------------------------------|
 | `ui/` | Escenarios, chat con **tutor híbrido** (SmolLM2 + respaldo honesto), score, TTS, onda + **espectrograma + pitch** + **highlights por palabra** + **banco de pruebas ASR** (dev) + paleta de diseño en tokens | — |
-| `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop** | Half-duplex más estricto al TTS |
+| `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop**. STFT/YIN de curso **post-stop** (el tap live #93 no se cuelga del Analyser: en Realtek lo dejaba en 0 %) | Half-duplex más estricto al TTS; re-colgar tap live en pista clonada |
 | `ia/` | Whisper (**default `small-en`**, catálogo de 4), T5, SpeechT5, **SmolLM2**, worker + client; revisiones **SHA** | Re-medir bench en hardware de demo si hace falta |
 | `dsp/` | Energía + YIN + MFCC + DTW + score + espectrograma + **VAD** + **formantes** | — |
 | `storage/` | **IndexedDB** sesiones/turnos (sin audio) + **IndexedDB separada de fixtures del banco de pruebas ASR** (solo dev, con audio crudo) | Migraciones futuras de schema |
@@ -246,9 +253,9 @@ Detalle operativo de la demo actual:
 2. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
 3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
-5. Si el texto es habla real → T5 → **tutor híbrido**: SmolLM2 con memoria de los últimos 4 turnos contra un timeout de 10 s; si no responde a tiempo o produce basura, línea del motor de reglas del escenario (marcada como respaldo) → **score de pronunciación** → **SpeechT5** reproduce al tutor.
+5. Si el texto es habla real → **burbuja del estudiante** → **tutor instantáneo** (motor de reglas contextual; no espera a SmolLM2 ni a T5) → **voz inmediata** (caché SpeechT5 o `speechSynthesis` local). T5 y el score siguen en segundo plano. El 0–100 de conversación no se muestra (issue #95). El rail muestra el perfil ASR (`precision` / `latency`). Whisper sigue siendo el tramo largo; el profesor ya no suma 10 s + SpeechT5.
 6. Si no hay habla usable, tag no-habla o texto degenerado → **no** hay score 0–100
-   (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación).
+   (issue #75: estado `not-evaluated`, copy honesto; no se presenta como mala pronunciación). El 0–100 vive en **Repetir**.
 7. `App.tsx` es un shell fino: enruta a `AsrBenchmarkScreen` / preview de shell Atelier (solo dev) o a `HomeScreen`; la orquestación de la app real vive en `ui/use-home-screen-session.ts`. Guías: `Documentacion general/IDENTIDAD-VISUAL.md`, `UI-UX-SHELL.md`.
 
 **Avance 2 + persistencia local:** núcleo de producto cubierto; **IndexedDB** guarda historial de turnos (métricas/texto, sin audio). Aparte, solo en desarrollo, una segunda IndexedDB independiente guarda las fixtures de voz del banco de pruebas ASR (con audio crudo, nunca en Git).

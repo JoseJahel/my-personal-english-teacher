@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isTutorPlaybackActive,
   shouldShowTutorModelPreparingBanner,
   shouldShowTutorTypingIndicator,
   transcriptionStatusMessageFor,
@@ -37,6 +38,17 @@ describe('shouldShowTutorTypingIndicator', () => {
     expect(shouldShowTutorTypingIndicator('generating')).toBe(true)
     expect(shouldShowTutorTypingIndicator('loading-model')).toBe(false)
     expect(shouldShowTutorTypingIndicator('done-generated')).toBe(false)
+  })
+})
+
+describe('isTutorPlaybackActive', () => {
+  it('is true only while SpeechT5 is loading, synthesizing, or playing', () => {
+    expect(isTutorPlaybackActive('loading-model')).toBe(true)
+    expect(isTutorPlaybackActive('synthesizing')).toBe(true)
+    expect(isTutorPlaybackActive('playing')).toBe(true)
+    expect(isTutorPlaybackActive('idle')).toBe(false)
+    expect(isTutorPlaybackActive('done')).toBe(false)
+    expect(isTutorPlaybackActive('error')).toBe(false)
   })
 })
 
