@@ -11,6 +11,7 @@ import type {
 } from '@huggingface/transformers'
 import { modelRegistry } from './model-registry'
 import type { OnnxInferenceDevice } from './resolve-inference-device'
+import { normalizeEnglishTextForSpeech } from './speech-text-normalization'
 
 export type ModelDownloadProgressCallback = NonNullable<PretrainedModelOptions['progress_callback']>
 
@@ -51,7 +52,10 @@ export async function loadTextToSpeechSynthesizer(
 }
 
 /**
- * Normalize and bound English text before synthesis.
+ * Normalize and bound English text before synthesis. Expands numbers, prices,
+ * codes and simple times (see `normalizeEnglishTextForSpeech`, #77) so
+ * SpeechT5 pronounces them reliably — this only affects the audio input, not
+ * the text shown in the chat.
  * Returns empty string when there is nothing speakable.
  */
 export function prepareTextForSpeechSynthesis(rawText: string): string {
@@ -59,10 +63,11 @@ export function prepareTextForSpeechSynthesis(rawText: string): string {
   if (!collapsed) {
     return ''
   }
-  if (collapsed.length <= MAXIMUM_TTS_INPUT_CHARACTERS) {
-    return collapsed
+  const normalized = normalizeEnglishTextForSpeech(collapsed)
+  if (normalized.length <= MAXIMUM_TTS_INPUT_CHARACTERS) {
+    return normalized
   }
-  return collapsed.slice(0, MAXIMUM_TTS_INPUT_CHARACTERS).trim()
+  return normalized.slice(0, MAXIMUM_TTS_INPUT_CHARACTERS).trim()
 }
 
 /**

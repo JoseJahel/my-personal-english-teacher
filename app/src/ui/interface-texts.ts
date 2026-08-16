@@ -241,6 +241,12 @@ export const homeScreenInterfaceTexts = {
     noCorrectionsNeeded:
       'No se encontraron correcciones: la oración ya es gramaticalmente correcta.',
   },
+  grammarCorrectionDiff: {
+    hint: 'Verde = palabra añadida · rojo = palabra eliminada · ámbar = palabra sustituida.',
+    legendAdded: 'Añadido',
+    legendRemoved: 'Eliminado',
+    legendSubstituted: 'Sustituido',
+  },
   grammarCorrectionErrorMessages: {
     modelLoadFailed: 'No fue posible descargar o inicializar el modelo de corrección gramatical.',
     correctionFailed: 'No fue posible corregir la gramática del texto transcrito.',
