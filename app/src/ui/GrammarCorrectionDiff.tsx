@@ -6,6 +6,7 @@
 import { useMemo } from 'react'
 import { diffEnglishWords } from '../ia/grammar-correction-diff'
 import type { GrammarDiffToken } from '../ia/grammar-correction-diff'
+import { explainDiffTokensInSpanish } from '../ia/grammar-correction-explanation'
 import { homeScreenInterfaceTexts } from './interface-texts'
 
 export interface GrammarCorrectionDiffProps {
@@ -24,6 +25,7 @@ export function GrammarCorrectionDiff({ originalText, correctedText }: GrammarCo
   }
 
   const copy = homeScreenInterfaceTexts.grammarCorrectionDiff
+  const explanations = explainDiffTokensInSpanish(tokens)
 
   return (
     <div>
@@ -33,6 +35,13 @@ export function GrammarCorrectionDiff({ originalText, correctedText }: GrammarCo
         ))}
       </p>
       <p className="mt-1.5 text-[11px] text-ink-400">{copy.hint}</p>
+      {explanations.length > 0 ? (
+        <ul className="mt-1.5 space-y-0.5 text-[11px] text-ink-500">
+          {explanations.map((sentence, index) => (
+            <li key={index}>{sentence}</li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   )
 }
