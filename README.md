@@ -39,7 +39,7 @@ El componente de Procesamiento Digital de Señales (DSP) es central al **diseño
 - Features acústicas restantes: formantes; VAD en vivo para auto-corte de captura.
 - Calibración fina del score 0–100 con hablantes reales.
 - Persistencia de sesiones y progreso en IndexedDB.
-- Extensiones de innovación: evolución de pitch/puntajes por sesión, filtrado adaptativo de ruido, gamificación.
+- Extensiones de innovación: evolución de pitch/puntajes por sesión, gamificación.
 
 El soporte multi-idioma se descartó explícitamente: los candidatos ASR de producción son variantes **.en** (solo inglés).
 
