@@ -223,7 +223,9 @@ El detalle de la estructura interna de `app/` (capas `ui/`, `ia/`, `dsp/`, `audi
 y
 [`Documentacion general/preguntas-defensa.md`](./Documentacion%20general/preguntas-defensa.md)
 (plan B: `pnpm preview`, `#shell-preview*`, `pnpm dev:latency`). No hay URL
-pública del producto. El deck es el issue #64; la bitácora de evidencias, #71.
+pública del producto. El deck de Avance 2 está en
+[`Documentacion general/entregas/avance-2-presentacion.pptx`](./Documentacion%20general/entregas/avance-2-presentacion.pptx)
+(issue #64). La bitácora de evidencias es #71.
 
 ## Calendario de entregas
 

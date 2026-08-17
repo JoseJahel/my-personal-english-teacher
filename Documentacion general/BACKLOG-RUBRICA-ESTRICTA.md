@@ -18,7 +18,7 @@ Igual que en #80. Detalle y dependencias: ver el body de ese issue.
 `hecho` = issue cerrado en GitHub. El resto sigue abierto.
 
 ### Oleada 1 — Avance 2
-~~`#59` hecho~~ → ~~`#60` hecho~~ → ~~`#70` hecho~~ → ~~`#68` hecho~~ → ~~`#69` hecho~~ → ~~`#78` hecho~~ → ~~`#75` hecho~~ → ~~`#57` hecho~~ → `#64`  
+~~`#59` hecho~~ → ~~`#60` hecho~~ → ~~`#70` hecho~~ → ~~`#68` hecho~~ → ~~`#69` hecho~~ → ~~`#78` hecho~~ → ~~`#75` hecho~~ → ~~`#57` hecho~~ → ~~`#64` hecho~~  
 Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
@@ -35,7 +35,7 @@ No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
 
 | Oleada | Siguiente | Luego |
 |--------|-----------|--------|
-| 1 — Avance 2 | `#64` | — |
+| 1 — Avance 2 | — | lote A2 cerrado |
 | 2 — Laboratorio | `#65` | `#73` → `#58` → `#76` → `#74` → `#71` |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 | 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
@@ -76,7 +76,7 @@ Cada ticket debe leerse como decisión de **este** producto (PWA localhost, capa
 | 61 | Perfil latencia ASR | Hecho (PR #89) | Nace del bank y `small-en` WebGPU |
 | 62 | PDF documento técnico | Abierto | Artefacto de entrega del curso |
 | 63 | Filtrado ruido | Abierto | RF-23 / innovación |
-| 64 | Presentación A2 | Abierto | Deck + capturas de *esta* app |
+| 64 | Presentación A2 | Hecho | `Documentacion general/entregas/avance-2-presentacion.pptx` |
 
 ---
 
@@ -138,7 +138,7 @@ Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aul
 4. ~~**#68** drill “repite al tutor”~~ (hecho)  
 5. ~~**#69** + **#78**~~ (hecho)  
 6. ~~**#75** honestidad del score~~ (hecho)  
-7. ~~**#57**~~ (hecho) + **#64** presentación  
+7. ~~**#57** + **#64**~~ (hecho)  
 
 ### Oleada laboratorio (nota de señales)
 
