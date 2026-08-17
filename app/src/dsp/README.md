@@ -102,8 +102,12 @@ Implementado:
 
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
   - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI
-  - tests en `voice-activity-detection.test.ts`
-  - cableado en `use-home-screen-session` vía medidores del Analyser
+  - hangover de producción **1100 ms** (no se cambió en #74)
+  - tests de comportamiento en `voice-activity-detection.test.ts`
+  - **bordes medidos (issue #74):** `measure-vad-edge-metrics.ts` sobre
+    silencio–tono–silencio; start/end **0 ms**, auto-stop **+4 ms** vs hangover
+    (cuantización a hop 16 ms). Criterio: |error| ≤ 20 ms.
+  - cableado en `use-home-microphone-session.ts` vía medidores del Analyser
 
 - `word-pronunciation-highlights.ts`: **highlights por palabra** desde costes
   locales del path DTW (reparto proporcional por letras); bandas good/medium/poor.
