@@ -1,9 +1,13 @@
 /**
  * Pronunciation score from two mono PCM utterances (user vs reference).
- * Pure domain: MFCC (+ optional pitch) → z-score → DTW → 0–100 score.
+ * Pure domain: MFCC + pitch + energy + formants → 0–100 (issue #58).
  * Callers must pass buffers at the **same** sample rate (e.g. both 16 kHz).
  */
 
+import {
+  combinePronunciationBranchScores,
+  DEFAULT_PRONUNCIATION_BRANCH_WEIGHTS,
+} from './combine-pronunciation-branch-scores'
 import {
   computeDynamicTimeWarping,
   convertDtwDistanceToPronunciationScore,
@@ -15,6 +19,8 @@ import { extractMfccSequence } from './mfcc-extraction'
 import {
   extractPitchContourWithYin,
 } from './pitch-detection-yin'
+import { scoreEnergyContourFromMonoPcm } from './score-energy-contour'
+import { scoreFormantMediansFromMonoPcm } from './score-formant-distance'
 import {
   CALIBRATED_MFCC_DISTANCE_AT_HALF_SCORE,
   CALIBRATED_MFCC_SCORE_WEIGHT,
@@ -46,8 +52,12 @@ export interface PronunciationScoreResult {
   readonly score0to100: number
   readonly mfccScore0to100: number
   readonly pitchScore0to100: number | null
+  readonly energyScore0to100: number | null
+  readonly formantScore0to100: number | null
   readonly mfccNormalizedDistance: number
   readonly pitchNormalizedDistance: number | null
+  readonly energyNormalizedDistance: number | null
+  readonly formantLogHertzDistance: number | null
   readonly userMfccFrameCount: number
   readonly referenceMfccFrameCount: number
   readonly dtwPathLength: number
@@ -58,9 +68,17 @@ export interface PronunciationScoreResult {
 export interface PronunciationScoreOptions {
   readonly mfccDistanceAtHalfScore?: number
   readonly pitchDistanceAtHalfScore?: number
+  readonly energyDistanceAtHalfScore?: number
+  readonly formantDistanceAtHalfScore?: number
   readonly mfccScoreWeight?: number
-  /** When false, skip YIN/pitch branch (MFCC-only score). Default true. */
+  readonly energyScoreWeight?: number
+  readonly formantScoreWeight?: number
+  /** When false, skip YIN/pitch branch. Default true. */
   readonly includePitch?: boolean
+  /** When false, skip the energy-envelope branch (issue #58). Default true. */
+  readonly includeEnergy?: boolean
+  /** When false, skip the formant-median branch (issue #58). Default true. */
+  readonly includeFormants?: boolean
   readonly sakoeChibaRadiusInFrames?: number
   /**
    * English phrase (usually grammar-corrected transcript) used to paint
@@ -88,11 +106,12 @@ export function scorePronunciationFromMonoPcm(
   }
 
   const includePitch = options?.includePitch ?? true
+  const includeEnergy = options?.includeEnergy ?? true
+  const includeFormants = options?.includeFormants ?? true
   const mfccDistanceAtHalfScore =
     options?.mfccDistanceAtHalfScore ?? DEFAULT_MFCC_DISTANCE_AT_HALF_SCORE
   const pitchDistanceAtHalfScore =
     options?.pitchDistanceAtHalfScore ?? DEFAULT_PITCH_DISTANCE_AT_HALF_SCORE
-  const mfccScoreWeight = clampUnit(options?.mfccScoreWeight ?? DEFAULT_MFCC_SCORE_WEIGHT)
   const sakoeChibaRadiusInFrames = options?.sakoeChibaRadiusInFrames
 
   const userMfcc = extractMfccSequence(userSamples, sampleRateInHertz)
@@ -121,6 +140,10 @@ export function scorePronunciationFromMonoPcm(
 
   let pitchScore0to100: number | null = null
   let pitchNormalizedDistance: number | null = null
+  let energyScore0to100: number | null = null
+  let energyNormalizedDistance: number | null = null
+  let formantScore0to100: number | null = null
+  let formantLogHertzDistance: number | null = null
 
   if (includePitch) {
     const pitchComparison = scoreRelativePitchContours(
@@ -136,10 +159,49 @@ export function scorePronunciationFromMonoPcm(
     }
   }
 
-  const score0to100 =
-    pitchScore0to100 === null
-      ? mfccScore0to100
-      : mfccScoreWeight * mfccScore0to100 + (1 - mfccScoreWeight) * pitchScore0to100
+  if (includeEnergy) {
+    const energyComparison = scoreEnergyContourFromMonoPcm(
+      userSamples,
+      referenceSamples,
+      sampleRateInHertz,
+      {
+        distanceAtHalfScore: options?.energyDistanceAtHalfScore,
+        sakoeChibaRadiusInFrames,
+      },
+    )
+    if (energyComparison) {
+      energyScore0to100 = energyComparison.score0to100
+      energyNormalizedDistance = energyComparison.normalizedDistance
+    }
+  }
+
+  if (includeFormants) {
+    const formantComparison = scoreFormantMediansFromMonoPcm(
+      userSamples,
+      referenceSamples,
+      sampleRateInHertz,
+      { distanceAtHalfScore: options?.formantDistanceAtHalfScore },
+    )
+    if (formantComparison) {
+      formantScore0to100 = formantComparison.score0to100
+      formantLogHertzDistance = formantComparison.logHertzDistance
+    }
+  }
+
+  const score0to100 = combinePronunciationBranchScores({
+    mfccScore0to100,
+    pitchScore0to100,
+    energyScore0to100,
+    formantScore0to100,
+    weights: {
+      mfcc: clampUnit(options?.mfccScoreWeight ?? DEFAULT_PRONUNCIATION_BRANCH_WEIGHTS.mfcc),
+      pitch: DEFAULT_PRONUNCIATION_BRANCH_WEIGHTS.pitch,
+      energy: clampUnit(options?.energyScoreWeight ?? DEFAULT_PRONUNCIATION_BRANCH_WEIGHTS.energy),
+      formant: clampUnit(
+        options?.formantScoreWeight ?? DEFAULT_PRONUNCIATION_BRANCH_WEIGHTS.formant,
+      ),
+    },
+  })
 
   const wordHighlights = buildHighlightsFromMfccPath(
     options?.referenceTextForHighlights,
@@ -153,8 +215,12 @@ export function scorePronunciationFromMonoPcm(
     score0to100: roundScore(score0to100),
     mfccScore0to100: roundScore(mfccScore0to100),
     pitchScore0to100: pitchScore0to100 === null ? null : roundScore(pitchScore0to100),
+    energyScore0to100: energyScore0to100 === null ? null : roundScore(energyScore0to100),
+    formantScore0to100: formantScore0to100 === null ? null : roundScore(formantScore0to100),
     mfccNormalizedDistance: mfccDtw.normalizedDistance,
     pitchNormalizedDistance,
+    energyNormalizedDistance,
+    formantLogHertzDistance,
     userMfccFrameCount: userMfcc.length,
     referenceMfccFrameCount: referenceMfcc.length,
     dtwPathLength: mfccDtw.path.length,

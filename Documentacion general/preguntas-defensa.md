@@ -100,7 +100,7 @@ Híbrido. La apertura es guion curado. Cada turno: SmolLM2 con memoria de **4** 
 
 ## Q16. ¿El 0–100 está calibrado?
 
-Mapeo \(\mathrm{score}=100\exp(-\ln 2\cdot d/d_{1/2})\). Producción: \(d_{1/2}\) MFCC **16.5**, pitch **11.2**, peso MFCC **0.78** (issue #29). Issue **#95** midió locutor vs error en *nuestro* score: mismo contenido a 120 vs 210 Hz baja el score **11.4** puntos; cambiar vocales al mismo F0 baja **9.2** (ratio **1.23**). Por eso el 0–100 de conversación se **apaga** y vive en **Repetir**. No inventamos Δ.
+Mapeo \(\mathrm{score}=100\exp(-\ln 2\cdot d/d_{1/2})\). Producción: \(d_{1/2}\) MFCC **16.5**, pitch **11.2** (issue #29). El combinado (issue #58) añade energía y formantes con pesos provisionales 0.68 / 0.18 / 0.07 / 0.07. Issue **#95** (re-medido tras #58): mismo contenido a 120 vs 210 Hz baja el score **11.3** puntos; cambiar vocales al mismo F0 baja **9.9** (ratio **1.14**). Por eso el 0–100 de conversación se **apaga** y vive en **Repetir**. No inventamos Δ.
 
 **Fuente:** `dsp/speaker-bias-invariants.ts`; `calibracion-score-pronunciacion.md` §6.
 

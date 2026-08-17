@@ -57,15 +57,18 @@ Implementado:
   - tests en `dynamic-time-warping.test.ts` (estiramiento temporal, MFCC mismo tono vs distinto)
 - `pronunciation-score.ts`: **score de pronunciación** (dominio puro):
   - `scorePronunciationFromMonoPcm(user, reference, sampleRate)`
-  - MFCC (z-score) + DTW; pitch relativo (YIN) opcional → score 0–100
-  - defaults calibrados (issue #29): `pronunciation-score-calibration-constants.ts`
+  - MFCC + pitch + **energía** (log-RMS + DTW) + **formantes** (mediana F1–F3
+    log-Hz); pesos 0.68 / 0.18 / 0.07 / 0.07 (issue #58). Rama nula →
+    redistribución (`combine-pronunciation-branch-scores.ts`).
+  - defaults calibrados MFCC/pitch (issue #29): `pronunciation-score-calibration-constants.ts`
   - protocolo multi-hablante + fit: `run-pronunciation-score-calibration.ts`
-  - tests en `pronunciation-score.test.ts`, `run-pronunciation-score-calibration.test.ts`
-  - **Sesgo locutor (issue #95):** `measure-speaker-bias.ts` +
-    `synthetic-voiced-phrase.ts`. Δlocutor **11.4** ≳ Δerror **9.2**
-    (ratio **1.23**) → 0–100 solo en drill. Invariantes:
+  - tests en `pronunciation-score.test.ts`, `score-energy-contour.test.ts`,
+    `score-formant-distance.test.ts`
+  - **Sesgo locutor (issue #95, re-medido #58):** `measure-speaker-bias.ts` +
+    `synthetic-voiced-phrase.ts`. Δlocutor **11.3** ≳ Δerror **9.9**
+    (ratio **1.14**) → 0–100 solo en drill. Invariantes:
     `speaker-bias-invariants.ts`.
-  - Orquestación UI: `ui/run-pronunciation-scoring.ts` (resample + TTS ref + score)
+  - Orquestación UI: `ui/run-pronunciation-scoring.ts` (cadena #73 + score)
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
 - `polyphase-resample.ts` + `design-linear-phase-lowpass-fir.ts` (issue #92):

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { scorePronunciationFromMonoPcm } from './pronunciation-score'
+import { SYNTHETIC_VOICE_SAMPLE_RATE_HZ, synthesizeVoicedPhrase } from './synthetic-voiced-phrase'
 
 function synthesizeSineWave(options: {
   frequencyInHertz: number
@@ -76,9 +77,13 @@ describe('scorePronunciationFromMonoPcm', () => {
     })
     const result = scorePronunciationFromMonoPcm(tone, tone, sampleRateInHertz, {
       includePitch: false,
+      includeEnergy: false,
+      includeFormants: false,
     })
     expect(result).not.toBeNull()
     expect(result!.pitchScore0to100).toBeNull()
+    expect(result!.energyScore0to100).toBeNull()
+    expect(result!.formantScore0to100).toBeNull()
     expect(result!.score0to100).toBe(result!.mfccScore0to100)
     expect(result!.score0to100).toBeGreaterThan(85)
   })
@@ -97,5 +102,49 @@ describe('scorePronunciationFromMonoPcm', () => {
     expect(result!.wordHighlights).toHaveLength(2)
     expect(result!.wordHighlights[0]!.word).toBe('hello')
     expect(result!.wordHighlights[1]!.word).toBe('world')
+  })
+
+  it('exposes an energy branch for constant-envelope tones', () => {
+    const reference = synthesizeSineWave({
+      frequencyInHertz: 180,
+      sampleRateInHertz,
+      durationSeconds: 0.28,
+    })
+    const user = synthesizeSineWave({
+      frequencyInHertz: 180,
+      sampleRateInHertz,
+      durationSeconds: 0.32,
+      amplitude: 0.3,
+    })
+    const result = scorePronunciationFromMonoPcm(user, reference, sampleRateInHertz, {
+      includePitch: false,
+      includeFormants: false,
+    })
+    expect(result).not.toBeNull()
+    expect(result!.energyScore0to100).not.toBeNull()
+    expect(result!.energyScore0to100!).toBeGreaterThan(70)
+    expect(result!.score0to100).not.toBe(result!.mfccScore0to100)
+  })
+
+  it('exposes a formant branch for recoverable synthetic vowels', () => {
+    const reference = synthesizeVoicedPhrase({
+      fundamentalFrequencyInHertz: 180,
+      vowelIds: ['a', 'a', 'a'],
+      vowelDurationSeconds: 0.3,
+    })
+    const user = synthesizeVoicedPhrase({
+      fundamentalFrequencyInHertz: 180,
+      vowelIds: ['a', 'a', 'a'],
+      vowelDurationSeconds: 0.3,
+    })
+    const result = scorePronunciationFromMonoPcm(
+      user,
+      reference,
+      SYNTHETIC_VOICE_SAMPLE_RATE_HZ,
+      { includePitch: false, includeEnergy: false },
+    )
+    expect(result).not.toBeNull()
+    expect(result!.formantScore0to100).not.toBeNull()
+    expect(result!.formantScore0to100!).toBeGreaterThan(70)
   })
 })

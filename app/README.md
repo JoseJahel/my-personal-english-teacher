@@ -27,7 +27,7 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
    mientras el modelo “escribe”. El rail muestra el perfil ASR
    (`precision` / `latency`).
 6. **Score de pronunciación**: el 0–100 vive en modo **Repetir** (issue #95:
-   Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS
+   Δlocutor 11.3 ≳ Δerror 9.9). Conversación no califica contra el TTS
    (`deferred-to-drill`). #75 sigue: sin habla usable / `[Music]` →
    `not-evaluated`, no “mala pronunciación”.
 7. **TTS SpeechT5** reproduce la línea del tutor.

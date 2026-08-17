@@ -10,13 +10,13 @@ export type SpeakerBiasProductPolicy =
 
 /** Same buffer vs itself. */
 export const SPEAKER_BIAS_MEAN_SAME_SPEAKER_SCORE = 100
-/** Same vowels, F0 120 Hz vs 210 Hz. */
-export const SPEAKER_BIAS_MEAN_SPEAKER_CHANGE_SCORE = 88.6
-/** Same F0, different vowel identities. */
-export const SPEAKER_BIAS_MEAN_PRONUNCIATION_ERROR_SCORE = 90.8
-export const SPEAKER_BIAS_MEAN_SPEAKER_DELTA_SCORE = 11.4
-export const SPEAKER_BIAS_MEAN_ERROR_DELTA_SCORE = 9.2
-export const SPEAKER_BIAS_SPEAKER_TO_ERROR_SCORE_RATIO = 1.23
+/** Same vowels, F0 120 Hz vs 210 Hz. Re-measured after issue #58. */
+export const SPEAKER_BIAS_MEAN_SPEAKER_CHANGE_SCORE = 88.7
+/** Same F0, different vowel identities. Re-measured after issue #58. */
+export const SPEAKER_BIAS_MEAN_PRONUNCIATION_ERROR_SCORE = 90.1
+export const SPEAKER_BIAS_MEAN_SPEAKER_DELTA_SCORE = 11.3
+export const SPEAKER_BIAS_MEAN_ERROR_DELTA_SCORE = 9.9
+export const SPEAKER_BIAS_SPEAKER_TO_ERROR_SCORE_RATIO = 1.14
 export const SPEAKER_BIAS_MEAN_SPEAKER_DELTA_MFCC_DISTANCE = 3.24
 export const SPEAKER_BIAS_MEAN_ERROR_DELTA_MFCC_DISTANCE = 3.0
 /**

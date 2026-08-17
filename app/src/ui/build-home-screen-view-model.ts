@@ -113,6 +113,8 @@ export function buildHomeScreenViewModel(input: HomeScreenViewModelInput): HomeS
       ? homeScreenInterfaceTexts.pronunciationStatusMessages.detail({
           mfccScore: input.pronunciationScore.mfccScore0to100,
           pitchScore: input.pronunciationScore.pitchScore0to100,
+          energyScore: input.pronunciationScore.energyScore0to100,
+          formantScore: input.pronunciationScore.formantScore0to100,
           userFrames: input.pronunciationScore.userMfccFrameCount,
           referenceFrames: input.pronunciationScore.referenceMfccFrameCount,
         })
