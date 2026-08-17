@@ -10,7 +10,8 @@ openRealMicrophoneStream()  → MediaStream real del SO
   ├─ MediaStreamSource → Analyser → Gain(0) → destination
   │    (onda + RMS/peak en vivo vía AnalyserNode)
   ├─ MediaRecorder sobre el mismo MediaStream
-  │    → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92) → ASR
+  │    → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92)
+  │    → pasa-banda 80 Hz–7.5 kHz (issue #73) → ASR
   └─ mediaStream.clone() → MediaStreamSource → AudioWorklet
        → STFT/YIN de curso en vivo (issue #59)
 ```
@@ -37,6 +38,7 @@ sobre el PCM decodificado.
 | `normalize-peak.ts` | Peak-normalize con tope de gain (no amplifica casi-silencio) |
 | `mix-to-mono.ts` | Mezcla de canales de un `AudioBuffer` a mono |
 | `audio-resampler.ts` | 44.1/48 kHz → 16 kHz vía FIR de fase lineal (`dsp/polyphase-resample.ts`); lineal solo como fallback |
+| `prepare-speech-pcm.ts` | Cadena compartida (issue #73): resample + un pasa-banda. Misma función para user y ref TTS |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
 | `speech-pcm-cache.ts` | Caché de PCM SpeechT5 por frase del tutor |

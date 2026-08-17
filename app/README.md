@@ -15,9 +15,11 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
    Espectrograma STFT y pitch YIN en vivo sobre una pista clonada (issue #59).
 4. Al detener: MediaRecorder → decode mono → Whisper **en paralelo** con
-   espectrograma/pitch → gate de energía → resample 16 kHz → **chat del
-   usuario** → tutor de reglas al instante → voz (`speechSynthesis` o
-   PCM cacheado). T5 y el score no bloquean la respuesta oral.
+   espectrograma/pitch → gate de energía → resample 16 kHz + pasa-banda
+   (`prepareSpeechPcmForModels`, issue #73) → **chat del usuario** → tutor
+   de reglas al instante → voz (`speechSynthesis` o PCM cacheado). T5 y
+   el score no bloquean la respuesta oral; user y ref TTS comparten esa
+   cadena.
 5. **Feedback progresivo (issue #96):** la burbuja del estudiante (ASR +
    corrección T5) aparece **antes** de SmolLM2/TTS. El tutor sigue híbrido
    (memoria de 4 turnos, timeout 10 s, respaldo de reglas con insignia). El
@@ -258,8 +260,8 @@ adentro, dejando el dominio libre de detalles de infraestructura:
 |------|---------|----------------|
 | **`ui/`** | Presentación React + escenarios/chat + sesión (mic → ASR → gramática → tutor híbrido → turno de chat); paleta de diseño en tokens de `index.css`; pantalla de banco de pruebas ASR (solo dev). Textos ES en `interface-texts.ts`. | `ui/README.md` |
 | **`ia/`** | Whisper (catálogo de 4 candidatos evaluables), T5, SpeechT5, SmolLM2 (conversación híbrida activa), worker y cliente tipado. | `ia/README.md` |
-| **`dsp/`** | Energía + YIN + MFCC + DTW + score de pronunciación. | `dsp/README.md` |
-| **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample. | `audio/README.md` |
+| **`dsp/`** | Energía + YIN + MFCC + DTW + score + pasa-banda de voz (#73). | `dsp/README.md` |
+| **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample, cadena compartida user/ref. | `audio/README.md` |
 | **`storage/`** | IndexedDB de progreso: sesiones y turnos (textos/scores, sin audio) + IndexedDB separada de fixtures del banco de pruebas ASR (solo dev, con audio crudo). | `storage/README.md` |
 
 Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO.md`.
