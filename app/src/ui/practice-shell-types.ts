@@ -39,4 +39,5 @@ export const PRACTICE_SHELL_TEST_IDS = {
   panelFilled: 'panel-filled-state',
   spectrogramCanvas: 'spectrogram-canvas',
   pitchTrackCanvas: 'pitch-track-canvas',
+  formantVowelMap: 'formant-vowel-map',
 } as const

@@ -3,7 +3,10 @@
  */
 
 import type { ReactNode, RefObject } from 'react'
+import type { FormantTriple } from '../dsp/formant-estimation'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
+import type { PracticeTurnRecord } from '../storage/practice-session-types'
+import { FormantVowelMap } from './FormantVowelMap'
 import { GrammarCorrectionDiff } from './GrammarCorrectionDiff'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import { PronunciationWordHighlights } from './PronunciationWordHighlights'
@@ -26,6 +29,8 @@ export interface FeedbackPanelProps {
   readonly pronunciationPitchScore0to100: number | null
   readonly pronunciationWordHighlights: readonly WordPronunciationHighlight[]
   readonly formantsSummaryMessage: string | null
+  readonly medianFormants: FormantTriple | null
+  readonly practiceHistoryTurns: readonly PracticeTurnRecord[]
   readonly spectrogramCanvasRef: RefObject<HTMLCanvasElement | null>
   readonly pitchTrackCanvasRef: RefObject<HTMLCanvasElement | null>
   readonly hasCompletedCapture: boolean
@@ -59,6 +64,8 @@ export function FeedbackPanel({
   pronunciationPitchScore0to100,
   pronunciationWordHighlights,
   formantsSummaryMessage,
+  medianFormants,
+  practiceHistoryTurns,
   spectrogramCanvasRef,
   pitchTrackCanvasRef,
   hasCompletedCapture,
@@ -283,6 +290,11 @@ export function FeedbackPanel({
               }`}
             />
           </div>
+          <FormantVowelMap
+            current={medianFormants}
+            historyTurns={practiceHistoryTurns}
+            isReady={hasCompletedCapture || isListening}
+          />
           <div className="rounded-[10px] border border-sage-200 bg-sage-50 px-3 py-2">
             <p className="m-0 text-[0.65rem] font-semibold tracking-wider text-ink-600 uppercase">
               {homeScreenInterfaceTexts.formantsPanelLabel}
