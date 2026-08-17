@@ -22,7 +22,7 @@ Igual que en #80. Detalle y dependencias: ver el body de ese issue.
 Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
-~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → `#58` → `#76` → `#74` → `#71` (plantilla en paralelo; cifras al final)
+~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → ~~`#58` hecho~~ → `#76` → `#74` → `#71` (plantilla en paralelo; cifras al final)
 
 ### Oleada 3 — Remate Final
 ~~`#61` hecho~~ → `#77` → `#79` → `#62` → `#63` → `#72`
@@ -36,7 +36,7 @@ No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
 | Oleada | Siguiente | Luego |
 |--------|-----------|--------|
 | 1 — Avance 2 | — | lote A2 cerrado |
-| 2 — Laboratorio | `#58` | `#76` → `#74` → `#71` |
+| 2 — Laboratorio | `#76` | `#74` → `#71` |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 | 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
 
@@ -70,7 +70,7 @@ Cada ticket debe leerse como decisión de **este** producto (PWA localhost, capa
 | # | Issue | Estado | Notas de identidad propia |
 |---|--------|--------|---------------------------|
 | 57 | Sync matriz/README | Abierto | Honestidad del repo |
-| 58 | Energía + formantes en score | Abierto | Cierra RF-09 con *nuestro* `pronunciation-score` |
+| 58 | Energía + formantes en score | Hecho | Cierra RF-09 con *nuestro* `pronunciation-score` |
 | 59 | Espectro + pitch en captura | Hecho | Tap live en pista clonada; no el FFT del Analyser |
 | 60 | Sugerencias de comunicación | Hecho (PR #84) | Core enunciado; aparte del tutor SmolLM2 |
 | 61 | Perfil latencia ASR | Hecho (PR #89) | Nace del bank y `small-en` WebGPU |
@@ -145,7 +145,7 @@ Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aul
 8. ~~**#65** anti-alias medido~~ (hecho)  
 9. ~~**#73** pasa-banda misma cadena~~ (hecho)  
 10. ~~**#66** / **#67** FFT + MFCC dorados~~ (hecho)  
-11. **#58** formantes/energía en score  
+11. ~~**#58** formantes/energía en score~~ (hecho)  
 12. **#76** mapa F1–F2  
 13. **#74** VAD ms  
 14. **#71** bitácora con los números que vayan saliendo  

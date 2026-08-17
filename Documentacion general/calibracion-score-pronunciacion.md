@@ -143,14 +143,17 @@ misma secuencia de vocales /a i u/ con F0 **120 Hz** (hablante A) vs **210 Hz**
 | Condición | Score medio | Δ vs identidad | d MFCC extra |
 |-----------|------------:|---------------:|-------------:|
 | Mismo locutor, mismas vocales | **100.0** | 0 | 0 |
-| Cambio de locutor (120→210 Hz) | **88.6** | **11.4** | **3.24** |
-| Error de vocal (mismo F0) | **90.8** | **9.2** | **3.00** |
-| Ratio Δlocutor / Δerror | **1.23** | — | — |
+| Cambio de locutor (120→210 Hz) | **88.7** | **11.3** | **3.24** |
+| Error de vocal (mismo F0) | **90.1** | **9.9** | **3.00** |
+| Ratio Δlocutor / Δerror | **1.14** | — | — |
 
 **Decisión de producto:** locutor ≳ error. El 0–100 de **conversación se
 apaga** (`deferred-to-drill`). La cifra vive en modo **Repetir** (#68). Copy:
 no se acusa al estudiante (“no es que lo hayas dicho mal”). Constantes:
 `dsp/speaker-bias-invariants.ts`. #75 sigue cortando silencio/`[Music]`.
+Tras issue #58 el combinado incluye energía y formantes (pesos provisionales
+0.68 / 0.18 / 0.07 / 0.07); las cifras de esta tabla se re-midieron sobre
+ese score. No es un re-fit del panel #29.
 
 ## 7. Limitaciones
 

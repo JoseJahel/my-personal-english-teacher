@@ -243,10 +243,10 @@ Protocolo sintético (fuente armónica + 3 formantes) sobre
 | Condición | Score | Δ | d MFCC extra |
 |-----------|------:|--:|-------------:|
 | Identidad | 100.0 | 0 | 0 |
-| Locutor 120→210 Hz, mismas vocales | 88.6 | **11.4** | 3.24 |
-| Error de vocal, mismo F0 | 90.8 | **9.2** | 3.00 |
+| Locutor 120→210 Hz, mismas vocales | 88.7 | **11.3** | 3.24 |
+| Error de vocal, mismo F0 | 90.1 | **9.9** | 3.00 |
 
-Ratio Δlocutor/Δerror = **1.23** ≥ 1 → política **`drill-only`**. Conversación
+Ratio Δlocutor/Δerror = **1.14** ≥ 1 → política **`drill-only`**. Conversación
 no muestra 0–100 (`deferred-to-drill`). #75 (sin habla útil / `[Music]`) sigue
 cortando antes. Tests: `dsp/measure-speaker-bias.test.ts`.
 
@@ -272,6 +272,27 @@ de ruido sigue en #63.
 Tests: `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`,
 `ui/run-pronunciation-scoring.test.ts`.
 
+## 5.8 Energía y formantes en el score (issue #58)
+
+El 0–100 combina cuatro ramas con pesos que suman 1 (MFCC dominante). Si una
+rama no es usable, su peso se redistribuye:
+
+| Rama | Default | Señal |
+|------|--------:|-------|
+| MFCC + DTW | 0.68 | igual que #29 |
+| Pitch relativo YIN | 0.18 | igual que #29 |
+| Contorno log-RMS (z-score + DTW) | 0.07 | misma grilla 25/10 ms que MFCC |
+| Mediana F1–F2–F3 (distancia log-Hz) | 0.07 | exige F1 y F2 en user y ref |
+
+Los pesos de energía/formantes son **provisionales** (no hay re-fit del panel
+#29). El desglose se muestra en español en el panel de feedback. Tras meter
+las ramas se re-midió #95: Δlocutor **11.3** ≳ Δerror **9.9** (ratio **1.14**);
+la política drill-only no cambia.
+
+Tests: `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`,
+`dsp/combine-pronunciation-branch-scores.test.ts`, `dsp/pronunciation-score.test.ts`,
+`ui/build-home-screen-view-model.test.ts`.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -296,7 +317,8 @@ Tests: `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`,
 | CP-18 | Encadenado MFCC (issue #94) | Tono 1 kHz, amplitud 1, 16 kHz | Banda de pico fuera del piso log; c1–c12 no ~0; escala UI (`log10`/`1/N²`) incrementa bandas en el piso | `dsp/mfcc-chain-audit.test.ts` |
 | CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
 | CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
-| CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.4 ≳ Δerror 9.2; ratio 1.23; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
+| CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.3 ≳ Δerror 9.9; ratio 1.14; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
+| CP-23 | Energía y formantes en el score (issue #58) | AM vs AM; vocales sintéticas /a/ vs /i/; desglose UI | Ramas numéricas en el resultado; UI en español; pesos se redistribuyen si falta una rama | `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`, `ui/build-home-screen-view-model.test.ts` |
 | CP-22 | Pasa-banda + misma cadena (issue #73) | Senos 20 / 80 / 1000 / 7500 Hz; user 48 kHz vs ref 16 kHz | −3.01 dB en cortes; −24.1 dB a 20 Hz; score user/ref usa `prepareSpeechPcmForModels` | `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`, `ui/run-pronunciation-scoring.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan

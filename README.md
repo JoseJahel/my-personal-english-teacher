@@ -119,7 +119,7 @@ La Web Speech API de Chrome delega el reconocimiento de voz en los servidores de
 
 Nadie habla exactamente a la velocidad de la referencia, y sin alineación temporal la distancia castiga el ritmo en lugar de la pronunciación. Dynamic Time Warping alinea las secuencias de features y la distancia euclidiana frame a frame se acumula sobre ese alineamiento, conservando la métrica sugerida en la documentación del curso pero aplicada donde tiene sentido.
 
-**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`. El 0–100 vive en modo **Repetir** (issue #95: Δlocutor 11.4 ≳ Δerror 9.2). Conversación no califica contra el TTS.
+**Estado de implementación:** dominio puro en `dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts` (MFCC + pitch + energía + formantes, issue #58). El 0–100 vive en modo **Repetir** (issue #95: Δlocutor 11.3 ≳ Δerror 9.9). Conversación no califica contra el TTS.
 
 ### Referencia de pronunciación generada con SpeechT5
 
@@ -244,7 +244,7 @@ pública del producto. El deck de Avance 2 está en
 | `ui/` | Escenarios, chat con **tutor híbrido** (SmolLM2 + respaldo honesto), score, TTS, onda + **espectrograma + pitch** + **highlights por palabra** + **banco de pruebas ASR** (dev) + paleta de diseño en tokens | — |
 | `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample + **pasa-banda 80 Hz–7.5 kHz** (misma cadena user/ref, #73), play TTS, **VAD auto-stop**. STFT/YIN **en vivo** sobre pista clonada (#59) y **post-stop** sobre el PCM decodificado | Half-duplex más estricto al TTS |
 | `ia/` | Whisper (**default `small-en`**, catálogo de 4), T5, SpeechT5, **SmolLM2**, worker + client; revisiones **SHA** | Re-medir bench en hardware de demo si hace falta |
-| `dsp/` | Energía + YIN + MFCC + DTW + score + espectrograma + **VAD** + **formantes** + **pasa-banda Butterworth** (#73) | — |
+| `dsp/` | Energía + YIN + MFCC + DTW + score **MFCC/pitch/energía/formantes** (#58) + espectrograma + **VAD** + **pasa-banda Butterworth** (#73) | — |
 | `storage/` | **IndexedDB** sesiones/turnos (sin audio) + **IndexedDB separada de fixtures del banco de pruebas ASR** (solo dev, con audio crudo) | Migraciones futuras de schema |
 
 **Decisión de modelo ASR:** **`whisper-small.en`** es el default de producción (bench 2026-07-29). Requiere **WebGPU** para latencia de demo viable; sin adapter el runtime cae a WASM (más lento). El banco `#asr-benchmark` (solo dev) sigue disponible para re-medir en otras máquinas.

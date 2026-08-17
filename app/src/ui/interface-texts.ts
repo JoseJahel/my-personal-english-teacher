@@ -1,4 +1,5 @@
 import type { AsrModelCandidateId } from '../ia/model-registry'
+import { formatPronunciationScoreDetail } from './format-pronunciation-score-detail'
 
 /**
  * All user-visible Spanish copy for the home screen.
@@ -345,23 +346,22 @@ export const homeScreenInterfaceTexts = {
   },
   pronunciationStatusMessages: {
     idle: 'En conversación no hay 0–100 contra el TTS (el locutor sintético mueve el score tanto o más que un error de vocal). El 0–100 está en modo Repetir.',
-    scoring: 'Calculando puntuación de pronunciación (MFCC / pitch + DTW)...',
+    scoring: 'Calculando puntuación de pronunciación (MFCC / pitch / energía / formantes)...',
     done: (score0to100: number) =>
       `Puntuación de pronunciación: ${score0to100.toFixed(1)} / 100 (mayor = más cerca de la referencia).`,
     unavailable: 'No se pudo calcular la puntuación de pronunciación para este turno.',
     notEvaluated:
       'No se evaluó la pronunciación: no hubo habla clara en inglés. No es una mala nota. Intenta de nuevo más cerca del micrófono y con más volumen.',
     deferredToDrill:
-      'No hay 0–100 en este turno de conversación: cambiar de locutor sintético (120→210 Hz) mueve ~11.4 puntos y pronunciar otras vocales ~9.2 (ratio 1.23). No es que lo hayas dicho mal. Practica la frase del tutor en Repetir.',
+      'No hay 0–100 en este turno de conversación: cambiar de locutor sintético (120→210 Hz) mueve ~11.3 puntos y pronunciar otras vocales ~9.9 (ratio 1.14). No es que lo hayas dicho mal. Practica la frase del tutor en Repetir.',
     detail: (details: {
       mfccScore: number
       pitchScore: number | null
+      energyScore: number | null
+      formantScore: number | null
       userFrames: number
       referenceFrames: number
-    }) =>
-      details.pitchScore === null
-        ? `MFCC ${details.mfccScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`
-        : `MFCC ${details.mfccScore.toFixed(1)} · pitch ${details.pitchScore.toFixed(1)} · frames usuario ${details.userFrames} / ref ${details.referenceFrames}`,
+    }) => formatPronunciationScoreDetail(details),
   },
   drill: {
     panelTitle: 'Repetir la última frase del tutor',

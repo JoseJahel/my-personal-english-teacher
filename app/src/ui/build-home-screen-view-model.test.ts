@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import {
   buildHomeScreenViewModel,
   type HomeScreenViewModelInput,
@@ -50,5 +51,34 @@ describe('buildHomeScreenViewModel — issue #96 half-duplex lock', () => {
     )
 
     expect(viewModel.isTutorSpeaking).toBe(true)
+  })
+})
+
+describe('buildHomeScreenViewModel — pronunciation breakdown (issue #58)', () => {
+  it('includes energy and formant scores in the Spanish detail line', () => {
+    const pronunciationScore: PronunciationScoreResult = {
+      score0to100: 84,
+      mfccScore0to100: 88,
+      pitchScore0to100: 76,
+      energyScore0to100: 91,
+      formantScore0to100: 70,
+      mfccNormalizedDistance: 2,
+      pitchNormalizedDistance: 3,
+      energyNormalizedDistance: 0.4,
+      formantLogHertzDistance: 0.2,
+      userMfccFrameCount: 40,
+      referenceMfccFrameCount: 42,
+      dtwPathLength: 45,
+      wordHighlights: [],
+    }
+    const viewModel = buildHomeScreenViewModel(
+      viewModelInput({
+        pronunciationStatus: 'done',
+        pronunciationScore,
+      }),
+    )
+    expect(viewModel.pronunciationDetailMessage).toBe(
+      'MFCC 88.0 · pitch 76.0 · energía 91.0 · formantes 70.0 · frames usuario 40 / ref 42',
+    )
   })
 })
