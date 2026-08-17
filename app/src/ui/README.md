@@ -58,6 +58,8 @@ Implementado:
   vocal; la nota está en **Repetir**.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
+- `formant-vowel-map.ts` + `FormantVowelMap.tsx` (issue #76): mapa F1×F2
+  (convención vocálica) en el panel Señales; historial solo con Hz de IndexedDB.
 - `start-live-pcm-signal-views.ts` (issues #93/#59): STFT/YIN sobre PCM del
   worklet en una **pista clonada**. Hablar abre el panel en Señales. Al
   detener, las mismas funciones pintan la utterance completa.

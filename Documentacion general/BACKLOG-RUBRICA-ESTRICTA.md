@@ -22,7 +22,7 @@ Igual que en #80. Detalle y dependencias: ver el body de ese issue.
 Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
-~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → ~~`#58` hecho~~ → `#76` → `#74` → `#71` (plantilla en paralelo; cifras al final)
+~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → ~~`#58` hecho~~ → ~~`#76` hecho~~ → `#74` → `#71` (plantilla en paralelo; cifras al final)
 
 ### Oleada 3 — Remate Final
 ~~`#61` hecho~~ → `#77` → `#79` → `#62` → `#63` → `#72`
@@ -36,7 +36,7 @@ No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
 | Oleada | Siguiente | Luego |
 |--------|-----------|--------|
 | 1 — Avance 2 | — | lote A2 cerrado |
-| 2 — Laboratorio | `#76` | `#74` → `#71` |
+| 2 — Laboratorio | `#74` | `#71` |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 | 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
 
@@ -104,7 +104,7 @@ Nacen de código/UX que **ya** es nuestro (gate ASR, formantes, TTS, UI ES, snap
 | # | Issue | Estado | Por qué es “nuestro” |
 |---|--------|--------|----------------------|
 | 75 | No castigar pronunciación si ASR no trajo habla útil | Hecho (PR #86) | Pedagogía + `transcription-text` / gate |
-| 76 | Mapa **F1–F2** de la utterance | Abierto | Formantes que ya estimamos |
+| 76 | Mapa **F1–F2** de la utterance | Hecho | Formantes que ya estimamos |
 | 77 | Normalizar números/siglas **antes del TTS** | Abierto | Escenarios restaurante/aeropuerto + SpeechT5 |
 | 78 | Explicación **en español** de la corrección T5 | Abierto | Decisión de producto “UI en español” |
 | 79 | Tarjeta de señales del turno en el chat | Abierto | `practice-turn-signal-snapshot` ya existe |
@@ -146,7 +146,7 @@ Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aul
 9. ~~**#73** pasa-banda misma cadena~~ (hecho)  
 10. ~~**#66** / **#67** FFT + MFCC dorados~~ (hecho)  
 11. ~~**#58** formantes/energía en score~~ (hecho)  
-12. **#76** mapa F1–F2  
+12. ~~**#76** mapa F1–F2~~ (hecho)  
 13. **#74** VAD ms  
 14. **#71** bitácora con los números que vayan saliendo  
 

@@ -436,6 +436,7 @@ export function useHomeScreenSession(
     pronunciationWordHighlights:
       pronunciationStatus === 'done' ? (pronunciationScore?.wordHighlights ?? []) : [],
     formantsSummaryMessage: viewModel.formantsSummaryMessage,
+    medianFormants,
     practiceHistoryTurns,
     practiceHistoryStatusMessage,
     offlineReadiness,

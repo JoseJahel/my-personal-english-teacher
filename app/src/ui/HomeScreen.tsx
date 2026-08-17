@@ -3,6 +3,7 @@
  */
 
 import { useState, type RefObject } from 'react'
+import type { FormantTriple } from '../dsp/formant-estimation'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
@@ -63,6 +64,7 @@ export interface HomeScreenProps {
   pronunciationPitchScore0to100: number | null
   pronunciationWordHighlights: readonly WordPronunciationHighlight[]
   formantsSummaryMessage: string | null
+  medianFormants: FormantTriple | null
   practiceHistoryTurns: readonly PracticeTurnRecord[]
   practiceHistoryStatusMessage: string
   /** Friendly single-line pipeline status for the composer. */
@@ -119,6 +121,7 @@ export function HomeScreen(props: HomeScreenProps) {
     pronunciationPitchScore0to100,
     pronunciationWordHighlights,
     formantsSummaryMessage,
+    medianFormants,
     practiceHistoryTurns,
     practiceHistoryStatusMessage,
     primaryActivityMessage,
@@ -337,6 +340,8 @@ export function HomeScreen(props: HomeScreenProps) {
           pronunciationPitchScore0to100={pronunciationPitchScore0to100}
           pronunciationWordHighlights={pronunciationWordHighlights}
           formantsSummaryMessage={formantsSummaryMessage}
+          medianFormants={medianFormants}
+          practiceHistoryTurns={practiceHistoryTurns}
           spectrogramCanvasRef={spectrogramCanvasRef}
           pitchTrackCanvasRef={pitchTrackCanvasRef}
           hasCompletedCapture={hasCompletedCapture}

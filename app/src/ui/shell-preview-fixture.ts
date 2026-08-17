@@ -103,6 +103,7 @@ function baseProps(): HomeScreenProps {
     pronunciationPitchScore0to100: null,
     pronunciationWordHighlights: [],
     formantsSummaryMessage: null,
+    medianFormants: null,
     practiceHistoryTurns: sampleHistory,
     practiceHistoryStatusMessage: 'Progreso guardado solo en este dispositivo (sin audio crudo).',
     primaryActivityMessage: 'Listo',
@@ -144,6 +145,7 @@ export function createShellPreviewFilledProps(): HomeScreenProps {
     pronunciationStatusMessage: 'Puntuación de pronunciación: 78.0 / 100.',
     pronunciationDetailMessage: 'MFCC 81.0 · pitch 74.0 · frames usuario 40 / ref 42',
     formantsSummaryMessage: 'F1 ≈ 520 Hz · F2 ≈ 1420 Hz · F3 ≈ 2480 Hz',
+    medianFormants: { f1InHertz: 520, f2InHertz: 1420, f3InHertz: 2480 },
     pronunciationWordHighlights: [
       { word: 'I', score0to100: 90, band: 'good', meanLocalDistance: 0.1 },
       { word: 'would', score0to100: 88, band: 'good', meanLocalDistance: 0.12 },

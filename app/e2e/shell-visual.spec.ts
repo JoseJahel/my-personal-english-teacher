@@ -41,6 +41,9 @@ test.describe('practice shell — structure', () => {
     await expect(panel).toHaveAttribute('data-open', 'true')
     await expect(page.getByTestId('panel-filled-state')).toBeVisible()
     await expect(page.getByTestId('panel-tab-turn')).toHaveAttribute('aria-selected', 'true')
+
+    await page.getByTestId('panel-tab-signals').click()
+    await expect(page.getByTestId('formant-vowel-map')).toBeVisible()
   })
 
   test('listening state sets mic data-state', async ({ page }) => {

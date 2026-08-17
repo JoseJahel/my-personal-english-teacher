@@ -282,6 +282,11 @@ export const homeScreenInterfaceTexts = {
   formantsUnavailable: 'Sin formantes fiables (silencio o frames inestables).',
   formantsSummary: (f1: string, f2: string, f3: string) =>
     `F1 ≈ ${f1} Hz · F2 ≈ ${f2} Hz · F3 ≈ ${f3} Hz`,
+  formantMapTitle: 'Mapa vocálico F1 × F2',
+  formantMapHint:
+    'Convención clásica: F2 alto (anterior) a la izquierda, F1 bajo (cerrada) arriba. El punto claro es esta utterance; los tenues son turnos recientes (solo Hz, sin audio).',
+  formantMapAxisF2: 'F2 (Hz), anterior ← → posterior',
+  formantMapAxisF1: 'F1 (Hz), cerrada ↑ ↓ abierta',
   practiceHistory: {
     sectionTitle: 'Historial local (IndexedDB)',
     sectionAriaLabel: 'Historial de turnos de práctica guardados en el navegador',
