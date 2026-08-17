@@ -42,4 +42,6 @@ export const PRACTICE_SHELL_TEST_IDS = {
   formantVowelMap: 'formant-vowel-map',
   turnSignalCard: 'turn-signal-card',
   turnSignalCardOpenSignals: 'turn-signal-card-open-signals',
+  habitStreak: 'practice-habit-streak',
+  habitGoodTurns: 'practice-habit-good-turns',
 } as const

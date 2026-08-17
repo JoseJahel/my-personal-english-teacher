@@ -345,6 +345,13 @@ export const homeScreenInterfaceTexts = {
         : `Promedio de la sesión: ${average.toFixed(1)} / 100`,
     trendBarTooltip: (turnIndex: number, score: number) =>
       `Turno ${turnIndex}: ${score.toFixed(1)} / 100`,
+    turnsStatLabel: 'Turnos',
+    averageStatLabel: 'Media',
+    streakStatLabel: 'Racha',
+    streakDays: (days: number) => (days === 1 ? '1 día' : `${days} días`),
+    goodTurnsStatLabel: 'Turnos bien',
+    goodTurnsHint: (threshold: number) =>
+      `Puntuación ≥ ${threshold} (umbral “bien” del score, no un ranking).`,
   },
   pronunciationPanelLabel: 'Pronunciación (señales)',
   communicationSuggestions: {

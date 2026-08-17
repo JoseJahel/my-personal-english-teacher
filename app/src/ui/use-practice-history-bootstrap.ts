@@ -9,6 +9,7 @@ import {
   type PracticeSessionRepository,
 } from '../storage/session-repository'
 import { homeScreenInterfaceTexts } from './interface-texts'
+import { PRACTICE_HABIT_TURN_LIMIT } from './practice-habits'
 import type { PracticeScenarioId } from './practice-scenarios'
 
 export function usePracticeHistoryBootstrap(input: {
@@ -44,7 +45,7 @@ export function usePracticeHistoryBootstrap(input: {
         practiceRepositoryRef.current = repository
         const session = await repository.ensureSessionForScenario(selectedScenarioIdRef.current)
         activeSessionIdRef.current = session.id
-        const turns = await repository.listRecentTurns(10)
+        const turns = await repository.listRecentTurns(PRACTICE_HABIT_TURN_LIMIT)
         if (!cancelled) {
           setPracticeHistoryTurns(turns)
           setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusReady)
