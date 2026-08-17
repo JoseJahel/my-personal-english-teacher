@@ -32,9 +32,9 @@
 ### Panel derecho (artefacto)
 
 - **Cerrado por defecto**  
-- Se abre tras un turno con resultados o al pulsar Feedback  
+- Se abre al pulsar Hablar (pestaña Señales, STFT/YIN en vivo) o tras un turno  
 - Pestañas: **Turno** · **Sugerencias** · **Señales** · **Técnico**  
-- Empty state hasta el primer turno  
+- Empty state de Turno hasta el primer resultado  
 - Canvas de espectrograma/pitch **siempre montados** (aunque el panel esté `hidden`) para no romper refs de sesión  
 
 ### Historial
@@ -108,7 +108,7 @@ Solo con `import.meta.env.DEV`.
 ## Checklist demo (3 min)
 
 1. Escenario en rail → intro del tutor en el chat  
-2. Hablar → detener → panel Feedback se abre con turno  
-3. Pestaña Señales → espectrograma/pitch  
+2. Hablar → panel Señales se abre; onda + espectro + pitch se mueven  
+3. Detener → utterance completa en los mismos canvas; pestaña Turno con ASR  
 4. Historial en rail → turnos IndexedDB  
 5. Cerrar panel con ✕ o Feedback  

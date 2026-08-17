@@ -74,7 +74,8 @@ export const homeScreenInterfaceTexts = {
     backToPractice: 'Volver a práctica',
     historyOverlayTitle: 'Historial local',
     signalsOverlayTitle: 'Laboratorio de señales',
-    signalsOverlayHint: 'Última utterance · laboratorio del curso',
+    signalsOverlayHint:
+      'En vivo mientras hablas (STFT/YIN sobre PCM de una pista clonada). Al detener, la utterance completa.',
     tabTurn: 'Turno',
     tabSuggest: 'Sugerencias',
     tabSignals: 'Señales',

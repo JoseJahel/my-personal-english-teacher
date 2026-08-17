@@ -107,6 +107,7 @@ export async function startMockSpeechCapture(): Promise<SpeechCaptureSession> {
     audioContext: {} as AudioContext,
     analyserNode: stubAnalyser,
     sourceNode: {} as MediaStreamAudioSourceNode,
+    liveAnalysisSourceNode: null,
     deviceLabel: MOCK_RESTAURANT_DEVICE_LABEL,
     mediaStream: { getTracks: () => [] } as unknown as MediaStream,
     readLiveMeters: () => {

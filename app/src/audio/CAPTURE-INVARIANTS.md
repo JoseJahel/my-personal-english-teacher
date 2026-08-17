@@ -7,10 +7,10 @@ Canonical capture design for this repo. Layer overview: `README.md` in this fold
 ```
 openRealMicrophoneStream()  → real OS mic MediaStream
   ├─ MediaStreamSource → Analyser → Gain(0) → destination   // live wave + RMS/peak
-  └─ MediaRecorder on same MediaStream                      // ASR after stop
-// Do not also connect an AudioWorklet tap to that same MediaStreamSource:
-// on Windows Realtek the Analyser then reads ~0% while MediaRecorder still
-// records. Live STFT/YIN (issue #93) stays post-stop on the decoded PCM.
+  ├─ MediaRecorder on same MediaStream                      // ASR after stop
+  └─ mediaStream.clone() → MediaStreamSource → AudioWorklet // live STFT/YIN (#59)
+// Never connect the worklet to the Analyser MediaStreamSource:
+// on Windows Realtek that zeroes the Analyser while MediaRecorder still records.
 ```
 
 Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
@@ -34,7 +34,8 @@ Entry points: `open-microphone-stream.ts`, `microphone-capture.ts`,
    without a full mic regression on real Chrome/Windows hardware.
 8. Feed `AnalyserNode.getFloatFrequencyData` as the course STFT. Live spectrum
    and F0 must call `dsp/spectrogram.ts` + `dsp/pitch-detection-yin.ts` on PCM
-   from the worklet tap (`audio/pcm-tap-processor.js` copies samples only).
+   from the worklet tap on a **cloned** track (`audio/pcm-tap-processor.js`
+   copies samples only).
 
 ## Manual check
 

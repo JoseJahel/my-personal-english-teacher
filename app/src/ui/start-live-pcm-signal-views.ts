@@ -16,13 +16,29 @@ import {
 } from './live-pcm-signal-history'
 import { drawPitchContourOnCanvas, drawSpectrogramOnCanvas } from './utterance-signal-canvas'
 
+export const LIVE_SIGNAL_DRAW_INTERVAL_MS = 50
+
+function canAttachLivePcmTap(
+  audioContext: AudioContext,
+  sourceNode: AudioNode | null,
+): sourceNode is AudioNode {
+  return (
+    sourceNode !== null &&
+    typeof sourceNode.connect === 'function' &&
+    typeof audioContext.audioWorklet?.addModule === 'function'
+  )
+}
+
 export async function startLivePcmSignalViews(options: {
   readonly audioContext: AudioContext
-  readonly sourceNode: AudioNode
+  readonly sourceNode: AudioNode | null
   readonly spectrogramCanvas: HTMLCanvasElement | null
   readonly pitchTrackCanvas: HTMLCanvasElement | null
 }): Promise<() => void> {
   const { audioContext, sourceNode, spectrogramCanvas, pitchTrackCanvas } = options
+  if (!canAttachLivePcmTap(audioContext, sourceNode)) {
+    return () => undefined
+  }
   const sampleRate = audioContext.sampleRate
   const accumulator = createPcmFrameAccumulator({
     frameLengthInSamples: livePcmFrameLengthInSamples(sampleRate),
@@ -30,6 +46,7 @@ export async function startLivePcmSignalViews(options: {
   })
   const history = createLivePcmSignalHistory()
 
+  let lastDrawMs = 0
   const stopTap = await startPcmTap(audioContext, sourceNode, (chunk) => {
     const frames = accumulator.push(chunk)
     for (const frame of frames) {
@@ -47,6 +64,11 @@ export async function startLivePcmSignalViews(options: {
     if (frames.length === 0) {
       return
     }
+    const nowMs = performance.now()
+    if (nowMs - lastDrawMs < LIVE_SIGNAL_DRAW_INTERVAL_MS) {
+      return
+    }
+    lastDrawMs = nowMs
     const spectrogram = liveHistoryToSpectrogram(history)
     if (spectrogram && spectrogramCanvas) {
       drawSpectrogramOnCanvas(spectrogramCanvas, spectrogram)

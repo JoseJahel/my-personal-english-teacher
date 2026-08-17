@@ -199,12 +199,14 @@ inyecta el espectro de UI como si fuera potencia, el número de bandas en el
 piso **sube** (≥ 10). Fixture de convención: `dsp/mfcc-chain-invariants.json`
 (TS del repo; sin Python en CI). #67 permanece verde.
 
-## 5.4 STFT/YIN en vivo sobre PCM (issue #93)
+## 5.4 STFT/YIN en vivo sobre PCM (issues #93 / #59)
 
-Durante la escucha, un AudioWorklet **solo copia** PCM (`audio/pcm-tap-processor.js`).
-El análisis llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin`
-(las mismas funciones que post-utterance). No se usa
-`AnalyserNode.getFloatFrequencyData` como STFT de curso.
+Durante la escucha, un AudioWorklet **solo copia** PCM (`audio/pcm-tap-processor.js`)
+desde una **pista clonada** (`clone-media-stream-for-analysis.ts`). El análisis
+llama a `computeLogMagnitudeSpectrogram` y `estimatePitchWithYin` (las mismas
+funciones que post-utterance). No se usa
+`AnalyserNode.getFloatFrequencyData` como STFT de curso. El worklet **no** se
+conecta al `MediaStreamSource` del Analyser (Realtek lo deja en 0 %).
 
 | Parámetro | Valor |
 |-----------|--------|

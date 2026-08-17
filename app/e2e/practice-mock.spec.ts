@@ -51,6 +51,10 @@ test.describe('practice mock rehearsal', () => {
 
     await page.getByTestId('mic-button').click()
     await expect(page.getByTestId('mic-button')).toHaveAttribute('data-state', 'listening')
+    await expect(page.getByTestId('feedback-panel')).toHaveAttribute('data-open', 'true')
+    await expect(page.getByTestId('panel-tab-signals')).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('spectrogram-canvas')).toBeVisible()
+    await expect(page.getByTestId('pitch-track-canvas')).toBeVisible()
     await page.getByTestId('stop-button').click()
 
     await expect(page.getByTestId('chat-thread')).toContainText(

@@ -11,6 +11,10 @@
  * on a real OS stream is the path that must stay simple.
  */
 
+import {
+  cloneMediaStreamForAnalysis,
+  stopClonedMediaStream,
+} from './clone-media-stream-for-analysis'
 import { buildCaptureDiagnostics } from './capture-diagnostics'
 import type { CaptureDiagnostics } from './capture-diagnostics'
 import {
@@ -53,8 +57,10 @@ export interface LiveInputMeters {
 export interface MicrophoneCaptureSession {
   readonly audioContext: AudioContext
   readonly analyserNode: AnalyserNode
-  /** Same MediaStreamSource as the Analyser; live DSP taps this, never ASR. */
+  /** Analyser source only. Never attach the live DSP worklet here. */
   readonly sourceNode: MediaStreamAudioSourceNode
+  /** Source on a cloned track for STFT/YIN. Null if clone is unavailable. */
+  readonly liveAnalysisSourceNode: MediaStreamAudioSourceNode | null
   readonly deviceLabel: string
   readonly mediaStream: MediaStream
   /** Read current input meters (call from rAF). */
@@ -127,11 +133,18 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
   analyserNode.connect(silentGain)
   silentGain.connect(audioContext.destination)
 
+  const analysisStream = cloneMediaStreamForAnalysis(mediaStream)
+  const liveAnalysisSourceNode = analysisStream
+    ? audioContext.createMediaStreamSource(analysisStream)
+    : null
+
   await ensureRunning(audioContext)
   if (audioContext.state !== 'running') {
     sourceNode.disconnect()
+    liveAnalysisSourceNode?.disconnect()
     analyserNode.disconnect()
     silentGain.disconnect()
+    stopClonedMediaStream(analysisStream)
     mediaStream.getTracks().forEach((t) => t.stop())
     releaseOpenedStream()
     await audioContext.close().catch(() => undefined)
@@ -146,8 +159,10 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
     startedRecorder = startMediaRecorderOnStream(mediaStream)
   } catch (error) {
     sourceNode.disconnect()
+    liveAnalysisSourceNode?.disconnect()
     analyserNode.disconnect()
     silentGain.disconnect()
+    stopClonedMediaStream(analysisStream)
     mediaStream.getTracks().forEach((t) => t.stop())
     releaseOpenedStream()
     await audioContext.close().catch(() => undefined)
@@ -186,11 +201,13 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
   function disconnectGraph(): void {
     try {
       sourceNode.disconnect()
+      liveAnalysisSourceNode?.disconnect()
       analyserNode.disconnect()
       silentGain.disconnect()
     } catch {
       // already disconnected
     }
+    stopClonedMediaStream(analysisStream)
   }
 
   function abort(): void {
@@ -293,6 +310,7 @@ export async function startMicrophoneCapture(): Promise<MicrophoneCaptureSession
     audioContext,
     analyserNode,
     sourceNode,
+    liveAnalysisSourceNode,
     deviceLabel,
     mediaStream,
     readLiveMeters,

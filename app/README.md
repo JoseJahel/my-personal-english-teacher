@@ -13,6 +13,7 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 2. Captura de micrófono real (`audio/open-microphone-stream.ts` +
    `audio/microphone-capture.ts`).
 3. Waveform y nivel en vivo desde `AnalyserNode` (`ui/waveform-canvas.ts`).
+   Espectrograma STFT y pitch YIN en vivo sobre una pista clonada (issue #59).
 4. Al detener: MediaRecorder → decode mono → Whisper **en paralelo** con
    espectrograma/pitch → gate de energía → resample 16 kHz → **chat del
    usuario** → tutor de reglas al instante → voz (`speechSynthesis` o
