@@ -49,6 +49,7 @@ Implementado:
   `-composing` (#96: usuario + “Escribiendo…”, Hablar habilitado).
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
+  → **misma** cadena `prepareSpeechPcmForModels` (resample + pasa-banda #73)
   → score DSP.
 - `pronunciation-score-eligibility.ts`: política #75 — no puntuar si no hay
   habla usable, tag de no-habla o texto degenerado (`not-evaluated`). Issue

@@ -197,6 +197,13 @@ deja pasar casi entero (0 dB a 48 kHz). Cifras y retardo de grupo (~1 ms) en
 `reporte-verificacion.md` §5.5. Otras tasas caen al interpolador lineal
 documentado.
 
+Tras el remuestreo, user y referencia TTS comparten un **pasa-banda**
+Butterworth de segundo orden (cascada HP $80\,\text{Hz}$ + LP $7.5\,\text{kHz}$,
+biquads RBJ, issue #73) en `dsp/biquad-voice-bandpass.ts`. Una pasada causal:
+ganancia medida $-3.01\,\text{dB}$ en ambos cortes y $-24.1\,\text{dB}$ a
+$20\,\text{Hz}$ (`reporte-verificacion.md` §5.7). No es filtrado adaptativo
+(#63).
+
 ### 5.2 Transformada Discreta de Fourier (DFT) y espectrograma
 
 El análisis espectral parte de la **DFT** de una trama de $N$ muestras:

@@ -1,9 +1,10 @@
 /**
  * Orchestrates pronunciation scoring for a practice turn (main thread).
- * Resamples user audio, synthesizes TTS reference, runs pure DSP score.
+ * User PCM and TTS reference share `prepareSpeechPcmForModels` (issue #73)
+ * so the score does not compare two different preprocess paths.
  */
 
-import { resampleAudioSamples } from '../audio/audio-resampler'
+import { prepareSpeechPcmForModels } from '../audio/prepare-speech-pcm'
 import type { SynthesizedSpeechResult } from '../ia/inference-client'
 import {
   scorePronunciationFromMonoPcm,
@@ -32,15 +33,20 @@ export async function runPronunciationScoringForUtterance(options: {
   }
 
   const targetRate = synthesized.sampleRateInHertz
-  const userAtReferenceRate = resampleAudioSamples(
+  const userPrepared = prepareSpeechPcmForModels(
     options.userSamples,
     options.userSampleRateInHertz,
     targetRate,
   )
+  const referencePrepared = prepareSpeechPcmForModels(
+    synthesized.samples,
+    synthesized.sampleRateInHertz,
+    targetRate,
+  )
 
   return scorePronunciationFromMonoPcm(
-    userAtReferenceRate,
-    synthesized.samples,
+    userPrepared,
+    referencePrepared,
     targetRate,
     { referenceTextForHighlights: referenceText },
   )

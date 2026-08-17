@@ -3,7 +3,8 @@
  */
 
 import { useCallback } from 'react'
-import { resampleToWhisperRate } from '../audio/audio-resampler'
+import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
+import { prepareSpeechPcmForModels } from '../audio/prepare-speech-pcm'
 import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { InferenceClientError } from '../ia/inference-client'
 import { isDegenerateTranscript, isNonSpeechTranscript } from '../ia/transcription-text'
@@ -165,7 +166,11 @@ export function useHomeTranscriptionPipeline(
       pronunciationAttemptGenerationRef.current += 1
       setHasCompletedCapture(true)
 
-      const samples16kHz = resampleToWhisperRate(samples, nativeSampleRate)
+      const samples16kHz = prepareSpeechPcmForModels(
+        samples,
+        nativeSampleRate,
+        WHISPER_SAMPLE_RATE_IN_HERTZ,
+      )
       const inferenceClient = ensureHomeInferenceClient(
         inferenceClientRef,
         inferenceInFlightFlagsRef,
@@ -215,7 +220,7 @@ export function useHomeTranscriptionPipeline(
           return
         }
 
-        const audioDurationSeconds = samples16kHz.length / 16000
+        const audioDurationSeconds = samples16kHz.length / WHISPER_SAMPLE_RATE_IN_HERTZ
         if (isNonSpeechTranscript(transcribedTextResult)) {
           lastUserCaptureRef.current = null
           setTranscriptionStatus('no-audio')

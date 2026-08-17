@@ -91,6 +91,12 @@ Implementado:
     `pcm-frame-accumulator.ts` (hop 10 ms, ventana 25 ms, **sin** zero-pad).
     Misma STFT que post-stop. Coste por trama documentado en el reporte §5.4.
 
+- `biquad-voice-bandpass.ts`: **pasa-banda de voz** (issue #73), Butterworth
+  2.º orden (biquad RBJ) en cascada HP **80 Hz** + LP **7.5 kHz**. Una sola
+  pasada causal (no `filtfilt`). Medido a 16 kHz: −3.01 dB en ambos cortes,
+  0.00 dB a 1 kHz, −24.1 dB a 20 Hz. Tests: `biquad-voice-bandpass.test.ts`.
+  La cadena compartida user/ref vive en `audio/prepare-speech-pcm.ts`.
+
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
   - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI
   - tests en `voice-activity-detection.test.ts`

@@ -250,6 +250,28 @@ Ratio Δlocutor/Δerror = **1.23** ≥ 1 → política **`drill-only`**. Convers
 no muestra 0–100 (`deferred-to-drill`). #75 (sin habla útil / `[Music]`) sigue
 cortando antes. Tests: `dsp/measure-speaker-bias.test.ts`.
 
+## 5.7 Pasa-banda de voz y cadena compartida (issue #73)
+
+Tras el FIR a 16 kHz, user y referencia TTS pasan por **la misma** función
+`prepareSpeechPcmForModels`: resample + un pasa-banda Butterworth 2.º orden
+(cascada HP + LP, biquads RBJ, Q = 1/√2). Una sola pasada **causal** (no
+`filtfilt` / fase cero): aplicar dos veces no es idempotente; es un 4.º orden.
+
+| Tono de prueba (16 kHz, 1 s, RMS en régimen) | Ganancia |
+|----------------------------------------------|---------:|
+| 20 Hz (rumble) | **−24.10 dB** |
+| 80 Hz (corte HP) | **−3.01 dB** |
+| 1 kHz (in-banda) | **0.00 dB** |
+| 7.5 kHz (corte LP) | **−3.01 dB** |
+
+Whisper consume esa misma cadena (`use-home-transcription-pipeline.ts`). El
+banco `#asr-benchmark` **no** cambia: sigue midiendo candidatos sobre el
+resample solo, para no mover el WER de 2026-07-29. El filtrado adaptativo
+de ruido sigue en #63.
+
+Tests: `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`,
+`ui/run-pronunciation-scoring.test.ts`.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -275,6 +297,7 @@ cortando antes. Tests: `dsp/measure-speaker-bias.test.ts`.
 | CP-19 | STFT/YIN live PCM (issue #93) | Acumulador + tono 1 kHz / 220 Hz / silencio | Hop sin zero-pad; pico en bin; F0 ~220 Hz; silencio unvoiced; análisis &lt; 50 ms | `dsp/pcm-frame-accumulator.test.ts`, `dsp/analyze-live-pcm-frame.test.ts` |
 | CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
 | CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.4 ≳ Δerror 9.2; ratio 1.23; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
+| CP-22 | Pasa-banda + misma cadena (issue #73) | Senos 20 / 80 / 1000 / 7500 Hz; user 48 kHz vs ref 16 kHz | −3.01 dB en cortes; −24.1 dB a 20 Hz; score user/ref usa `prepareSpeechPcmForModels` | `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`, `ui/run-pronunciation-scoring.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
 con el gate de energía/pico/duración, el preproceso endurecido (issue #30) y los
