@@ -1,5 +1,7 @@
 /**
- * Dev-only routing gates (never in production builds).
+ * Dev-only routing gates. The practice-mock path can also be compiled into a
+ * local preview build with `VITE_ENSAYO_UI=1` (issue #70). Default production
+ * builds stay on the real microphone pipeline.
  */
 export function shouldShowAsrBenchmarkScreen(isDev: boolean, hash: string): boolean {
   return isDev && hash === '#asr-benchmark'
@@ -30,11 +32,27 @@ export interface PracticeMockAccessInput {
   readonly search: string
   readonly skipStored: boolean
   readonly sessionConfirmed: boolean
+  /** `VITE_ENSAYO_UI` baked at build time. `'1'` unlocks the mock in preview. */
+  readonly ensayoUiFlag?: string
 }
 
-/** Real HomeScreen + injected mocks (issue #98). Socket for César #70. */
-export function shouldShowPracticeMockScreen(isDev: boolean, hash: string): boolean {
-  return isDev && (hash === '#practice-mock' || hash === '#ensayo-ui')
+export function isPracticeMockBuildEnabled(
+  isDev: boolean,
+  ensayoUiFlag?: string,
+): boolean {
+  return isDev || ensayoUiFlag === '1'
+}
+
+/** Real HomeScreen + injected mocks (issues #98 / #70). */
+export function shouldShowPracticeMockScreen(
+  isDev: boolean,
+  hash: string,
+  ensayoUiFlag?: string,
+): boolean {
+  if (!isPracticeMockBuildEnabled(isDev, ensayoUiFlag)) {
+    return false
+  }
+  return hash === '#practice-mock' || hash === '#ensayo-ui'
 }
 
 export function hasForcePracticeMockQuery(search: string): boolean {
@@ -48,7 +66,7 @@ export function hasForcePracticeMockQuery(search: string): boolean {
  * ?forzar-ensayo=1 (César / #70).
  */
 export function resolvePracticeMockAccess(input: PracticeMockAccessInput): PracticeMockAccess {
-  if (!shouldShowPracticeMockScreen(input.isDev, input.hash)) {
+  if (!shouldShowPracticeMockScreen(input.isDev, input.hash, input.ensayoUiFlag)) {
     return 'off'
   }
   const forced = hasForcePracticeMockQuery(input.search)

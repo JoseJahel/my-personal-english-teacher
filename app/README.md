@@ -193,17 +193,22 @@ publicados. Re-medir en el hardware de aula:
 
 Hasta esa re-medición **no se afirma** que el perfil latencia cumpla &lt; 2 s.
 
-## Ensayo de UI sin mic ni modelos (issue #98)
+## Ensayo de UI sin mic ni modelos (issues #98 / #70)
 
-En `pnpm dev`, el ensayo de UI **no entra solo**. `#practice-mock` (alias
-`#ensayo-ui`) muestra primero una puerta: el botón por defecto va a la
-práctica real y deja recordado no volver a abrir el mock. El ensayo (sin
-mic, mismo turno de restaurante) solo arranca si confirmas o si usas
-`?forzar-ensayo=1#practice-mock` (César / issue #70). `?ensayo=1` **no**
-activa el mock. La demo con micrófono es `http://127.0.0.1:5173/` sin hash.
-`#shell-preview*` sigue siendo el maniquí estático de Playwright. El hash
-está gateado por `import.meta.env.DEV` (no aparece en `pnpm build` /
-`preview`).
+El ensayo **no entra solo**. `#practice-mock` (alias `#ensayo-ui`) muestra
+primero una puerta: el botón por defecto va a la práctica real y deja
+recordado no volver a abrir el mock. El ensayo (sin mic, mismo turno de
+restaurante) solo arranca si confirmas o si usas
+`?forzar-ensayo=1#practice-mock`. `?ensayo=1` **no** activa el mock.
+
+| Cómo | Qué ocurre |
+|------|------------|
+| `pnpm dev` + `#practice-mock` | Ensayo en desarrollo (tras la puerta) |
+| `pnpm build:ensayo` y luego `pnpm preview` + `#practice-mock` | Mismo ensayo en el shell de preview (plan B del aula) |
+| `pnpm build` / `pnpm preview` por defecto | Pipeline real; el hash **no** monta el mock |
+
+La demo con micrófono es `http://127.0.0.1:5173/` sin hash.
+`#shell-preview*` sigue siendo el maniquí estático de Playwright.
 
 ## Entrega local, sin despliegue en la nube
 
@@ -233,6 +238,7 @@ exponen a la red local.
 | `pnpm dev:latency`  | Igual que `dev`, con perfil ASR de latencia (`tiny-en`). |
 | `pnpm build`        | Verificación de tipos y build de producción.         |
 | `pnpm build:latency`| Build de producción con perfil ASR de latencia.      |
+| `pnpm build:ensayo` | Build local con ensayo de UI (`VITE_ENSAYO_UI=1`).   |
 | `pnpm preview`      | Sirve localmente el build de producción.             |
 | `pnpm lint`         | Ejecuta ESLint sobre todo el código fuente.          |
 | `pnpm format`       | Formatea el código con Prettier.                     |
