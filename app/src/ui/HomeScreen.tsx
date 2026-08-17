@@ -287,6 +287,10 @@ export function HomeScreen(props: HomeScreenProps) {
               isTutorComposingReply={isTutorComposingReply}
               tutorGenerationStatusMessage={tutorGenerationStatusMessage}
               showSectionChrome={false}
+              onOpenTurnSignals={() => {
+                setActiveView('signals')
+                openFeedbackPanel('signals')
+              }}
             />
             <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
               <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />

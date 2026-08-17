@@ -41,6 +41,17 @@ const sampleMessages: readonly PracticeChatMessage[] = [
     kind: 'user-utterance',
     text: 'I would like a glass of water please',
     correctedText: 'I would like a glass of water, please.',
+    signalCard: {
+      kind: 'scored',
+      score0to100: 78,
+      goodWordCount: 3,
+      mediumWordCount: 2,
+      poorWordCount: 1,
+      wordHighlightSummary: 'I:good would:good like:medium glass:poor water:medium please:good',
+      formantF1InHertz: 520,
+      formantF2InHertz: 1420,
+      formantF3InHertz: 2480,
+    },
   },
   {
     id: 'tutor-2',

@@ -44,6 +44,13 @@ test.describe('practice shell — structure', () => {
 
     await page.getByTestId('panel-tab-signals').click()
     await expect(page.getByTestId('formant-vowel-map')).toBeVisible()
+
+    const signalCard = page.getByTestId('turn-signal-card')
+    await expect(signalCard).toBeVisible()
+    await signalCard.locator('summary').click()
+    await expect(signalCard).toContainText('78')
+    await page.getByTestId('turn-signal-card-open-signals').click()
+    await expect(page.getByTestId('panel-tab-signals')).toHaveAttribute('aria-selected', 'true')
   })
 
   test('listening state sets mic data-state', async ({ page }) => {
