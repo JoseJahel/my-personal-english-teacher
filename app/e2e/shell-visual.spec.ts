@@ -74,6 +74,16 @@ test.describe('practice shell — structure', () => {
     await expect(page.getByTestId('history-overlay')).toHaveCount(0)
   })
 
+  test('history overlay shows streak and good-turn habit chips', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/#shell-preview-filled')
+
+    await page.getByTestId('rail-nav-history').click()
+    await expect(page.getByTestId('history-overlay')).toBeVisible()
+    await expect(page.getByTestId('practice-habit-streak')).toBeVisible()
+    await expect(page.getByTestId('practice-habit-good-turns')).toContainText('1')
+  })
+
   test('composing state shows user turn before tutor and keeps Hablar enabled', async ({
     page,
   }) => {

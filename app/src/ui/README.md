@@ -82,6 +82,8 @@ Implementado:
   valor (sin PCM). El enlace a espectro/pitch solo en el último turno.
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).
+- `PracticeHistoryPanel.tsx` + `practice-habits.ts` (issue #72): racha de
+  días locales y conteo de turnos “bien” (≥ umbral good 72) sobre IndexedDB.
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en
   IndexedDB (`storage/`).
 

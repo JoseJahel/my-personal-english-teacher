@@ -36,6 +36,7 @@ import {
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { SpokenProgress } from './spoken-progress'
 import { persistCompletedPracticeTurn } from './persist-practice-turn'
+import { PRACTICE_HABIT_TURN_LIMIT } from './practice-habits'
 import { pickContextualTutorReply } from './tutor-reply-engine'
 import { speakTutorTextWithSpokenProgress } from './tutor-speech-playback'
 import {
@@ -82,7 +83,7 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
       return
     }
     try {
-      const turns = await repository.listRecentTurns(10)
+      const turns = await repository.listRecentTurns(PRACTICE_HABIT_TURN_LIMIT)
       setPracticeHistoryTurns(turns)
       setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusReady)
     } catch (error) {

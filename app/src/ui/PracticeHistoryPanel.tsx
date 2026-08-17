@@ -2,8 +2,14 @@
  * Recent practice turns loaded from IndexedDB (no audio).
  */
 
+import { CALIBRATED_HIGHLIGHT_GOOD_SCORE_THRESHOLD } from '../dsp/pronunciation-score-calibration-constants'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import { homeScreenInterfaceTexts } from './interface-texts'
+import {
+  PRACTICE_HISTORY_LIST_LIMIT,
+  computePracticeHabits,
+} from './practice-habits'
+import { PRACTICE_SHELL_TEST_IDS } from './practice-shell-types'
 
 export interface PracticeHistoryPanelProps {
   readonly turns: readonly PracticeTurnRecord[]
@@ -56,57 +62,63 @@ function PronunciationTrendChart({ turns }: { readonly turns: readonly PracticeT
   )
 }
 
-function computeHistoryStats(turns: readonly PracticeTurnRecord[]) {
-  const scores = turns
-    .map((turn) => turn.pronunciationScore0to100)
-    .filter((score): score is number => score !== null)
-  const average =
-    scores.length === 0 ? null : scores.reduce((sum, score) => sum + score, 0) / scores.length
-  const goodCount = scores.filter((score) => score >= 80).length
-  return { turnCount: turns.length, average, goodCount }
-}
-
 export function PracticeHistoryPanel({ turns, statusMessage }: PracticeHistoryPanelProps) {
   const copy = homeScreenInterfaceTexts.practiceHistory
-  const stats = computeHistoryStats(turns)
+  const habits = computePracticeHabits(turns)
+  const listedTurns = turns.slice(0, PRACTICE_HISTORY_LIST_LIMIT)
   return (
     <section className="text-left" aria-label={copy.sectionAriaLabel}>
       <p className="mt-1 text-xs text-ink-400">{statusMessage}</p>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-sage-200 bg-atelier-elev px-3 py-3">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div
+          className="rounded-xl border border-sage-200 bg-atelier-elev px-3 py-3"
+          data-testid={PRACTICE_SHELL_TEST_IDS.habitStreak}
+        >
           <span className="block text-[0.65rem] tracking-wide text-ink-400 uppercase">
-            Turnos
+            {copy.streakStatLabel}
           </span>
           <strong className="font-serif text-2xl font-medium text-sage-600">
-            {stats.turnCount}
+            {copy.streakDays(habits.streakDays)}
+          </strong>
+        </div>
+        <div
+          className="rounded-xl border border-sage-200 bg-atelier-elev px-3 py-3"
+          data-testid={PRACTICE_SHELL_TEST_IDS.habitGoodTurns}
+          title={copy.goodTurnsHint(CALIBRATED_HIGHLIGHT_GOOD_SCORE_THRESHOLD)}
+        >
+          <span className="block text-[0.65rem] tracking-wide text-ink-400 uppercase">
+            {copy.goodTurnsStatLabel}
+          </span>
+          <strong className="font-serif text-2xl font-medium text-sage-600">
+            {habits.goodTurnCount}
           </strong>
         </div>
         <div className="rounded-xl border border-sage-200 bg-atelier-elev px-3 py-3">
           <span className="block text-[0.65rem] tracking-wide text-ink-400 uppercase">
-            Media
+            {copy.turnsStatLabel}
           </span>
           <strong className="font-serif text-2xl font-medium text-sage-600">
-            {stats.average === null ? '—' : stats.average.toFixed(0)}
+            {habits.turnCount}
           </strong>
         </div>
         <div className="rounded-xl border border-sage-200 bg-atelier-elev px-3 py-3">
           <span className="block text-[0.65rem] tracking-wide text-ink-400 uppercase">
-            ≥ 80
+            {copy.averageStatLabel}
           </span>
           <strong className="font-serif text-2xl font-medium text-sage-600">
-            {stats.goodCount}
+            {habits.averageScore0to100 === null ? '—' : habits.averageScore0to100.toFixed(0)}
           </strong>
         </div>
       </div>
-      {turns.length === 0 ? (
+      {listedTurns.length === 0 ? (
         <p className="mt-4 rounded-xl bg-sage-50 px-4 py-3 text-sm text-ink-400 ring-1 ring-sage-200">
           {copy.emptyState}
         </p>
       ) : (
         <>
-          <PronunciationTrendChart turns={turns} />
+          <PronunciationTrendChart turns={listedTurns} />
           <ol className="mt-4 max-h-[min(28rem,50vh)] space-y-2 overflow-y-auto">
-            {turns.map((turn) => (
+            {listedTurns.map((turn) => (
               <li
                 key={turn.id}
                 className="rounded-xl border border-sage-200 bg-atelier-elev px-4 py-3 text-sm text-ink-600 shadow-sm"
