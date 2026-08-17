@@ -106,6 +106,7 @@ function PracticeMockHomeScreen(props: { readonly onLeavePermanently: () => void
 /** Root shell: routes to dev tools or the real practice app. */
 export function App() {
   const isDev = import.meta.env.DEV
+  const ensayoUiFlag = import.meta.env.VITE_ENSAYO_UI
   const hash = useWindowHash()
   const [skipStored, setSkipStored] = useState(() => readPracticeMockSkipFlag())
   const [sessionConfirmed, setSessionConfirmed] = useState(false)
@@ -116,13 +117,14 @@ export function App() {
     search: window.location.search,
     skipStored,
     sessionConfirmed,
+    ensayoUiFlag,
   })
 
   useEffect(() => {
-    if (shouldShowPracticeMockScreen(isDev, hash) && mockAccess === 'off') {
+    if (shouldShowPracticeMockScreen(isDev, hash, ensayoUiFlag) && mockAccess === 'off') {
       window.location.hash = ''
     }
-  }, [hash, isDev, mockAccess])
+  }, [ensayoUiFlag, hash, isDev, mockAccess])
 
   if (shouldShowAsrBenchmarkScreen(isDev, hash)) {
     return <AsrBenchmarkScreen />

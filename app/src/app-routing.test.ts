@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isPracticeMockBuildEnabled,
   resolvePracticeMockAccess,
   shouldShowAsrBenchmarkScreen,
   shouldShowPracticeMockScreen,
@@ -39,6 +40,15 @@ describe('shouldShowShellPreviewScreen', () => {
   })
 })
 
+describe('isPracticeMockBuildEnabled', () => {
+  it('is on in dev, or in a build with VITE_ENSAYO_UI=1', () => {
+    expect(isPracticeMockBuildEnabled(true)).toBe(true)
+    expect(isPracticeMockBuildEnabled(false)).toBe(false)
+    expect(isPracticeMockBuildEnabled(false, '1')).toBe(true)
+    expect(isPracticeMockBuildEnabled(false, 'true')).toBe(false)
+  })
+})
+
 describe('shouldShowPracticeMockScreen', () => {
   it('is true in dev for the practice-mock and ensayo-ui hashes', () => {
     expect(shouldShowPracticeMockScreen(true, '#practice-mock')).toBe(true)
@@ -49,6 +59,13 @@ describe('shouldShowPracticeMockScreen', () => {
     expect(shouldShowPracticeMockScreen(false, '#practice-mock')).toBe(false)
     expect(shouldShowPracticeMockScreen(true, '')).toBe(false)
     expect(shouldShowPracticeMockScreen(true, '#shell-preview')).toBe(false)
+  })
+
+  it('unlocks the mock in a preview build only with VITE_ENSAYO_UI=1', () => {
+    expect(shouldShowPracticeMockScreen(false, '#practice-mock', '1')).toBe(true)
+    expect(shouldShowPracticeMockScreen(false, '#ensayo-ui', '1')).toBe(true)
+    expect(shouldShowPracticeMockScreen(false, '#practice-mock', '0')).toBe(false)
+    expect(shouldShowPracticeMockScreen(false, '', '1')).toBe(false)
   })
 })
 
@@ -91,6 +108,16 @@ describe('resolvePracticeMockAccess', () => {
         search: '?forzar-ensayo=1',
       }),
     ).toBe('session')
+  })
+
+  it('stays off in default production even with the mock hash', () => {
+    expect(resolvePracticeMockAccess({ ...base, isDev: false })).toBe('off')
+  })
+
+  it('opens the gate in a flagged preview build', () => {
+    expect(
+      resolvePracticeMockAccess({ ...base, isDev: false, ensayoUiFlag: '1' }),
+    ).toBe('gate')
   })
 })
 

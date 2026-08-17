@@ -18,7 +18,7 @@ Igual que en #80. Detalle y dependencias: ver el body de ese issue.
 `hecho` = issue cerrado en GitHub. El resto sigue abierto.
 
 ### Oleada 1 — Avance 2
-`#59` → ~~`#60` hecho~~ → `#70` → ~~`#68` hecho~~ → `#69` → `#78` → ~~`#75` hecho~~ → `#57` → `#64`  
+`#59` → ~~`#60` hecho~~ → ~~`#70` hecho~~ → ~~`#68` hecho~~ → ~~`#69` hecho~~ → ~~`#78` hecho~~ → ~~`#75` hecho~~ → ~~`#57` hecho~~ → `#64`  
 Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
@@ -35,7 +35,7 @@ No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
 
 | Oleada | Siguiente | Luego |
 |--------|-----------|--------|
-| 1 — Avance 2 | `#59` | `#70` → `#69` + `#78` → `#57` → `#64` |
+| 1 — Avance 2 | `#59` | `#64` |
 | 2 — Laboratorio | `#65` | `#73` → `#58` → `#76` → `#74` → `#71` |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 | 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
@@ -89,7 +89,7 @@ Cada ticket debe leerse como decisión de **este** producto (PWA localhost, capa
 | 67 | **Vectores dorados** MFCC anti-regresión | Hecho (PR #88) | Ancla de *nuestro* extractor (no “checklist genérica”) |
 | 68 | **Drill: repetir la última línea del tutor** | Hecho (PR #84, #85) | Híbrido conversación+score; no banco suelto de frases |
 | 69 | Diff visual de gramática | Abierto | Feedback con colores del enunciado |
-| 70 | **Ensayo de UI** sin mic ni descarga | Abierto | Localhost / flag propio; no segundo producto |
+| 70 | **Ensayo de UI** sin mic ni descarga | Hecho | `#practice-mock` + `pnpm build:ensayo` |
 | 71 | Bitácora + evidencias | Abierto | Decisión→métrica→test de *este* repo |
 | 72 | Hábitos desde historial IndexedDB | Abierto | Sobre `PracticeTurnRecord` existente |
 | 73 | Pasa-banda + misma cadena user/ref TTS | Abierto | Evita sesgo de ruta en *nuestro* score |
@@ -134,11 +134,11 @@ Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aul
 
 1. **#59** live espectro/pitch  
 2. ~~**#60** sugerencias~~ (hecho)  
-3. **#70** ensayo UI  
+3. ~~**#70** ensayo UI~~ (hecho)  
 4. ~~**#68** drill “repite al tutor”~~ (hecho)  
-5. **#69** + **#78** gramática visible + explicación ES  
+5. ~~**#69** + **#78**~~ (hecho)  
 6. ~~**#75** honestidad del score~~ (hecho)  
-7. **#57** + **#64** docs/presentación  
+7. ~~**#57**~~ (hecho) + **#64** presentación  
 
 ### Oleada laboratorio (nota de señales)
 

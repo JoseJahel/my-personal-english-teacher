@@ -12,6 +12,7 @@
     "dev:latency": "vite --mode latency",
     "build": "tsc --noEmit && vite build",
     "build:latency": "tsc --noEmit && vite build --mode latency",
+    "build:ensayo": "tsc --noEmit && vite build --mode ensayo",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
