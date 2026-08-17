@@ -9,16 +9,18 @@ Web Audio, `MediaRecorder`). Solo captura y adaptación; sin React ni modelos.
 openRealMicrophoneStream()  → MediaStream real del SO
   ├─ MediaStreamSource → Analyser → Gain(0) → destination
   │    (onda + RMS/peak en vivo vía AnalyserNode)
-  └─ MediaRecorder sobre el mismo MediaStream
-       → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92) → ASR
+  ├─ MediaRecorder sobre el mismo MediaStream
+  │    → blob → decode → mono → FIR 44.1/48 → 16 kHz (issue #92) → ASR
+  └─ mediaStream.clone() → MediaStreamSource → AudioWorklet
+       → STFT/YIN de curso en vivo (issue #59)
 ```
 
 La onda y los medidores en vivo leen el **AnalyserNode**. El audio que va a
 Whisper sale del **MediaRecorder** sobre el `MediaStream` crudo. El tap
-AudioWorklet de STFT/YIN en vivo (issue #93) **no** se conecta a esta fuente:
-en arrays Realtek de Windows deja el Analyser en ~0 % aunque MediaRecorder
-sí grabe. Espectrograma y pitch de curso se calculan **post-stop** sobre el
-PCM decodificado (`dsp/spectrogram.ts`, `dsp/pitch-detection-yin.ts`).
+AudioWorklet de STFT/YIN (issue #93/#59) cuelga de una **pista clonada**,
+nunca del `MediaStreamSource` del Analyser: en Realtek Windows ese atajo
+deja el Analyser en ~0 %. Al detener, espectrograma y pitch se recalculan
+sobre el PCM decodificado.
 
 **No tocar la captura sin leer `CAPTURE-INVARIANTS.md` y re-probar mic real.**
 
@@ -27,6 +29,7 @@ PCM decodificado (`dsp/spectrogram.ts`, `dsp/pitch-detection-yin.ts`).
 | Archivo | Rol |
 |---------|-----|
 | `open-microphone-stream.ts` | `getUserMedia` real + recuperación si el page tiene gum parcheado |
+| `clone-media-stream-for-analysis.ts` | Clona el `MediaStream` para el tap live (#59) |
 | `microphone-capture.ts` | Sesión: grafo Analyser + MediaRecorder; `start` / `stop` / `abort` |
 | `media-recorder-utterance.ts` | Grabar blob y decodificar a PCM mono |
 | `microphone-capture-errors.ts` | Errores tipados de captura (`reason` discriminado) |

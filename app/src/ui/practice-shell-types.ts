@@ -37,4 +37,6 @@ export const PRACTICE_SHELL_TEST_IDS = {
   tabTech: 'panel-tab-tech',
   panelEmpty: 'panel-empty-state',
   panelFilled: 'panel-filled-state',
+  spectrogramCanvas: 'spectrogram-canvas',
+  pitchTrackCanvas: 'pitch-track-canvas',
 } as const

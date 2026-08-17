@@ -109,6 +109,13 @@ function fakeMediaStream(tracks: ReturnType<typeof fakeMicrophoneTrack>[]) {
   return {
     getAudioTracks: () => tracks,
     getTracks: () => tracks,
+    clone() {
+      const clonedTracks = tracks.map((track) => fakeMicrophoneTrack({
+        readyState: track.readyState,
+        muted: track.muted,
+      }))
+      return fakeMediaStream(clonedTracks)
+    },
   }
 }
 
@@ -219,6 +226,8 @@ describe('startMicrophoneCapture happy path', () => {
     const session = await startMicrophoneCapture()
 
     expect(session.deviceLabel).toBe('Test Microphone')
+    expect(session.liveAnalysisSourceNode).not.toBe(session.sourceNode)
+    expect(session.liveAnalysisSourceNode).toBeTruthy()
     expect(track.enabled).toBe(true)
     const meters = session.readLiveMeters()
     expect(meters.rms).toBeCloseTo(0.25, 5)

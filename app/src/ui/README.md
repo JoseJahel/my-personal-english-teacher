@@ -57,9 +57,9 @@ Implementado:
   vocal; la nota está en **Repetir**.
 - `utterance-signal-canvas.ts` / `update-utterance-signal-views.ts`: post-stop
   **espectrograma** + **pitch track YIN** de la última utterance.
-- `start-live-pcm-signal-views.ts` (issue #93): STFT/YIN sobre PCM del worklet
-  **existe**, pero **no** se conecta durante la captura (deja el Analyser en
-  ~0 % en arrays Realtek). Espectrograma/pitch de producto van **post-stop**.
+- `start-live-pcm-signal-views.ts` (issues #93/#59): STFT/YIN sobre PCM del
+  worklet en una **pista clonada**. Hablar abre el panel en Señales. Al
+  detener, las mismas funciones pintan la utterance completa.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
   ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
   (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →

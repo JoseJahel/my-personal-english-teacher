@@ -240,7 +240,7 @@ pública del producto. El deck es el issue #64; la bitácora de evidencias, #71.
 | Capa | Qué hay hoy | Qué falta (Avance 2 / final) |
 |------|-------------|------------------------------|
 | `ui/` | Escenarios, chat con **tutor híbrido** (SmolLM2 + respaldo honesto), score, TTS, onda + **espectrograma + pitch** + **highlights por palabra** + **banco de pruebas ASR** (dev) + paleta de diseño en tokens | — |
-| `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop**. STFT/YIN de curso **post-stop** (el tap live #93 no se cuelga del Analyser: en Realtek lo dejaba en 0 %) | Half-duplex más estricto al TTS; re-colgar tap live en pista clonada |
+| `audio/` + sesión | Mic real, Analyser, MediaRecorder, resample, play TTS, **VAD auto-stop**. STFT/YIN **en vivo** sobre pista clonada (#59) y **post-stop** sobre el PCM decodificado | Half-duplex más estricto al TTS |
 | `ia/` | Whisper (**default `small-en`**, catálogo de 4), T5, SpeechT5, **SmolLM2**, worker + client; revisiones **SHA** | Re-medir bench en hardware de demo si hace falta |
 | `dsp/` | Energía + YIN + MFCC + DTW + score + espectrograma + **VAD** + **formantes** | — |
 | `storage/` | **IndexedDB** sesiones/turnos (sin audio) + **IndexedDB separada de fixtures del banco de pruebas ASR** (solo dev, con audio crudo) | Migraciones futuras de schema |
@@ -251,7 +251,9 @@ Detalle operativo de la demo actual:
 
 1. Elegir escenario → intro del tutor en el chat (guion curado) + precarga de SmolLM2 en segundo plano.
 2. Clic en escuchar → `openRealMicrophoneStream` + grafo Analyser + MediaRecorder.
-3. Onda y % de nivel en vivo (`waveform-canvas.ts`).
+3. Onda y % de nivel en vivo (`waveform-canvas.ts`). El panel Señales muestra
+   **espectrograma STFT y pitch YIN en vivo** (PCM de una pista clonada, no el
+   FFT del Analyser).
 4. Al detener → decode mono → **espectrograma + pitch YIN** de la utterance → gate → Whisper.
 5. Si el texto es habla real → **burbuja del estudiante** → **tutor instantáneo** (motor de reglas contextual; no espera a SmolLM2 ni a T5) → **voz inmediata** (caché SpeechT5 o `speechSynthesis` local). T5 y el score siguen en segundo plano. El 0–100 de conversación no se muestra (issue #95). El rail muestra el perfil ASR (`precision` / `latency`). Whisper sigue siendo el tramo largo; el profesor ya no suma 10 s + SpeechT5.
 6. Si no hay habla usable, tag no-habla o texto degenerado → **no** hay score 0–100

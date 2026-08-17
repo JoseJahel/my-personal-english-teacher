@@ -2,7 +2,7 @@
  * Atelier practice shell: rail + centered chat + feedback artifact panel (#81).
  */
 
-import { useState, type ReactNode, type RefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import type { WordPronunciationHighlight } from '../dsp/word-pronunciation-highlights'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { CommunicationSuggestion } from '../ia/communication-suggestions'
@@ -28,6 +28,7 @@ import { CommunicationSuggestionsPanel } from './CommunicationSuggestionsPanel'
 import { DrillPanel } from './DrillPanel'
 import { PracticeComposer } from './PracticeComposer'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
+import { OverlayView } from './overlay-view'
 import { PracticeRail } from './PracticeRail'
 
 export interface HomeScreenProps {
@@ -312,7 +313,10 @@ export function HomeScreen(props: HomeScreenProps) {
             livePeak={livePeak}
             activeMicrophoneLabel={activeMicrophoneLabel}
             primaryActivityMessage={primaryActivityMessage}
-            onStartMicrophone={onStartMicrophone}
+            onStartMicrophone={() => {
+              openFeedbackPanel('signals')
+              onStartMicrophone()
+            }}
             onStopMicrophone={onStopMicrophone}
           />
         </main>
@@ -365,43 +369,6 @@ export function HomeScreen(props: HomeScreenProps) {
           </OverlayView>
         ) : null}
 
-      </div>
-    </div>
-  )
-}
-
-function OverlayView({
-  testId,
-  title,
-  onBack,
-  children,
-}: {
-  testId: string
-  title: string
-  onBack: () => void
-  children: ReactNode
-}) {
-  const shell = homeScreenInterfaceTexts.shell
-  return (
-    <div
-      className="absolute inset-0 z-20 overflow-y-auto bg-sage-50"
-      data-testid={testId}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="mx-auto max-w-3xl px-5 py-6">
-        <header className="mb-5 flex items-center justify-between gap-3">
-          <h1 className="m-0 text-xl font-bold tracking-tight text-ink-900">{title}</h1>
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-lg border border-sage-200 bg-atelier-elev px-3 py-1.5 text-sm font-semibold text-ink-600 hover:border-sage-600 hover:text-ink-900"
-          >
-            {shell.backToPractice}
-          </button>
-        </header>
-        {children}
       </div>
     </div>
   )

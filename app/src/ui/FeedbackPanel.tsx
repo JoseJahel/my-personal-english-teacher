@@ -261,6 +261,7 @@ export function FeedbackPanel({
             </p>
             <canvas
               ref={spectrogramCanvasRef}
+              data-testid={PRACTICE_SHELL_TEST_IDS.spectrogramCanvas}
               width={320}
               height={100}
               className={`h-[100px] w-full rounded-lg bg-sage-950 ${
@@ -274,6 +275,7 @@ export function FeedbackPanel({
             </p>
             <canvas
               ref={pitchTrackCanvasRef}
+              data-testid={PRACTICE_SHELL_TEST_IDS.pitchTrackCanvas}
               width={320}
               height={72}
               className={`h-[72px] w-full rounded-lg bg-sage-950 ${
