@@ -2,9 +2,7 @@
 
 import { useCallback } from 'react'
 import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
-import type { FormantTriple } from '../dsp/formant-estimation'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
-import type { StoredSpokenProgress } from '../storage/practice-session-types'
 import {
   ensureHomeInferenceClient,
   tutorGenerationStatusFromResult,
@@ -37,8 +35,13 @@ import {
 } from './pronunciation-score-eligibility'
 import { runPronunciationScoringForUtterance } from './run-pronunciation-scoring'
 import type { SpokenProgress } from './spoken-progress'
+import { persistCompletedPracticeTurn } from './persist-practice-turn'
 import { pickContextualTutorReply } from './tutor-reply-engine'
 import { speakTutorTextWithSpokenProgress } from './tutor-speech-playback'
+import {
+  attachUserTurnSignalCardToMessages,
+  createUserTurnSignalCard,
+} from './user-turn-signal-card'
 import { awaitWithTimeout } from './await-with-timeout'
 
 export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
@@ -228,53 +231,6 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
     ],
   )
 
-  const persistPracticeTurn = useCallback(
-    async (input: {
-      transcribedText: string
-      correctedText: string
-      tutorReplyText: string
-      tutorUsedFallback: boolean
-      pronunciation: PronunciationScoreResult | null
-      formants: FormantTriple | null
-      spokenProgress: SpokenProgress | null
-    }) => {
-      const repository = practiceRepositoryRef.current
-      const sessionId = activeSessionIdRef.current
-      if (!repository || !sessionId) {
-        return
-      }
-      try {
-        await repository.saveTurn({
-          sessionId,
-          scenarioId: selectedScenarioIdRef.current,
-          transcribedText: input.transcribedText,
-          correctedText: input.correctedText,
-          tutorReplyText: input.tutorReplyText,
-          tutorUsedFallback: input.tutorUsedFallback,
-          pronunciationScore0to100: input.pronunciation?.score0to100 ?? null,
-          mfccScore0to100: input.pronunciation?.mfccScore0to100 ?? null,
-          pitchScore0to100: input.pronunciation?.pitchScore0to100 ?? null,
-          formantF1InHertz: input.formants?.f1InHertz ?? null,
-          formantF2InHertz: input.formants?.f2InHertz ?? null,
-          formantF3InHertz: input.formants?.f3InHertz ?? null,
-          wordHighlights: input.pronunciation?.wordHighlights ?? [],
-          spokenProgress: input.spokenProgress as StoredSpokenProgress | null,
-        })
-        await refreshPracticeHistory()
-      } catch (error) {
-        console.warn('Failed to persist practice turn.', error)
-        setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusError)
-      }
-    },
-    [
-      activeSessionIdRef,
-      practiceRepositoryRef,
-      refreshPracticeHistory,
-      selectedScenarioIdRef,
-      setPracticeHistoryStatusMessage,
-    ],
-  )
-
   const appendSuccessfulPracticeTurn = useCallback(
     async (
       transcribedTextResult: string,
@@ -361,13 +317,33 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         await persistPendingSpokenProgress(null)
       }
 
-      const spokenProgress = await speakTutorText(tutorReplyText)
       const pronunciation = await scoreUserPronunciation(
         referencePhrase,
         turnSignalSnapshot,
         transcribedTextResult,
       )
-      await persistPracticeTurn({
+      const eligibility = resolvePronunciationScoreEligibilityFromCapture({
+        samples: turnSignalSnapshot.samples,
+        sampleRateInHertz: turnSignalSnapshot.sampleRateInHertz,
+        transcribedText: transcribedTextResult,
+        referenceEnglishText: referencePhrase,
+      })
+      setChatMessages((currentMessages) =>
+        attachUserTurnSignalCardToMessages(
+          currentMessages,
+          userMessage.id,
+          createUserTurnSignalCard({
+            pronunciation,
+            formants: turnSignalSnapshot.formants,
+            skipReason: eligibility.shouldScore ? null : eligibility.reason,
+          }),
+        ),
+      )
+      const spokenProgress = await speakTutorText(tutorReplyText)
+      await persistCompletedPracticeTurn({
+        repository: practiceRepositoryRef.current,
+        sessionId: activeSessionIdRef.current,
+        scenarioId: selectedScenarioIdRef.current,
         transcribedText: transcribedTextResult,
         correctedText: referencePhrase,
         tutorReplyText,
@@ -375,19 +351,25 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         pronunciation,
         formants: turnSignalSnapshot.formants,
         spokenProgress,
+        onHistoryReload: refreshPracticeHistory,
+        onPersistError: () =>
+          setPracticeHistoryStatusMessage(homeScreenInterfaceTexts.practiceHistory.statusError),
       })
     },
     [
+      activeSessionIdRef,
       chatMessagesRef,
       inferenceClientRef,
       inferenceInFlightFlagsRef,
       pendingSpokenProgressRef,
       persistPendingSpokenProgress,
-      persistPracticeTurn,
+      practiceRepositoryRef,
+      refreshPracticeHistory,
       scoreUserPronunciation,
       selectedScenarioIdRef,
       setChatMessages,
       setCommunicationSuggestions,
+      setPracticeHistoryStatusMessage,
       setTutorGenerationStatus,
       speakTutorText,
       transcriptionAttemptGenerationRef,

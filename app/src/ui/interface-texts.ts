@@ -147,6 +147,22 @@ export const homeScreenInterfaceTexts = {
     fallbackBadge: 'respuesta de respaldo del escenario',
     grammarCorrectionInlineLabel: 'Mejor gramática',
     tutorTypingLabel: 'Escribiendo…',
+    signalCard: {
+      title: 'Señales de este turno',
+      scoreScored: (score0to100: number) => `Pronunciación ${score0to100.toFixed(0)} / 100`,
+      scoreDeferred:
+        'La nota 0–100 está en Repetir: el TTS no es tu voz y mueve el score tanto o más que un error.',
+      scoreNotEvaluated:
+        'Sin nota: no hubo habla clara en inglés. No es una mala puntuación.',
+      highlights: (good: number, medium: number, poor: number) =>
+        `${good} bien · ${medium} regular · ${poor} revisar`,
+      highlightsEmpty: 'Sin desglose por palabras en este turno.',
+      formantsUnavailable: 'Sin formantes fiables en este turno.',
+      openSignals: 'Ver espectro y pitch',
+      openSignalsHint: 'Abre el panel Señales. El canvas es del último turno.',
+      signalsUnavailable:
+        'El espectro y el pitch del panel son del último turno, no de este.',
+    },
   },
   tutorGeneration: {
     panelLabel: 'Respuesta del tutor',

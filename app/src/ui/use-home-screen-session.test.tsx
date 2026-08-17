@@ -117,6 +117,23 @@ describe('useHomeScreenSession with injected mocks', () => {
     expect(session.correctedGrammarText).toBe(MOCK_RESTAURANT_GRAMMAR_EN)
     expect(session.pronunciationScore0to100).toBeNull()
     expect(session.pronunciationStatusMessage).toMatch(/Repetir/)
+    await waitFor(() =>
+      Boolean(
+        probe.current?.chatMessages.some(
+          (message) =>
+            message.kind === 'user-utterance' &&
+            message.signalCard?.kind === 'deferred-to-drill',
+        ),
+      ),
+    )
+    const userTurn = probe.current?.chatMessages.find(
+      (message) => message.kind === 'user-utterance',
+    )
+    expect(userTurn?.signalCard).toMatchObject({
+      kind: 'deferred-to-drill',
+      score0to100: null,
+    })
+    expect(userTurn?.signalCard).not.toHaveProperty('samples')
     expect(Date.now() - startedAt).toBeLessThan(1000)
     expect(MOCK_RESTAURANT_TUTOR_REPLY_EN).toMatch(/drink/)
   })

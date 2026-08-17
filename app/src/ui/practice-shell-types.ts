@@ -40,4 +40,6 @@ export const PRACTICE_SHELL_TEST_IDS = {
   spectrogramCanvas: 'spectrogram-canvas',
   pitchTrackCanvas: 'pitch-track-canvas',
   formantVowelMap: 'formant-vowel-map',
+  turnSignalCard: 'turn-signal-card',
+  turnSignalCardOpenSignals: 'turn-signal-card-open-signals',
 } as const

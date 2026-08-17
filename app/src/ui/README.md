@@ -77,6 +77,9 @@ Implementado:
   basta; un `pnpm preview` de entrega **no** lo abre salvo
   `pnpm build:ensayo` (`VITE_ENSAYO_UI=1`, issue #70).
   `#shell-preview*` sigue siendo el fixture estático de Playwright.
+- `user-turn-signal-card.ts` + `UserTurnSignalCard.tsx` (issue #79): tarjeta
+  colapsable bajo el mensaje del estudiante con score/bandas/formantes por
+  valor (sin PCM). El enlace a espectro/pitch solo en el último turno.
 - `PronunciationWordHighlights.tsx`: chips de palabras coloreados (coste local
   del DTW → banda good/medium/poor).
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en

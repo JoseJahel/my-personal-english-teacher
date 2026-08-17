@@ -6,6 +6,8 @@ import type { PracticeChatMessage } from './practice-chat-messages'
 import { GrammarCorrectionDiff } from './GrammarCorrectionDiff'
 import { homeScreenInterfaceTexts } from './interface-texts'
 import { PRACTICE_SHELL_TEST_IDS } from './practice-shell-types'
+import { findLatestUserUtteranceId } from './user-turn-signal-card'
+import { UserTurnSignalCard } from './UserTurnSignalCard'
 
 export interface PracticeChatPanelProps {
   messages: readonly PracticeChatMessage[]
@@ -17,6 +19,8 @@ export interface PracticeChatPanelProps {
   tutorGenerationStatusMessage: string
   /** Hide the section title when the shell center-bar already shows the scenario. */
   showSectionChrome?: boolean
+  /** Opens the shared Señales canvases (last utterance only). */
+  onOpenTurnSignals?: () => void
 }
 
 export function PracticeChatPanel({
@@ -26,8 +30,10 @@ export function PracticeChatPanel({
   isTutorComposingReply,
   tutorGenerationStatusMessage,
   showSectionChrome = false,
+  onOpenTurnSignals,
 }: PracticeChatPanelProps) {
   const copy = homeScreenInterfaceTexts.practiceChat
+  const latestUserMessageId = findLatestUserUtteranceId(messages)
 
   return (
     <section
@@ -100,6 +106,13 @@ export function PracticeChatPanel({
                   </div>
                 ) : null}
               </div>
+              {isUser && message.signalCard ? (
+                <UserTurnSignalCard
+                  card={message.signalCard}
+                  canOpenSignals={message.id === latestUserMessageId}
+                  onOpenSignals={() => onOpenTurnSignals?.()}
+                />
+              ) : null}
             </li>
           )
         })}

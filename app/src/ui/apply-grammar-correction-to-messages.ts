@@ -18,7 +18,9 @@ export function applyGrammarCorrectionToLastUserMessage(
       continue
     }
     const next = messages.slice()
-    next[index] = createUserUtteranceMessage(transcribedText, correctedText, message.id)
+    next[index] = createUserUtteranceMessage(transcribedText, correctedText, message.id, {
+      signalCard: message.signalCard,
+    })
     return next
   }
   return messages.slice()

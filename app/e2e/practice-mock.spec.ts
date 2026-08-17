@@ -64,6 +64,14 @@ test.describe('practice mock rehearsal', () => {
       'Certainly — water. Would you like a main dish with that?',
     )
     await expect(page.getByTestId('feedback-panel')).toHaveAttribute('data-open', 'true')
+
+    const signalCard = page.getByTestId('turn-signal-card')
+    await expect(signalCard).toBeVisible()
+    await expect(signalCard).toHaveAttribute('data-card-kind', 'deferred-to-drill')
+    await signalCard.locator('summary').click()
+    await expect(signalCard).toContainText('Repetir')
+    await page.getByTestId('turn-signal-card-open-signals').click()
+    await expect(page.getByTestId('panel-tab-signals')).toHaveAttribute('aria-selected', 'true')
   })
 
   test('force query skips the gate', async ({ page }) => {

@@ -5,6 +5,7 @@
 
 import type { TutorReplyHistoryTurn } from '../ia/inference-worker-protocol'
 import type { PracticeScenario } from './practice-scenarios'
+import type { UserTurnSignalCard } from './user-turn-signal-card'
 
 export type PracticeChatMessageRole = 'tutor' | 'user'
 
@@ -22,6 +23,8 @@ export interface PracticeChatMessage {
   readonly text: string
   /** Present when grammar correction differs from ASR text. */
   readonly correctedText?: string
+  /** Metrics-only card for this user turn (issue #79). Never includes PCM. */
+  readonly signalCard?: UserTurnSignalCard
 }
 
 export function createScenarioIntroMessage(
@@ -40,6 +43,7 @@ export function createUserUtteranceMessage(
   transcribedText: string,
   correctedGrammarText: string,
   messageId: string,
+  extras?: { readonly signalCard?: UserTurnSignalCard },
 ): PracticeChatMessage {
   const trimmedTranscript = transcribedText.trim()
   const trimmedCorrected = correctedGrammarText.trim()
@@ -55,6 +59,7 @@ export function createUserUtteranceMessage(
     kind: 'user-utterance',
     text: trimmedTranscript,
     ...(grammarChanged ? { correctedText: trimmedCorrected } : {}),
+    ...(extras?.signalCard ? { signalCard: extras.signalCard } : {}),
   }
 }
 
