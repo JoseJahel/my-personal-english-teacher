@@ -4,7 +4,7 @@
 
 import { useCallback } from 'react'
 import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
-import { prepareSpeechPcmForModels } from '../audio/prepare-speech-pcm'
+import { prepareUserSpeechPcmForAsr } from '../audio/prepare-user-asr-pcm'
 import { hasUsableSpeechEnergy } from '../dsp/signal-energy'
 import { InferenceClientError } from '../ia/inference-client'
 import { isDegenerateTranscript, isNonSpeechTranscript } from '../ia/transcription-text'
@@ -166,7 +166,7 @@ export function useHomeTranscriptionPipeline(
       pronunciationAttemptGenerationRef.current += 1
       setHasCompletedCapture(true)
 
-      const samples16kHz = prepareSpeechPcmForModels(
+      const samples16kHz = prepareUserSpeechPcmForAsr(
         samples,
         nativeSampleRate,
         WHISPER_SAMPLE_RATE_IN_HERTZ,

@@ -39,6 +39,7 @@ sobre el PCM decodificado.
 | `mix-to-mono.ts` | Mezcla de canales de un `AudioBuffer` a mono |
 | `audio-resampler.ts` | 44.1/48 kHz → 16 kHz vía FIR de fase lineal (`dsp/polyphase-resample.ts`); lineal solo como fallback |
 | `prepare-speech-pcm.ts` | Cadena compartida (issue #73): resample + un pasa-banda. Misma función para user y ref TTS |
+| `prepare-user-asr-pcm.ts` | User → ASR (issue #63): cadena #73 + Wiener si hay tramas quietas. No se usa en la ref TTS |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
 | `speech-pcm-cache.ts` | Caché de PCM SpeechT5 por frase del tutor |

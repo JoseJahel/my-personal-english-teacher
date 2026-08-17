@@ -100,6 +100,12 @@ Implementado:
   0.00 dB a 1 kHz, −24.1 dB a 20 Hz. Tests: `biquad-voice-bandpass.test.ts`.
   La cadena compartida user/ref vive en `audio/prepare-speech-pcm.ts`.
 
+- `reduce-stationary-noise.ts`: **reducción adaptativa de ruido estacionario**
+  (issue #63 / RF-23). Wiener sobre STFT; el piso se estima en tramas
+  quietas (≤ −12 dB del pico). Sin tramas quietas no toca la señal. Solo
+  en la rama ASR del usuario (`audio/prepare-user-asr-pcm.ts`), no en la
+  cadena compartida user/ref del score.
+
 - `voice-activity-detection.ts`: **VAD por energía** (estado + hangover de silencio):
   - `createEnergyVoiceActivityDetector` → auto-stop de captura en la UI
   - hangover de producción **1100 ms** (no se cambió en #74)
