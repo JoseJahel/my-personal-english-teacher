@@ -22,7 +22,7 @@ Igual que en #80. Detalle y dependencias: ver el body de ese issue.
 Añadido después (comentario en #80, no altera el orden DSP/docs): ~~`#81` hecho~~
 
 ### Oleada 2 — Laboratorio de señales
-~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → ~~`#58` hecho~~ → ~~`#76` hecho~~ → `#74` → `#71` (plantilla en paralelo; cifras al final)
+~~`#65` hecho~~ → ~~`#73` hecho~~ → ~~`#66` hecho~~ → ~~`#67` hecho~~ → ~~`#58` hecho~~ → ~~`#76` hecho~~ → ~~`#74` hecho~~ → `#71` (plantilla en paralelo; cifras al final)
 
 ### Oleada 3 — Remate Final
 ~~`#61` hecho~~ → `#77` → `#79` → `#62` → `#63` → `#72`
@@ -36,7 +36,7 @@ No pisa la oleada A2. `#97` y `#96` pueden entrar en paralelo a A2.
 | Oleada | Siguiente | Luego |
 |--------|-----------|--------|
 | 1 — Avance 2 | — | lote A2 cerrado |
-| 2 — Laboratorio | `#74` | `#71` |
+| 2 — Laboratorio | `#71` | — |
 | 3 — Remate | `#77` | `#79` → `#62` → `#63` → `#72` |
 | 4 — Laboratorio y defensa | `#97` / `#96` | `#93` → `#92` → `#95` → `#94` → `#98` |
 
@@ -93,7 +93,7 @@ Cada ticket debe leerse como decisión de **este** producto (PWA localhost, capa
 | 71 | Bitácora + evidencias | Abierto | Decisión→métrica→test de *este* repo |
 | 72 | Hábitos desde historial IndexedDB | Abierto | Sobre `PracticeTurnRecord` existente |
 | 73 | Pasa-banda + misma cadena user/ref TTS | Hecho | Evita sesgo de ruta en *nuestro* score |
-| 74 | Métricas de borde VAD (ms) | Abierto | Auto-stop que ya cableamos |
+| 74 | Métricas de borde VAD (ms) | Hecho | Auto-stop que ya cableamos |
 
 ---
 
@@ -147,7 +147,7 @@ Cierra huecos de muestreo, análisis en vivo, honestidad del score y demo de aul
 10. ~~**#66** / **#67** FFT + MFCC dorados~~ (hecho)  
 11. ~~**#58** formantes/energía en score~~ (hecho)  
 12. ~~**#76** mapa F1–F2~~ (hecho)  
-13. **#74** VAD ms  
+13. ~~**#74** VAD ms~~ (hecho)  
 14. **#71** bitácora con los números que vayan saliendo  
 
 ### Oleada remate

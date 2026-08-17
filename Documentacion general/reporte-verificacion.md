@@ -293,6 +293,27 @@ Tests: `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`,
 `dsp/combine-pronunciation-branch-scores.test.ts`, `dsp/pronunciation-score.test.ts`,
 `ui/build-home-screen-view-model.test.ts`.
 
+## 5.9 Bordes del VAD en ms (issue #74)
+
+El auto-stop sigue siendo el VAD de energía de la sesión (`hangover` **1100 ms**,
+`minimumSpeech` **380 ms**). #74 no cambia esos umbrales: añade un protocolo
+sintético silencio–tono–silencio (hop **16 ms**, como un frame de animación)
+que empuja RMS/pico al mismo detector.
+
+Fixture alineada a hops: 320 ms silencio + 800 ms tono 200 Hz + 1920 ms silencio.
+
+| Métrica | Valor | Criterio |
+|---------|------:|----------|
+| Error de inicio (detectado − etiqueta) | **0 ms** | \|e\| ≤ 20 ms |
+| Error de fin de habla (primer `trailing-silence`) | **0 ms** | \|e\| ≤ 20 ms |
+| Auto-stop − (fin + hangover) | **+4 ms** | \|e\| ≤ 20 ms |
+| Silencio post-frase no enviado a ASR | **816 ms** (42.5 % de 1920 ms) | hangover se captura; el resto se corta |
+
+El +4 ms es cuantización: 1100 no es múltiplo de 16; el primer hop con
+`silenceMs ≥ 1100` cae en 2224 ms. No se acortó el hangover (cortaría frases
+con pausas reales). Tests: `dsp/measure-vad-edge-metrics.test.ts` + los de
+comportamiento previos.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -301,7 +322,7 @@ Tests: `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`,
 | CP-02 | Silencio / no-habla | Audio bajo umbral | Gate corta antes de Whisper; mensaje honesto | `dsp/signal-energy.test.ts` |
 | CP-03 | Etiqueta no-habla inventada por Whisper | `[Music]`, `[Applause]` | Se filtra; no se corrige ni puntúa | `ia/transcription-text.test.ts` |
 | CP-04 | Frase larga | Utterance extensa | DTW alinea secuencias de distinto largo sin castigar ritmo | `dsp/dynamic-time-warping.test.ts` |
-| CP-05 | Fin de frase (VAD) | Pausa ~0.9 s | Auto-stop de captura por VAD de energía | `dsp/voice-activity-detection.test.ts` |
+| CP-05 | Fin de frase (VAD) | Pausa ~1.1 s | Auto-stop de captura por VAD de energía | `dsp/voice-activity-detection.test.ts` |
 | CP-06 | Tutor no responde a tiempo | SmolLM2 > 10 s o basura | Respaldo determinista por escenario con insignia honesta | `ui/tutor-reply-engine.test.ts`, `ui/await-with-timeout.test.ts` |
 | CP-07 | Sin adapter WebGPU | Entorno solo WASM | ASR cae a WASM (más lento pero funcional) | `ia/resolve-inference-device.test.ts` |
 | CP-08 | Comparación de pronunciación | User PCM vs TTS de la frase corregida | Score 0–100 con desglose MFCC/pitch | `dsp/pronunciation-score.test.ts` |
@@ -319,6 +340,7 @@ Tests: `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`,
 | CP-20 | FIR anti-alias 44.1 y 48 (issue #92) | Seno 12 kHz; impulso; DC; 32 kHz | ≥ 50 dB vs lineal ~0 dB; retardo de pico = (N−1)/2; 44.1 no es ×3; tasas raras no lanzan | `dsp/polyphase-resample.test.ts`, `audio/audio-resampler.test.ts` |
 | CP-21 | Sesgo locutor vs error (issue #95) | Vocales sintéticas 120 vs 210 Hz; mismo F0 otras vocales | Δlocutor 11.3 ≳ Δerror 9.9; ratio 1.14; conversación sin 0–100; drill sí; #75 intacto | `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` |
 | CP-23 | Energía y formantes en el score (issue #58) | AM vs AM; vocales sintéticas /a/ vs /i/; desglose UI | Ramas numéricas en el resultado; UI en español; pesos se redistribuyen si falta una rama | `dsp/score-energy-contour.test.ts`, `dsp/score-formant-distance.test.ts`, `ui/build-home-screen-view-model.test.ts` |
+| CP-24 | Bordes VAD en ms (issue #74) | Silencio 320 + tono 800 + silencio 1920, hop 16 ms | Start/end 0 ms; auto-stop +4 ms vs hangover 1100; 42.5 % del silencio final no va a ASR | `dsp/measure-vad-edge-metrics.test.ts` |
 | CP-22 | Pasa-banda + misma cadena (issue #73) | Senos 20 / 80 / 1000 / 7500 Hz; user 48 kHz vs ref 16 kHz | −3.01 dB en cortes; −24.1 dB a 20 Hz; score user/ref usa `prepareSpeechPcmForModels` | `dsp/biquad-voice-bandpass.test.ts`, `audio/prepare-speech-pcm.test.ts`, `ui/run-pronunciation-scoring.test.ts` |
 
 **Edge cases del enunciado:** el ruido ambiental y el acento fuerte se abordan
