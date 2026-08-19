@@ -9,7 +9,7 @@ Léelas antes de implementar o revisar un PR. Este archivo solo cubre Git, ramas
 
 ## Equipo y ramas
 
-Cada integrante trabaja en una única rama propia, sin tildes en el nombre:
+Cada integrante tiene una rama personal larga, sin tildes en el nombre:
 
 | Integrante | Rama             |
 |------------|------------------|
@@ -22,11 +22,33 @@ Cada integrante trabaja en una única rama propia, sin tildes en el nombre:
 Cada persona trabaja únicamente en sus propias ramas. No se realizan cambios
 en las ramas de otro integrante sin coordinarlo primero.
 
-Cada integrante integra a `main`, desde esa única rama personal, todo su
-trabajo: tanto el de interfaz (`ui/`) como el del motor no visual de la app
-(`audio/`, `dsp/`, `ia/`, `storage/`). El sufijo «-frontend» en los nombres
-de las ramas es histórico y no limita el alcance del trabajo que se integra
-desde cada una.
+Cada integrante integra a `main` su trabajo de interfaz (`ui/`) y del motor
+no visual (`audio/`, `dsp/`, `ia/`, `storage/`), desde esa rama personal o
+desde una rama temporal de agente si la personal está ocupada (ver abajo).
+El sufijo «-frontend» es histórico y no limita el alcance.
+
+## Ramas temporales de agente
+
+Los humanos siguen usando **una** rama personal `*-frontend` (tabla de arriba).
+Los agentes **no** ocupan esa rama si ya está en uso (otro worktree, working
+tree sucio, o sesión activa). En ese caso abren una **rama temporal** en un
+**worktree nuevo** creado desde `origin/main`. Contrato corto: [`AGENTS.md`](./AGENTS.md).
+
+Al arrancar cualquier sesión:
+
+1. `git fetch origin`
+2. `git rev-parse --abbrev-ref HEAD` y `git rev-parse HEAD` (no parsear `.git/HEAD`)
+3. Tomar `origin/main` como base, no el `main` local (puede ir decenas de commits atrás)
+4. Actualizar la rama de esta sesión o crear una nueva desde `origin/main`
+5. No hacer checkout de `main` si eso pisa el working tree de otro
+
+Si el working tree tiene cambios ajenos: **fuera de ámbito**. No reformatear,
+no revertir, no `git add -A`. Abrir worktree limpio.
+
+Tras merge de un PR desde rama temporal de agente: borrar **esa** rama
+(local + remota), quitar el worktree propio y `git fetch --prune`. Nunca
+borrar `jahel-frontend`, `rebeca-frontend`, `luna-frontend`, `saul-frontend`
+ni `cesar-frontend`.
 
 ## Constraints del producto (obligatorio al crear issues)
 
@@ -78,18 +100,23 @@ asignación fija de módulos por persona.
 
 - `main` es la rama de integración del proyecto.
 - Nunca se hace commit ni push directo a `main`.
-- Los cambios se integran mediante un Pull Request abierto desde la rama
-  personal correspondiente hacia `main`.
+- Los cambios se integran mediante un Pull Request abierto hacia `main` desde
+  la rama personal `*-frontend` o, si un agente no puede usarla, desde su
+  rama temporal.
+- Todo PR a `main` debe citar un issue con keyword de cierre (`Closes #N` o
+  `Fixes #N`) en el cuerpo. Sin ticket, crear el issue antes o al abrir el PR
+  y ligarlo. El merge cierra el issue.
 - Se sugiere al menos una revisión de otro integrante antes de hacer merge.
 - **Cerrar el PR (merge) es una regla estricta:** ver
   [Cerrar un Pull Request](#cerrar-un-pull-request-regla-estricta).
   Abrir el PR no termina el trabajo.
-- Antes de abrir un Pull Request, mantener la rama personal actualizada con
-  `main`:
+- Antes de abrir un Pull Request, sincronizar **esta** rama con `origin/main`
+  (no con el `main` local):
 
 ```bash
-git pull origin main
-# resolver conflictos con merge o rebase según corresponda
+git fetch origin
+git merge origin/main
+# o rebase sobre origin/main; resolver conflictos
 ```
 
 ## Cerrar un Pull Request (regla estricta)
@@ -122,7 +149,12 @@ se vuelve a verificar.
 
 Solo entonces se hace el merge a `main`. La sesión no se considera
 terminada al abrir el PR: termina cuando CI y test plan están cerrados y el
-merge se ejecutó.
+merge se ejecutó. Quien abre el PR **babysit** CI y mergeabilidad en tiempo
+real hasta el merge, o hasta un bloqueo que exija humano.
+
+Después del merge, si el PR salió de una **rama temporal de agente**, la
+misma sesión borra esa rama (local y remota), elimina su worktree y hace
+`git fetch --prune`. No se borran las ramas personales `*-frontend`.
 
 ## Convención de commits
 
