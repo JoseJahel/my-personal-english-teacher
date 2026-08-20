@@ -52,8 +52,11 @@ function readCatalog(loadCatalog: (() => StudyDocument | null) | undefined): Stu
 
 export function useStudySession(options: UseStudySessionOptions = {}): UseStudySessionResult {
   const optionsRef = useRef(options)
-  optionsRef.current = options
   const storeRef = useRef<StudyDocumentStore | null>(null)
+
+  useEffect(() => {
+    optionsRef.current = options
+  })
 
   const [status, setStatus] = useState<StudyUiStatus>('loading')
   const [storageWarning, setStorageWarning] = useState<string | null>(null)

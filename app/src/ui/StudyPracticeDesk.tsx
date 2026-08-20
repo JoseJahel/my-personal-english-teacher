@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { itemsForMode } from '../study/practice-bank'
 import {
   checkCompletarChoice,
@@ -37,14 +37,16 @@ export function StudyPracticeDesk(props: {
   const copy = studyInterfaceTexts
   const [session, setSession] = useState(() => createPracticeSession('vocab', props.tema))
   const [draft, setDraft] = useState('')
+  const itemKey = `${props.tema ?? ''}:${session.mode}:${session.index}`
+  const [draftKey, setDraftKey] = useState(itemKey)
 
-  useEffect(() => {
-    setSession((current) => selectPracticeTema(current, props.tema))
-  }, [props.tema])
-
-  useEffect(() => {
+  if (session.tema !== props.tema) {
+    setSession(selectPracticeTema(session, props.tema))
+  }
+  if (draftKey !== itemKey) {
+    setDraftKey(itemKey)
     setDraft('')
-  }, [session.index, session.mode, props.tema])
+  }
 
   const items = itemsForMode(props.bank, session.mode, props.tema)
   const index = currentPracticeIndex(session, items.length)
