@@ -35,6 +35,19 @@ $RECYCLE.BIN/
 # Logs generales de la aplicación o de herramientas de build.
 *.log
 
+# Libros/PDF en bruto de estudio (copyright); el temario va en estudio/procesado/.
+estudio/bruto/*.pdf
+estudio/bruto/*.docx
+estudio/bruto/*.epub
+
+# Capturas locales de la sesión de estudio (no producto).
+/estudio-*.png
+/qa-*.png
+/coaching-tips-*.png
+/home-idle.png
+/practice-mock-turn.png
+/suggestions-*.png
+
 # Artefactos locales de pruebas de UI / automatización del navegador.
 # No son del producto; cada quien los genera al probar y no deben ir al repo.
 # Preferir guardarlos en una carpeta local de trabajo (no versionada), no en la raíz.

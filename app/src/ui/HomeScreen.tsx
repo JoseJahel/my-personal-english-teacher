@@ -31,6 +31,8 @@ import { PracticeComposer } from './PracticeComposer'
 import { PracticeHistoryPanel } from './PracticeHistoryPanel'
 import { OverlayView } from './overlay-view'
 import { PracticeRail } from './PracticeRail'
+import { StudyShellPane } from './StudyShellPane'
+import { shouldShowStudyScreen } from '../app-routing'
 
 export interface HomeScreenProps {
   canvasRef: RefObject<HTMLCanvasElement | null>
@@ -143,7 +145,9 @@ export function HomeScreen(props: HomeScreenProps) {
     onStopMicrophone,
   } = props
 
-  const [activeView, setActiveView] = useState<PracticeShellView>('practice')
+  const [activeView, setActiveView] = useState<PracticeShellView>(() =>
+    shouldShowStudyScreen(window.location.hash) ? 'study' : 'practice',
+  )
   const [practiceMode, setPracticeMode] = useState<PracticeModeId>('conversation')
   const [feedbackTab, setFeedbackTab] = useState<PracticeFeedbackTab>('turn')
   /** User explicitly opened the panel (overrides auto-open rules). */
@@ -204,9 +208,14 @@ export function HomeScreen(props: HomeScreenProps) {
       // Rail highlight + open artifact panel on Señales (single canvas pair).
       setActiveView('signals')
       openFeedbackPanel('signals')
-      return
+    } else {
+      setActiveView(view)
     }
-    setActiveView(view)
+    if (view === 'study' && window.location.hash !== '#estudio') {
+      window.location.hash = 'estudio'
+    } else if (view !== 'study' && window.location.hash === '#estudio') {
+      window.location.hash = ''
+    }
   }
 
   return (
@@ -227,7 +236,11 @@ export function HomeScreen(props: HomeScreenProps) {
         </p>
       ) : null}
 
-      <div className="relative flex min-h-0 flex-1">
+      <div
+        className={`relative flex min-h-0 flex-1 ${
+          activeView === 'study' ? 'max-lg:flex-col' : ''
+        }`}
+      >
         <PracticeRail
           activeView={activeView}
           practiceMode={practiceMode}
@@ -242,6 +255,10 @@ export function HomeScreen(props: HomeScreenProps) {
           onSelectMode={setPracticeMode}
         />
 
+        {activeView === 'study' ? (
+          <StudyShellPane />
+        ) : (
+          <>
         <main
           className="flex min-w-0 flex-1 flex-col bg-sage-50"
           data-testid={PRACTICE_SHELL_TEST_IDS.center}
@@ -377,6 +394,8 @@ export function HomeScreen(props: HomeScreenProps) {
             />
           </OverlayView>
         ) : null}
+          </>
+        )}
 
       </div>
     </div>

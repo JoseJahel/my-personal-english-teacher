@@ -1,4 +1,11 @@
 /**
+ * Product study desk (English File syllabus). Not dev-gated.
+ */
+export function shouldShowStudyScreen(hash: string): boolean {
+  return hash === '#estudio'
+}
+
+/**
  * Dev-only routing gates. The practice-mock path can also be compiled into a
  * local preview build with `VITE_ENSAYO_UI=1` (issue #70). Default production
  * builds stay on the real microphone pipeline.
