@@ -63,6 +63,7 @@ export const homeScreenInterfaceTexts = {
     navPractice: 'Práctica',
     navHistory: 'Historial',
     navSignals: 'Señales',
+    navStudy: 'Estudio',
     scenarioLabel: 'Escenario',
     modeLabel: 'Modo',
     modeConversation: 'Conversar',

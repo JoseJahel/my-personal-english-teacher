@@ -5,7 +5,20 @@ import {
   shouldShowAsrBenchmarkScreen,
   shouldShowPracticeMockScreen,
   shouldShowShellPreviewScreen,
+  shouldShowStudyScreen,
 } from './app-routing'
+
+describe('shouldShowStudyScreen', () => {
+  it('is true for the product study hash without a dev gate', () => {
+    expect(shouldShowStudyScreen('#estudio')).toBe(true)
+  })
+
+  it('is false for other hashes', () => {
+    expect(shouldShowStudyScreen('')).toBe(false)
+    expect(shouldShowStudyScreen('#asr-benchmark')).toBe(false)
+    expect(shouldShowStudyScreen('#practice-mock')).toBe(false)
+  })
+})
 
 describe('shouldShowAsrBenchmarkScreen', () => {
   it('is true only in dev with the exact benchmark hash', () => {

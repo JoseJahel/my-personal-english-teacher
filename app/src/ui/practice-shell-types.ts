@@ -2,7 +2,7 @@
  * Navigation and panel state for the Atelier practice shell (issue #81).
  */
 
-export type PracticeShellView = 'practice' | 'history' | 'signals'
+export type PracticeShellView = 'practice' | 'history' | 'signals' | 'study'
 
 export type PracticeFeedbackTab = 'turn' | 'suggest' | 'signals' | 'tech'
 
@@ -25,6 +25,7 @@ export const PRACTICE_SHELL_TEST_IDS = {
   railNavPractice: 'rail-nav-practice',
   railNavHistory: 'rail-nav-history',
   railNavSignals: 'rail-nav-signals',
+  railNavStudy: 'rail-nav-study',
   asrDemoProfileBadge: 'asr-demo-profile-badge',
   practiceMockBanner: 'practice-mock-banner',
   practiceMockExit: 'practice-mock-exit',

@@ -47,7 +47,11 @@ export function PracticeRail({
 
   return (
     <aside
-      className="flex w-60 shrink-0 flex-col gap-0.5 border-r border-sage-200 bg-atelier-elev px-2.5 py-3"
+      className={`flex w-60 shrink-0 flex-col gap-0.5 border-r border-sage-200 bg-atelier-elev px-2.5 py-3 ${
+        activeView === 'study'
+          ? 'max-lg:w-full max-lg:flex-row max-lg:flex-wrap max-lg:items-center max-lg:border-r-0 max-lg:border-b max-lg:py-2'
+          : ''
+      }`}
       data-testid={PRACTICE_SHELL_TEST_IDS.rail}
       aria-label={homeScreenInterfaceTexts.applicationTitle}
     >
@@ -68,7 +72,12 @@ export function PracticeRail({
         </div>
       </div>
 
-      <nav className="mb-2.5 flex flex-col gap-0.5" aria-label="Navegación principal">
+      <nav
+        className={`mb-2.5 flex flex-col gap-0.5 ${
+          activeView === 'study' ? 'max-lg:mb-0 max-lg:flex-row max-lg:flex-wrap' : ''
+        }`}
+        aria-label="Navegación principal"
+      >
         <RailNavButton
           testId={PRACTICE_SHELL_TEST_IDS.railNavPractice}
           isActive={activeView === 'practice'}
@@ -90,8 +99,17 @@ export function PracticeRail({
           icon="∿"
           label={shell.navSignals}
         />
+        <RailNavButton
+          testId={PRACTICE_SHELL_TEST_IDS.railNavStudy}
+          isActive={activeView === 'study'}
+          onClick={() => onNavigate('study')}
+          icon="▤"
+          label={shell.navStudy}
+        />
       </nav>
 
+      {activeView === 'study' ? null : (
+      <>
       <div className="mt-1">
         <p className="mx-1.5 mb-1.5 mt-2 text-[0.62rem] font-semibold tracking-[0.1em] text-ink-600 uppercase">
           {shell.scenarioLabel}
@@ -173,6 +191,8 @@ export function PracticeRail({
           {firstTurnHintEn}
         </p>
       </div>
+      </>
+      )}
     </aside>
   )
 }
