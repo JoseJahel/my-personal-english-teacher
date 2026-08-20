@@ -24,7 +24,7 @@ Un issue no es un recordatorio vago (“mejorar audio”). Es un **contrato de t
 3. Saber **cómo** investigar la causa (si es bug) o el diseño actual (si es feature).
 4. Conocer **límites** (local-only, capas, tamaño de archivo, sin cloud).
 5. Verificar el resultado con **criterios de aceptación medibles**.
-6. Abrir un PR desde la **rama personal** correcta hacia `main`.
+6. Abrir un PR hacia `main` (rama personal `*-frontend` o rama temporal de agente) con `Closes #N`.
 
 Si el ticket no basta para que un agente de IA arranque sin preguntar “¿qué es el proyecto?”, el ticket **no está listo**.
 
@@ -215,7 +215,7 @@ Checklist técnico ordenado (dominio puro → tests → cableado UI → docs).
 - [ ] … test automatizado o verificación manual descrita
 - [ ] … docs/matriz actualizados si el estado del requisito cambia
 - [ ] `pnpm lint` + `pnpm test` + `pnpm build` en `app/`
-- [ ] PR desde rama personal → `main` con conventional commit
+- [ ] PR a `main` con conventional commit y `Closes #N` (rama personal o temporal de agente)
 
 ## 13. Pruebas
 - Unitarias a añadir o extender.
@@ -224,7 +224,9 @@ Checklist técnico ordenado (dominio puro → tests → cableado UI → docs).
 
 ## 14. Definición de hecho (DoD)
 - Código en `main` (PR mergeado) **o** artefacto de entrega en la ruta acordada.
-- Labels correctos; issue cerrado con comentario de evidencia (PR, ruta de PDF, etc.).
+- El PR a `main` lleva `Closes #N` (o `Fixes #N`). El merge cierra el issue.
+- Comentario de evidencia en el issue (PR, ruta de PDF, etc.) es bienvenido; ya no es el mecanismo de cierre.
+- Labels correctos.
 - Sin regresiones de mic / pipeline (smoke: un turno de práctica).
 ```
 
@@ -285,13 +287,14 @@ Recomendaciones extra en el body cuando el ticket sea de IA/agente:
 ## 9. Flujo después de crear el issue
 
 1. Asignar persona (reparto equitativo) + labels.  
-2. La persona trabaja **solo** en su rama `*-frontend` (o rama de feature acordada que integre desde su personal).  
+2. La persona trabaja **solo** en su rama `*-frontend`. Un agente usa esa rama si está libre; si está ocupada, abre rama temporal + worktree desde `origin/main` (ver `CONTRIBUTING.md` / `AGENTS.md`).  
 3. Implementar → tests → actualizar matriz/README si cambia estado de requisito.  
-4. PR a `main`, título conventional commit, idealmente un módulo.  
-5. Otra persona revisa si es posible.  
-6. Merge → cerrar issue con enlace al PR y evidencia de criterios de aceptación.
+4. PR a `main` con conventional commit, idealmente un módulo, y **`Closes #N`** (o `Fixes #N`) en el cuerpo.  
+5. Si el trabajo no tiene ticket, el agente crea el issue **antes o al abrir** el PR (labels `person:` / hito / tipo / capa + assignee al autor del PR). Plantilla 0–14 si hay tiempo; en auto-ticket, al menos metadatos + enlace al PR.  
+6. Otra persona revisa si es posible.  
+7. Merge → GitHub cierra el issue por la keyword. No hace falta cerrarlo a mano.
 
-Nunca commit directo a `main`.
+Nunca commit directo a `main`. La plantilla 0–14 sigue siendo la de tickets de producto.
 
 ---
 
@@ -354,6 +357,7 @@ de pitch, energía y formantes vs referencia.
 |-------|---------|
 | 2026-08-12 | Los issues deben ser contratos AI-ready: sin rutas, contexto de producto y criterios medibles, el agente improvisa fuera de capas o de local-only. |
 | 2026-08-12 | Asignación least→most se documenta en el body para que el reparto equitativo sea auditable. |
+| 2026-08-19 | El cierre del issue es automático por `Closes #N` / `Fixes #N` al mergear el PR. El comentario de evidencia sigue siendo bienvenido; ya no cierra el ticket. |
 
 ---
 
