@@ -1,9 +1,23 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { PracticeSrsCard } from '../study/practice-srs'
 import type { PracticeBank } from '../study/study-types'
+import type { StudyPracticeSrsStore } from '../storage/study-document-store'
 import { StudyPracticeDesk } from './StudyPracticeDesk'
 import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
+
+function memorySrsStore(): StudyPracticeSrsStore {
+  const cards = new Map<string, PracticeSrsCard>()
+  return {
+    getCard: async (itemId) => cards.get(itemId) ?? null,
+    putCard: async (card) => {
+      cards.set(card.itemId, card)
+    },
+    getAllCards: async () => [...cards.values()],
+    close: () => undefined,
+  }
+}
 
 const BANK: PracticeBank = {
   vocab: [
@@ -63,6 +77,13 @@ function fillInput(host: HTMLElement, value: string): void {
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+async function flush(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
 function renderDesk(
   root: ReturnType<typeof createRoot>,
   overrides: {
@@ -71,6 +92,9 @@ function renderDesk(
     bank?: PracticeBank
     onTemaChange?: (tema: string | null) => void
     onBackToLesson?: () => void
+    createSrsStore?: () => Promise<StudyPracticeSrsStore>
+    nowMs?: () => number
+    random?: () => number
   } = {},
 ): void {
   root.render(
@@ -80,6 +104,9 @@ function renderDesk(
       lessonTema={overrides.lessonTema === undefined ? 'besingular' : overrides.lessonTema}
       onTemaChange={overrides.onTemaChange ?? (() => undefined)}
       onBackToLesson={overrides.onBackToLesson ?? (() => undefined)}
+      createSrsStore={overrides.createSrsStore ?? (async () => memorySrsStore())}
+      nowMs={overrides.nowMs}
+      random={overrides.random}
     />,
   )
 }
@@ -103,10 +130,11 @@ describe('StudyPracticeDesk', () => {
     root = null
   })
 
-  it('shows four mode tabs and the Spanish face of a vocab card', () => {
+  it('shows four mode tabs and the Spanish face of a vocab card', async () => {
     act(() => {
       renderDesk(root!)
     })
+    await flush()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeVocab}"]`)).not.toBeNull()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`)).not.toBeNull()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`)).not.toBeNull()
@@ -119,10 +147,11 @@ describe('StudyPracticeDesk', () => {
     )
   })
 
-  it('flips the card and Sabía/No advance to the next prompt', () => {
+  it('flips the card and Sabía/No advance to the next prompt', async () => {
     act(() => {
       renderDesk(root!)
     })
+    await flush()
     const knew = host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceKnew}"]`) as HTMLButtonElement
     expect(knew.disabled).toBe(true)
     act(() => {
@@ -138,12 +167,54 @@ describe('StudyPracticeDesk', () => {
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)?.textContent).toBe(
       'adiós',
     )
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCard}"]`) as HTMLButtonElement).click()
+    })
+    act(() => {
+      knew.click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceEmpty}"]`)?.textContent).toContain(
+      studyInterfaceTexts.srsCaughtUpLead,
+    )
   })
 
-  it('advances completar on a hit and shows the solution on a miss', () => {
+  it('still shows the item in EN → ES after ES → EN is caught up', async () => {
     act(() => {
       renderDesk(root!)
     })
+    await flush()
+    const knew = () => host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceKnew}"]`) as HTMLButtonElement
+    const flip = () =>
+      (host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCard}"]`) as HTMLButtonElement).click()
+    act(() => {
+      flip()
+    })
+    act(() => {
+      knew().click()
+    })
+    act(() => {
+      flip()
+    })
+    act(() => {
+      knew().click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceEmpty}"]`)).not.toBeNull()
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEnEs}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceEmpty}"]`)).toBeNull()
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)?.textContent).toMatch(
+      /hello|goodbye/,
+    )
+  })
+
+  it('advances completar on a hit and shows the solution on a miss', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
     act(() => {
       ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
     })
@@ -163,13 +234,63 @@ describe('StudyPracticeDesk', () => {
     act(() => {
       options()[0]!.click()
     })
-    expect(host.textContent).toContain('___ , please.')
+    expect(host.textContent).toContain(studyInterfaceTexts.srsCaughtUpLead)
+    expect(host.textContent).not.toContain('___ , please.')
   })
 
-  it('checks a translation after normalizing case, trim and final punctuation', () => {
+  it('does not show the same completar item immediately after a miss when another is due', async () => {
     act(() => {
       renderDesk(root!)
     })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.textContent).toContain('___ , please.')
+    act(() => {
+      ;([...host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.practiceOption}"]`)] as HTMLButtonElement[])[1]!.click()
+    })
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceNext}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.textContent).toContain('___ and thanks.')
+    expect(host.textContent).not.toContain('___ , please.')
+  })
+
+  it('can bring a missed item back after more than a minute', async () => {
+    let now = 1_000
+    const store = memorySrsStore()
+    const createSrsStore = async () => store
+    act(() => {
+      renderDesk(root!, { nowMs: () => now, createSrsStore })
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
+    })
+    act(() => {
+      ;([...host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.practiceOption}"]`)] as HTMLButtonElement[])[1]!.click()
+    })
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceNext}"]`) as HTMLButtonElement).click()
+    })
+    act(() => {
+      ;([...host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.practiceOption}"]`)] as HTMLButtonElement[])[0]!.click()
+    })
+    expect(host.textContent).toContain(studyInterfaceTexts.srsCaughtUpLead)
+    now += 61_000
+    act(() => {
+      renderDesk(root!, { nowMs: () => now, createSrsStore })
+    })
+    await flush()
+    expect(host.textContent).toContain('___ , please.')
+  })
+
+  it('checks a translation after normalizing case, trim and final punctuation', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
     act(() => {
       ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`) as HTMLButtonElement).click()
     })
@@ -183,10 +304,11 @@ describe('StudyPracticeDesk', () => {
     expect(host.textContent).toContain('gracias')
   })
 
-  it('lets the learner pick a transform form and reports an empty mode honestly', () => {
+  it('lets the learner pick a transform form and reports an empty mode honestly', async () => {
     act(() => {
       renderDesk(root!)
     })
+    await flush()
     act(() => {
       ;(
         host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTransformar}"]`) as HTMLButtonElement
@@ -205,8 +327,81 @@ describe('StudyPracticeDesk', () => {
     act(() => {
       renderDesk(root!, { tema: 'dates', lessonTema: 'dates' })
     })
+    await flush()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceEmpty}"]`)?.textContent).toContain(
       studyInterfaceTexts.emptyModeLead,
+    )
+  })
+
+  it('shows EN → ES on a vocab card and hides direction chips in Completar', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEsEn}"]`)).not.toBeNull()
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEnEs}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)?.textContent).toBe(
+      'hello',
+    )
+    expect(host.textContent).toContain(studyInterfaceTexts.flipHintToEs)
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEsEn}"]`)).toBeNull()
+  })
+
+  it('swaps traducir stimulus and prompt when the direction changes', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.textContent).toContain(studyInterfaceTexts.translatePrompt)
+    expect(host.querySelector('.practice-estimulo')?.textContent).toBe('hola')
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEnEs}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(host.textContent).toContain(studyInterfaceTexts.translatePromptToEs)
+    expect(host.querySelector('.practice-estimulo')?.textContent).toBe('hello')
+  })
+
+  it('keeps mixed facing frozen across a flip and re-render', async () => {
+    const random = () => 0.1
+    act(() => {
+      renderDesk(root!, { random })
+    })
+    await flush()
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionMixed}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)?.textContent).toBe(
+      'hola',
+    )
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCard}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardBack}"]`)?.textContent).toBe(
+      'hello',
+    )
+    act(() => {
+      renderDesk(root!, { random })
+    })
+    await flush()
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardBack}"]`)?.textContent).toBe(
+      'hello',
+    )
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)?.textContent).toBe(
+      'hola',
     )
   })
 })

@@ -1,0 +1,846 @@
+/* Notebook chrome for Estudio, scoped to .study-notebook (JapApp tokens/classes). */
+.study-notebook {
+  --nb-ink: #1a1a1a;
+  --nb-paper: #fdfcf7;
+  --nb-grid: #e3e0d4;
+  --nb-blue-note: #2c4a6e;
+  --nb-muted: #8a8578;
+  --nb-card: #ffffff;
+  --nb-ok: #2e7d32;
+  --nb-ok-soft: #e8f5e9;
+  color: var(--nb-ink);
+}
+
+.study-notebook-header {
+  flex-shrink: 0;
+  background: var(--nb-card);
+  border-bottom: 3px solid var(--nb-ink);
+  padding: 12px 18px;
+}
+
+.study-notebook-header h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.study-notebook-header .catalog-kicker {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--nb-muted);
+}
+
+.study-notebook-header .desk-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.study-notebook-header .header-right {
+  margin-left: auto;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.study-notebook .sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 2px 10px;
+  border: 1.5px solid;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.study-notebook .sync::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.study-notebook .sync.on {
+  color: var(--nb-ok);
+  border-color: var(--nb-ok);
+  background: var(--nb-ok-soft);
+}
+
+.study-notebook .sync.on::before {
+  background: var(--nb-ok);
+}
+
+.study-notebook .sync.off {
+  color: var(--nb-muted);
+  border-color: var(--nb-muted);
+  background: var(--nb-paper);
+}
+
+.study-notebook .sync.off::before {
+  background: var(--nb-muted);
+}
+
+.study-notebook .desk-chip,
+.study-notebook .btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 8px;
+  background: var(--nb-card);
+  color: var(--nb-ink);
+  cursor: pointer;
+}
+
+.study-notebook .desk-chip[aria-pressed='true'],
+.study-notebook .btn.primario {
+  background: var(--nb-ink);
+  color: var(--nb-paper);
+}
+
+.study-notebook .btn.chico {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+.study-notebook .btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.study-notebook .desk-chip:focus-visible,
+.study-notebook .btn:focus-visible,
+.study-notebook .indice-fila:focus-visible,
+.study-notebook .indice-continuar:focus-visible,
+.study-notebook .buscador:focus-visible {
+  outline: 2px solid var(--nb-blue-note);
+  outline-offset: 2px;
+}
+
+.study-notebook-pane {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background-color: var(--nb-paper);
+  background-image:
+    linear-gradient(var(--nb-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nb-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.study-notebook-column {
+  width: 100%;
+  max-width: 860px;
+  margin: 26px auto;
+  padding: 0 18px 28px;
+}
+
+.study-notebook-pane.is-practice {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.study-notebook-column.practice-fill {
+  max-width: 64rem;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 20px auto;
+  padding: 0 20px 20px;
+}
+
+.study-notebook .sheet {
+  background: var(--nb-card);
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 22px;
+  box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.12);
+}
+
+.study-notebook .sheet h2 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+.study-notebook .nota-info {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--nb-muted);
+  margin: 8px 0 12px;
+}
+
+.study-notebook .buscador {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 9px 14px;
+  margin: 10px 0 6px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 8px;
+  background: var(--nb-paper);
+  color: var(--nb-ink);
+}
+
+.study-notebook .indice-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.study-notebook .indice-bloque {
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  background: var(--nb-card);
+  box-shadow: 3px 3px 0 rgba(26, 26, 26, 0.08);
+  overflow: hidden;
+}
+
+.study-notebook .indice-bloque-cab {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px 8px;
+  background: #eef3f8;
+  border-bottom: 1px solid var(--nb-grid);
+}
+
+.study-notebook .indice-bloque-marca {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nb-blue-note);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.study-notebook .indice-bloque-titulo {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--nb-ink);
+}
+
+.study-notebook .indice-bloque-meta {
+  font-size: 11px;
+  color: var(--nb-muted);
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.study-notebook .indice-bloque-cuerpo {
+  padding: 2px 4px 6px;
+}
+
+.study-notebook .indice-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 13px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--nb-grid);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-notebook .indice-bloque-cuerpo .indice-fila:last-child {
+  border-bottom: none;
+}
+
+.study-notebook .indice-lista > .indice-fila {
+  border: 2px solid var(--nb-grid);
+  border-radius: 10px;
+  margin: 0;
+  padding: 13px 12px;
+}
+
+.study-notebook .indice-fila:hover {
+  background: var(--nb-paper);
+}
+
+.study-notebook .indice-fila-sub {
+  padding-left: 10px;
+}
+
+.study-notebook .indice-num {
+  background: var(--nb-blue-note);
+  color: #fff;
+  border-radius: 50%;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.study-notebook .indice-titulo {
+  flex: 1;
+  min-width: 0;
+}
+
+.study-notebook .titulo-es {
+  font-size: 17px;
+  margin-right: 8px;
+  color: var(--nb-ink);
+}
+
+.study-notebook .titulo-en {
+  display: block;
+  font-size: 13px;
+  color: var(--nb-muted);
+}
+
+.study-notebook .indice-objetivo {
+  display: block;
+  font-size: 12px;
+  color: var(--nb-ink);
+  opacity: 0.78;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.study-notebook .indice-abrir {
+  font-size: 13px;
+  color: var(--nb-muted);
+  flex-shrink: 0;
+}
+
+.study-notebook .indice-continuar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 10px 0 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  background: #fff7f9;
+  box-shadow: 3px 3px 0 rgba(26, 26, 26, 0.08);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+
+.study-notebook .indice-continuar:hover {
+  background: #fff0f4;
+}
+
+.study-notebook .indice-continuar-icono {
+  flex-shrink: 0;
+  width: 28px;
+  height: 36px;
+  position: relative;
+}
+
+.study-notebook .mp-cinta-mini {
+  display: block;
+  width: 18px;
+  height: 32px;
+  margin: 0 auto;
+  background: #c43d5c;
+  border-radius: 2px 2px 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.study-notebook .indice-continuar-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.study-notebook .indice-continuar-titulo {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nb-ink);
+}
+
+.study-notebook .indice-continuar-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--nb-muted);
+  margin-top: 2px;
+}
+
+.study-notebook .indice-continuar-ir {
+  font-size: 13px;
+  color: var(--nb-muted);
+  flex-shrink: 0;
+}
+
+.study-notebook .lec-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--nb-card);
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.12);
+}
+
+.study-notebook .lec-nav .pos {
+  font-size: 13px;
+  color: var(--nb-muted);
+  margin-left: auto;
+}
+
+.study-notebook .lesson-tag {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--nb-ink);
+  color: var(--nb-paper);
+  border-radius: 4px;
+  padding: 3px 8px;
+  margin-bottom: 10px;
+}
+
+.study-notebook .lesson-bloque-tag {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--nb-blue-note);
+  background: #eef3f8;
+  border: 1px solid #c5d4e4;
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin: 0 0 8px 8px;
+  vertical-align: middle;
+}
+
+.study-notebook .sheet-con-marcapaginas {
+  position: relative;
+  overflow: visible;
+}
+
+.study-notebook .mp-ancla {
+  position: absolute;
+  top: 0;
+  right: 40px;
+  width: 40px;
+  height: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.study-notebook .marcapaginas {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 28px;
+  margin-left: -14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  z-index: 5;
+}
+
+.study-notebook .marcapaginas:focus-visible {
+  outline: 2px solid var(--nb-blue-note);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.study-notebook .mp-cinta {
+  display: block;
+  width: 28px;
+  height: 34px;
+  margin: 0 auto;
+  transform-origin: top center;
+  background:
+    linear-gradient(180deg, rgba(50, 16, 28, 0.12) 0%, transparent 14%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0%, transparent 24%, transparent 76%, rgba(0, 0, 0, 0.05) 100%),
+    linear-gradient(180deg, #d45f7a 0%, #c04462 50%, #9a304c 100%);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), 50% 100%, 0 calc(100% - 11px));
+  box-shadow: 0 3px 6px rgba(26, 26, 26, 0.1);
+  transition: height 1.85s cubic-bezier(0.33, 0.05, 0.2, 1);
+}
+
+.study-notebook .marcapaginas:hover .mp-cinta {
+  height: 42px;
+}
+
+.study-notebook .marcapaginas-plantado .mp-cinta,
+.study-notebook .marcapaginas.marcapaginas-plantado .mp-cinta {
+  height: 118px;
+  background:
+    linear-gradient(180deg, rgba(50, 16, 28, 0.12) 0%, transparent 11%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0%, transparent 24%, transparent 76%, rgba(0, 0, 0, 0.05) 100%),
+    linear-gradient(180deg, #cc5570 0%, #b03a58 52%, #8a2a44 100%);
+  box-shadow: 0 4px 8px rgba(26, 26, 26, 0.1);
+}
+
+.study-notebook .marcapaginas-plantado:hover .mp-cinta {
+  height: 118px;
+}
+
+.study-notebook .marcapaginas-animando .mp-cinta,
+.study-notebook .marcapaginas-retrayendo .mp-cinta {
+  pointer-events: none;
+}
+
+.study-notebook .marcapaginas-animando:hover .mp-cinta,
+.study-notebook .marcapaginas-retrayendo:hover .mp-cinta {
+  height: inherit;
+}
+
+.study-notebook .marcapaginas-animando .mp-cinta {
+  animation: mp-estirar 1.9s cubic-bezier(0.33, 0.05, 0.2, 1) forwards;
+}
+
+.study-notebook .marcapaginas-retrayendo .mp-cinta {
+  animation: mp-retraer 1.7s cubic-bezier(0.33, 0.05, 0.2, 1) forwards;
+}
+
+@keyframes mp-estirar {
+  0% {
+    height: 34px;
+  }
+  70% {
+    height: 126px;
+  }
+  100% {
+    height: 118px;
+  }
+}
+
+@keyframes mp-retraer {
+  0% {
+    height: 118px;
+  }
+  100% {
+    height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-notebook .mp-cinta {
+    transition: none;
+  }
+  .study-notebook .marcapaginas-animando .mp-cinta,
+  .study-notebook .marcapaginas-retrayendo .mp-cinta {
+    animation: none;
+  }
+}
+
+.study-notebook .dialogo-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(26, 26, 26, 0.38);
+}
+
+.study-notebook .dialogo-caja {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: var(--nb-card);
+  border: 2px solid var(--nb-ink);
+  border-radius: 14px;
+  padding: 22px 22px 18px;
+  box-shadow: 6px 6px 0 rgba(26, 26, 26, 0.14);
+}
+
+.study-notebook .dialogo-cinta {
+  position: absolute;
+  top: -2px;
+  right: 28px;
+  width: 18px;
+  height: 28px;
+  background: #9a304c;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+  box-shadow: 0 2px 3px rgba(26, 26, 26, 0.12);
+}
+
+.study-notebook .dialogo-titulo {
+  font-size: 18px;
+  margin: 0 0 10px;
+  color: var(--nb-ink);
+  padding-right: 36px;
+}
+
+.study-notebook .dialogo-cuerpo {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--nb-ink);
+  margin: 0 0 12px;
+}
+
+.study-notebook .dialogo-detalle {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--nb-grid);
+  background: #f7f5ef;
+  color: var(--nb-blue-note);
+}
+
+.study-notebook .dialogo-detalle strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nb-muted);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.study-notebook .dialogo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.study-notebook .dialogo-acciones .btn {
+  min-width: 7.5rem;
+}
+
+.study-notebook .dialogo-caja.dialogo-solo-ok .dialogo-acciones {
+  justify-content: center;
+}
+
+.study-notebook .reader-body {
+  margin-top: 8px;
+}
+
+/* Practice desk: fill the pane, notebook sheet, larger type/targets. */
+.study-notebook .practice-desk {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--nb-card);
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.12);
+}
+
+.study-notebook .practice-desk-header,
+.study-notebook .practice-desk-modes {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--nb-grid);
+}
+
+.study-notebook .practice-direction {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.study-notebook .practice-desk-header {
+  justify-content: space-between;
+}
+
+.study-notebook .practice-desk-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 24px 24px;
+}
+
+.study-notebook .practice-desk .desk-chip {
+  padding: 8px 16px;
+  font-size: 14px;
+  min-height: 44px;
+}
+
+.study-notebook .practice-desk .desk-chip:disabled,
+.study-notebook .practice-desk .btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.study-notebook .practice-desk .btn {
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.study-notebook .practice-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.study-notebook .practice-card {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 28px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 12px;
+  background: var(--nb-paper);
+  color: inherit;
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.study-notebook .practice-card:focus-visible,
+.study-notebook .practice-option:focus-visible,
+.study-notebook .practice-input:focus-visible {
+  outline: 2px solid var(--nb-blue-note);
+  outline-offset: 2px;
+}
+
+.study-notebook .practice-stim-vocab {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-size: 3rem;
+  line-height: 1.2;
+  color: var(--nb-ink);
+}
+
+.study-notebook .practice-hint {
+  margin: 16px 0 0;
+  font-size: 1rem;
+  color: var(--nb-muted);
+}
+
+.study-notebook .practice-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.study-notebook .practice-prompt {
+  margin: 0;
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-size: 1.85rem;
+  line-height: 1.3;
+  color: var(--nb-ink);
+}
+
+.study-notebook .practice-options {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  overflow-y: auto;
+}
+
+.study-notebook .practice-option {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 8px;
+  background: var(--nb-card);
+  color: var(--nb-ink);
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.study-notebook .practice-option:hover:not(:disabled) {
+  background: var(--nb-paper);
+}
+
+.study-notebook .practice-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.study-notebook .practice-consigna {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--nb-muted);
+}
+
+.study-notebook .practice-estimulo {
+  margin: 14px 0 0;
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-size: 30px;
+  line-height: 1.25;
+  color: var(--nb-ink);
+}
+
+.study-notebook .practice-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 8px;
+  background: var(--nb-paper);
+  color: var(--nb-ink);
+  font-family: inherit;
+  font-size: 18px;
+}
+
+.study-notebook .practice-solution {
+  margin: 12px 0 0;
+  font-size: 16px;
+  color: var(--nb-muted);
+}
+
+.study-notebook .practice-empty {
+  margin: auto;
+  max-width: 28rem;
+  text-align: center;
+}

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clearSessionBookmark,
   createStudySession,
   goToNextSection,
   goToPreviousSection,
   markSectionCompleted,
   selectSection,
+  setSessionBookmark,
   studyProgress01,
 } from './study-session'
 
@@ -16,7 +18,27 @@ describe('createStudySession', () => {
     expect(session.documentId).toBe('doc-1')
     expect(session.activeSectionIndex).toBe(0)
     expect(session.completedSectionIds).toEqual([])
+    expect(session.bookmark).toBeNull()
     expect(studyProgress01(session, SECTION_COUNT)).toBe(0)
+  })
+})
+
+describe('setSessionBookmark / clearSessionBookmark', () => {
+  it('spreads the session so completed ids are kept', () => {
+    const started = markSectionCompleted(createStudySession('doc-1'), 'a')
+    const bookmark = {
+      sectionId: 'b',
+      title: 'B',
+      order: 2,
+      savedAtIso: '2026-08-21T00:00:00.000Z',
+    }
+    const planted = setSessionBookmark(started, bookmark)
+    expect(planted.completedSectionIds).toEqual(['a'])
+    expect(planted.bookmark).toEqual(bookmark)
+    expect(planted.activeSectionIndex).toBe(0)
+    const cleared = clearSessionBookmark(planted)
+    expect(cleared.completedSectionIds).toEqual(['a'])
+    expect(cleared.bookmark).toBeNull()
   })
 })
 

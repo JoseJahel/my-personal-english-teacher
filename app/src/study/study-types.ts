@@ -28,10 +28,20 @@ export interface StudyDocument {
   readonly sections: readonly StudySection[]
 }
 
+/** One resume point per catalog. null = no bookmark. */
+export interface StudyBookmark {
+  readonly sectionId: string
+  readonly title: string
+  readonly titleEn?: string
+  readonly order: number
+  readonly savedAtIso: string
+}
+
 export interface StudySession {
   readonly documentId: string
   readonly activeSectionIndex: number
   readonly completedSectionIds: readonly string[]
+  readonly bookmark: StudyBookmark | null
 }
 
 export interface ProcessedLesson {

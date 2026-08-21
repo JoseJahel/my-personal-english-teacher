@@ -1,11 +1,20 @@
-import type { StudySession } from './study-types'
+import type { StudyBookmark, StudySession } from './study-types'
 
 export function createStudySession(documentId: string): StudySession {
   return {
     documentId,
     activeSectionIndex: 0,
     completedSectionIds: [],
+    bookmark: null,
   }
+}
+
+export function setSessionBookmark(session: StudySession, bookmark: StudyBookmark): StudySession {
+  return { ...session, bookmark }
+}
+
+export function clearSessionBookmark(session: StudySession): StudySession {
+  return { ...session, bookmark: null }
 }
 
 /** Out-of-range indexes are a no-op (no silent clamp). */

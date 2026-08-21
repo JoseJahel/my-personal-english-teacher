@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadProcessedLessons } from '../study/load-processed-lessons'
+import { bookmarkFromSection } from '../study/study-bookmark'
 import {
+  clearSessionBookmark,
   createStudySession,
   goToNextSection,
   goToPreviousSection,
   markSectionCompleted,
   selectSection,
+  setSessionBookmark,
   studyProgress01,
 } from '../study/study-session'
-import type { StudyDocument, StudySection, StudySession } from '../study/study-types'
+import type { StudyBookmark, StudyDocument, StudySection, StudySession } from '../study/study-types'
 import {
   createStudyDocumentStore,
   type StudyDocumentStore,
@@ -32,9 +35,12 @@ export interface UseStudySessionResult {
   readonly progress01: number
   readonly canGoNext: boolean
   readonly canGoPrevious: boolean
+  readonly bookmark: StudyBookmark | null
   selectSectionIndex: (index: number) => void
   goNext: () => void
   goPrevious: () => void
+  plantBookmark: () => void
+  clearBookmark: () => void
 }
 
 function readCatalog(loadCatalog: (() => StudyDocument | null) | undefined): StudyDocument | null {
@@ -157,6 +163,42 @@ export function useStudySession(options: UseStudySessionOptions = {}): UseStudyS
     activate(studyDocument, goToPreviousSection(session), true)
   }, [activate, studyDocument, session])
 
+  const persistSession = useCallback(
+    (nextSession: StudySession) => {
+      setSession(nextSession)
+      if (studyDocument) {
+        void persist(studyDocument, nextSession)
+      }
+    },
+    [persist, studyDocument],
+  )
+
+  const plantBookmark = useCallback(() => {
+    if (!studyDocument || !session) {
+      return
+    }
+    const section = studyDocument.sections[session.activeSectionIndex]
+    if (!section) {
+      return
+    }
+    const bookmark = bookmarkFromSection(
+      section,
+      session.activeSectionIndex + 1,
+      new Date().toISOString(),
+    )
+    if (!bookmark) {
+      return
+    }
+    persistSession(setSessionBookmark(session, bookmark))
+  }, [persistSession, session, studyDocument])
+
+  const clearBookmark = useCallback(() => {
+    if (!session) {
+      return
+    }
+    persistSession(clearSessionBookmark(session))
+  }, [persistSession, session])
+
   const sectionCount = studyDocument?.sections.length ?? 0
   const activeIndex = session?.activeSectionIndex ?? 0
   const activeSection = studyDocument?.sections[activeIndex] ?? null
@@ -171,8 +213,11 @@ export function useStudySession(options: UseStudySessionOptions = {}): UseStudyS
     progress01,
     canGoNext: Boolean(session && sectionCount > 0 && activeIndex < sectionCount - 1),
     canGoPrevious: Boolean(session && activeIndex > 0),
+    bookmark: session?.bookmark ?? null,
     selectSectionIndex,
     goNext,
     goPrevious,
+    plantBookmark,
+    clearBookmark,
   }
 }

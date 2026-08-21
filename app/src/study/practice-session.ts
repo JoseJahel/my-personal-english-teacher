@@ -1,3 +1,8 @@
+import {
+  resolvePracticeFacing,
+  type PracticeDirection,
+  type PracticeFacing,
+} from './practice-direction'
 import type { PracticeMode } from './study-types'
 
 export type PracticeGrade = 'correct' | 'incorrect'
@@ -8,13 +13,23 @@ export interface PracticeSessionState {
   readonly index: number
   readonly revealed: boolean
   readonly grade: PracticeGrade | null
+  readonly direction: PracticeDirection
+  readonly facing: PracticeFacing
 }
 
 export function createPracticeSession(
   mode: PracticeMode = 'vocab',
   tema: string | null = null,
 ): PracticeSessionState {
-  return { mode, tema, index: 0, revealed: false, grade: null }
+  return {
+    mode,
+    tema,
+    index: 0,
+    revealed: false,
+    grade: null,
+    direction: 'es-en',
+    facing: 'es-en',
+  }
 }
 
 export function selectPracticeMode(
@@ -25,6 +40,23 @@ export function selectPracticeMode(
     return state
   }
   return { ...state, mode, index: 0, revealed: false, grade: null }
+}
+
+export function selectPracticeDirection(
+  state: PracticeSessionState,
+  direction: PracticeDirection,
+  random?: () => number,
+): PracticeSessionState {
+  if (direction === state.direction) {
+    return state
+  }
+  return {
+    ...state,
+    direction,
+    facing: resolvePracticeFacing(direction, random),
+    revealed: false,
+    grade: null,
+  }
 }
 
 export function selectPracticeTema(
@@ -46,16 +78,22 @@ export function revealPracticeItem(state: PracticeSessionState): PracticeSession
 
 export function goToNextPracticeItem(
   state: PracticeSessionState,
-  itemCount: number,
+  nextIndex: number,
+  random?: () => number,
+  facing?: PracticeFacing | null,
 ): PracticeSessionState {
-  if (itemCount <= 0) {
-    return state
+  if (!Number.isInteger(nextIndex) || nextIndex < 0) {
+    if (!state.revealed && state.grade === null) {
+      return state
+    }
+    return { ...state, revealed: false, grade: null }
   }
   return {
     ...state,
-    index: (state.index + 1) % itemCount,
+    index: nextIndex,
     revealed: false,
     grade: null,
+    facing: facing ?? resolvePracticeFacing(state.direction, random),
   }
 }
 
@@ -80,13 +118,20 @@ export function checkCompletarChoice(
   state: PracticeSessionState,
   chosenIndex: number,
   correctIndex: number,
-  itemCount: number,
+  nextIndex: number,
+  random?: () => number,
+  facing?: PracticeFacing | null,
 ): PracticeSessionState {
   if (!Number.isInteger(chosenIndex) || chosenIndex < 0) {
     return state
   }
   if (chosenIndex === correctIndex) {
-    return goToNextPracticeItem({ ...state, grade: 'correct', revealed: true }, itemCount)
+    return goToNextPracticeItem(
+      { ...state, grade: 'correct', revealed: true },
+      nextIndex,
+      random,
+      facing,
+    )
   }
   return { ...state, grade: 'incorrect', revealed: true }
 }
@@ -95,23 +140,34 @@ export function checkWrittenAnswer(
   state: PracticeSessionState,
   raw: string,
   expected: string,
-  itemCount: number,
+  nextIndex: number,
+  random?: () => number,
+  facing?: PracticeFacing | null,
 ): PracticeSessionState {
   if (raw.trim().length === 0) {
     return state
   }
   if (practiceAnswersMatch(raw, expected)) {
-    return goToNextPracticeItem({ ...state, grade: 'correct', revealed: true }, itemCount)
+    return goToNextPracticeItem(
+      { ...state, grade: 'correct', revealed: true },
+      nextIndex,
+      random,
+      facing,
+    )
   }
   return { ...state, grade: 'incorrect', revealed: true }
 }
 
 export function rateVocabAndNext(
   state: PracticeSessionState,
-  itemCount: number,
+  nextIndex: number,
+  knew: boolean,
+  random?: () => number,
+  facing?: PracticeFacing | null,
 ): PracticeSessionState {
-  if (!state.revealed || itemCount <= 0) {
+  if (!state.revealed) {
     return state
   }
-  return goToNextPracticeItem(state, itemCount)
+  void knew
+  return goToNextPracticeItem(state, nextIndex, random, facing)
 }
