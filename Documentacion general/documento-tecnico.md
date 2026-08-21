@@ -359,7 +359,7 @@ El detalle de casos de prueba, métricas (WER, latencia) y edge cases está en:
 
 ➡️ **[reporte-verificacion.md](./reporte-verificacion.md)**
 
-Puntos clave: **suite de 761 casos en 120 archivos** (Vitest) en verde en el
+Puntos clave: **suite de 798 casos en 123 archivos** (Vitest) en verde en el
 CI; **WER 0.000** de `whisper-small.en` sobre las fixtures de referencia
 (bench 2026-07-29); latencia de ASR ~3.4 s/frase en WebGPU (limitación conocida
 frente al objetivo de 2 s, decisión que prioriza precisión). El DSP local
