@@ -1,7 +1,7 @@
 /**
- * Pure text normalization for SpeechT5 TTS input (no model / browser APIs).
+ * Pure text normalization for tutor TTS input (no model / browser APIs).
  * Expands simple integers, dollar prices, single-letter + digits codes
- * (e.g. gate/table numbers), and simple clock times into words SpeechT5
+ * (e.g. gate/table numbers), and simple clock times into words the TTS
  * pronounces reliably. Wired into `prepareTextForSpeechSynthesis` so it only
  * ever touches the string that goes into speech synthesis — never the text
  * shown in the chat.
@@ -118,7 +118,7 @@ function normalizeStandaloneIntegers(text: string): string {
 }
 
 /**
- * Normalizes English text before it enters SpeechT5 synthesis. Order matters:
+ * Normalizes English text before it enters TTS synthesis. Order matters:
  * times and prices consume their digits (and surrounding symbols) first, then
  * letter+digit codes, then any remaining standalone integers — so later passes
  * never re-touch text already expanded by an earlier one.

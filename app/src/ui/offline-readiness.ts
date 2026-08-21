@@ -14,9 +14,15 @@ import { homeScreenInterfaceTexts } from './interface-texts'
 /**
  * Models whose load the UI can observe.
  *
- * `textToSpeechVocoder` is deliberately absent: the inference worker never
- * emits `model-ready` for it (it loads inside the SpeechT5 pipeline), so it
- * would never be marked and readiness could never reach `fully-cached`.
+ * `textToSpeechVocoder` is deliberately absent: Supertonic decodes audio
+ * itself, and the worker never emits `model-ready` for the unused vocoder
+ * key, so including it would block `fully-cached`.
+ *
+ * `textToSpeech` here covers only the Supertonic ONNX weights. The pinned
+ * F1 voice reference audio is a separate file, fetched by
+ * `preloadTutorVoiceEmbeddings` (see `../ia/text-to-speech-synthesis.ts`)
+ * during warm preload; that fetch does not emit a `model-ready` origin
+ * signal, so its cache state is not part of this computation.
  */
 export const OFFLINE_READINESS_MODEL_KEYS = [
   'automaticSpeechRecognition',
@@ -27,7 +33,7 @@ export const OFFLINE_READINESS_MODEL_KEYS = [
 
 /**
  * Three states rather than two, because the models load at different moments:
- * ASR, grammar and SpeechT5 preload on mount; SmolLM2 on scenario selection.
+ * ASR, grammar and Supertonic preload on mount; SmolLM2 on scenario selection.
  * A learner who has not picked a scenario yet sits in between, and saying
  * "ready offline" there would be a lie.
  */

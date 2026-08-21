@@ -5,8 +5,8 @@ export type TutorSpeechSource =
   | { readonly kind: 'browser-speech'; readonly text: string }
 
 /**
- * Instant tutor voice: cached SpeechT5 PCM if present, otherwise the local
- * OS voice. Do not synthesize on this worker here — SpeechT5 would block
+ * Instant tutor voice: cached neural TTS PCM if present, otherwise the local
+ * OS English voice. Do not synthesize on this worker here — TTS would block
  * the next Whisper job.
  */
 export async function resolveTutorSpeechSource(

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { playEnglishWithBrowserSpeechSynthesis } from './play-browser-speech-synthesis'
+import {
+  pickPreferredEnglishVoice,
+  playEnglishWithBrowserSpeechSynthesis,
+  scoreEnglishVoice,
+} from './play-browser-speech-synthesis'
 
 class FakeUtterance {
   readonly text: string
@@ -76,5 +80,43 @@ describe('playEnglishWithBrowserSpeechSynthesis', () => {
     vi.stubGlobal('speechSynthesis', undefined)
     const result = await playEnglishWithBrowserSpeechSynthesis('Hello.')
     expect(result).toEqual({ completed: true, cutoffMs: 0 })
+  })
+})
+
+describe('pickPreferredEnglishVoice', () => {
+  it('prefers a neural en-US voice over a generic English one', () => {
+    const picked = pickPreferredEnglishVoice([
+      { lang: 'en-GB', name: 'Daniel' },
+      { lang: 'en-US', name: 'Microsoft Aria Online (Natural)' },
+      { lang: 'es-ES', name: 'Helena' },
+    ])
+    expect(picked?.name).toContain('Aria')
+  })
+
+  it('returns null when only Spanish voices are installed', () => {
+    expect(
+      pickPreferredEnglishVoice([
+        { lang: 'es-ES', name: 'Helena' },
+        { lang: 'es-MX', name: 'Sabina' },
+      ]),
+    ).toBeNull()
+  })
+
+  it('avoids an en-US-tagged voice whose name reveals it is actually Spanish', () => {
+    // Regression for a mislabeled voice list: lang and name are independent
+    // fields, so a Spanish voice can still carry an 'en-US' lang tag.
+    const picked = pickPreferredEnglishVoice([
+      { lang: 'en-US', name: 'Microsoft Helena Desktop - Spanish (Spain)' },
+      { lang: 'en-US', name: 'Microsoft Zira Desktop' },
+    ])
+    expect(picked?.name).toBe('Microsoft Zira Desktop')
+  })
+})
+
+describe('scoreEnglishVoice', () => {
+  it('scores an en-US voice lower when its name reveals it is mislabeled Spanish', () => {
+    const genuineEnglishScore = scoreEnglishVoice({ lang: 'en-US', name: 'Zira' })
+    const mislabeledSpanishScore = scoreEnglishVoice({ lang: 'en-US', name: 'Helena' })
+    expect(mislabeledSpanishScore).toBeLessThan(genuineEnglishScore)
   })
 })

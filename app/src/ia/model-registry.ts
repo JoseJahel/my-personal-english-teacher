@@ -138,11 +138,12 @@ export const modelRegistry = {
     revision: 'c439d702d7b7b178b96b64d4dc4537308963c271',
   },
   textToSpeech: {
-    huggingFaceModelId: 'Xenova/speecht5_tts',
+    huggingFaceModelId: 'onnx-community/Supertonic-TTS-ONNX',
     task: 'textToSpeech',
-    revision: '1723781b8ce2d02f0400c8337be04ae8ee3d6d56',
+    revision: 'cff123c84b0655d9d647641f1b532c3cbb8f7faa',
   },
   textToSpeechVocoder: {
+    // Unused: Supertonic decodes audio itself. Kept so ModelRegistryKey stays stable.
     huggingFaceModelId: 'Xenova/speecht5_hifigan',
     task: 'textToSpeechVocoder',
     revision: 'cf980c3610d7b7f20919960031066ef7905737bd',
