@@ -23,14 +23,14 @@ Demo funcional de punta a punta (base Avance 1 + shell Avance 2):
 5. **Feedback progresivo (issue #96):** la burbuja del estudiante (ASR +
    corrección T5) aparece **antes** de SmolLM2/TTS. El tutor sigue híbrido
    (memoria de 4 turnos, timeout 10 s, respaldo de reglas con insignia). El
-   micrófono solo se bloquea mientras SpeechT5 habla (half-duplex), no
+   micrófono solo se bloquea mientras Supertonic habla (half-duplex), no
    mientras el modelo “escribe”. El rail muestra el perfil ASR
    (`precision` / `latency`).
 6. **Score de pronunciación**: el 0–100 vive en modo **Repetir** (issue #95:
    Δlocutor 11.3 ≳ Δerror 9.9). Conversación no califica contra el TTS
    (`deferred-to-drill`). #75 sigue: sin habla usable / `[Music]` →
    `not-evaluated`, no “mala pronunciación”.
-7. **TTS SpeechT5** reproduce la línea del tutor.
+7. **TTS Supertonic** reproduce la línea del tutor.
 8. Paneles: transcripción, gramática, LLM tutor, voz, pronunciación, historial
    de práctica (IndexedDB).
 
@@ -142,10 +142,12 @@ red. Verificado en Chromium (Edge) sobre Windows.
 
 2. **Precargar los modelos.** Con conexión activa, esperar a que el aviso de
    la pantalla principal indique que todos los modelos están guardados.
-   Reconocimiento de voz y corrección gramatical se precargan al abrir;
-   SmolLM2 requiere seleccionar un escenario y SpeechT5 requiere completar un
-   turno hablado. La primera descarga supera 1 GB y puede tardar varios
-   minutos.
+   Reconocimiento de voz, corrección gramatical y síntesis de voz
+   (Supertonic) se precargan en paralelo al abrir; SmolLM2 es el único que
+   requiere seleccionar un escenario. La referencia de voz F1 se descarga en
+   esa misma pasada, pero por un fetch aparte que ese aviso no cubre (ver
+   "Límites offline conocidos" más abajo). La primera descarga supera 1 GB y
+   puede tardar varios minutos.
 
 3. **Verificar que ya no hay tráfico de modelos.** Recargar con `F5` (nunca
    con `Ctrl+Shift+R`, que fuerza al navegador a ignorar los cachés) y
@@ -161,7 +163,7 @@ red. Verificado en Chromium (Edge) sobre Windows.
 
 6. **Comprobar el pipeline completo** en la aplicación instalada, sin
    servidor: la ventana abre, el micrófono captura, Whisper transcribe, T5
-   corrige la gramática, el tutor responde y SpeechT5 reproduce la voz. El
+   corrige la gramática, el tutor responde y Supertonic reproduce la voz. El
    historial de práctica se sigue guardando en IndexedDB.
 
 Si el paso 6 falla, la causa más probable es que el paso 2 quedara incompleto:
@@ -213,6 +215,30 @@ restaurante) solo arranca si confirmas o si usas
 La demo con micrófono es `http://127.0.0.1:5173/` sin hash.
 `#shell-preview*` sigue siendo el maniquí estático de Playwright.
 
+## Modo de estudio (PRs #122 / #125)
+
+Cuaderno de estudio del sílabo English File. Se abre con el hash `#estudio`
+(cuarto ítem del riel izquierdo, `railNavStudy`) y lo gatea
+`app-routing.ts::shouldShowStudyScreen`. A diferencia de `#asr-benchmark` y
+`#practice-mock`, **no** depende de `import.meta.env.DEV`: es una vista de
+primer nivel del producto, presente también en `pnpm build` + `pnpm preview`.
+
+Las 36 lecciones en Markdown de `estudio/procesado/` (frontmatter YAML) se
+cargan con `import.meta.glob` y alimentan un banco de práctica con 4 modos —
+vocabulario, completar, traducir y transformar — en dirección es→en, en→es o
+mixta, con progreso SRS independiente por dirección. La selección de
+tarjetas usa repetición espaciada (SM-2 adaptado: intervalos de 0.5, 4, 24,
+72, 168, 336, 720 y 1440 horas; factor de facilidad entre 1.3 y 3.0). Un
+marcapáginas recuerda la lección de reanudación, con diálogo de confirmación
+al moverlo.
+
+`study/` es una capa de dominio puro (sin React, DOM, `ui/`, `ia/`, `audio/`
+ni `storage/`; ver su fila en la tabla de arquitectura más abajo). La
+presentación vive en `ui/StudyScreen.tsx`; el progreso se guarda en una
+tercera base IndexedDB (`storage/study-document-store.ts`), separada de la
+de progreso de práctica y de la de fixtures del banco de pruebas ASR.
+Detalle completo en `src/study/README.md`.
+
 ## Entrega local, sin despliegue en la nube
 
 La aplicación se sirve y se demuestra únicamente desde `localhost`. No hay
@@ -259,10 +285,11 @@ adentro, dejando el dominio libre de detalles de infraestructura:
 | Capa | Rol hoy | README de capa |
 |------|---------|----------------|
 | **`ui/`** | Presentación React + escenarios/chat + sesión (mic → ASR → gramática → tutor híbrido → turno de chat); paleta de diseño en tokens de `index.css`; pantalla de banco de pruebas ASR (solo dev). Textos ES en `interface-texts.ts`. | `ui/README.md` |
-| **`ia/`** | Whisper (catálogo de 4 candidatos evaluables), T5, SpeechT5, SmolLM2 (conversación híbrida activa), worker y cliente tipado. | `ia/README.md` |
+| **`ia/`** | Whisper (catálogo de 4 candidatos evaluables), T5, Supertonic, SmolLM2 (conversación híbrida activa), worker y cliente tipado. | `ia/README.md` |
 | **`dsp/`** | Energía + YIN + MFCC + DTW + score + pasa-banda de voz (#73). | `dsp/README.md` |
 | **`audio/`** | getUserMedia, Analyser, MediaRecorder, resample, cadena compartida user/ref. | `audio/README.md` |
 | **`storage/`** | IndexedDB de progreso: sesiones y turnos (textos/scores, sin audio) + IndexedDB separada de fixtures del banco de pruebas ASR (solo dev, con audio crudo). | `storage/README.md` |
+| **`study/`** | Dominio puro del cuaderno de estudio: procesa `estudio/procesado/*.md` (36 lecciones) en secciones y banco de práctica de 4 modos (vocab/completar/traducir/transformar) con repetición espaciada SM-2 y marcapáginas. Sin dependencias de React, DOM, `ui/`, `ia/`, `audio/` ni `storage/`. | `study/README.md` |
 
 Reglas de implementación del equipo: `../Documentacion general/REGLAS-DE-CODIGO.md`.
 
@@ -293,16 +320,27 @@ en Chromium (Edge), con el servidor local de desarrollo.
 
 **La primera visita necesita conexión.** Los pesos superan 1 GB en total. Solo
 los dos archivos ONNX de `whisper-small.en` suman ~968 MB (352.839.389 y
-615.402.140 bytes) y `t5-base-grammar-correction` añade ~110 MB; a eso se
-suman SpeechT5, el vocoder HiFiGAN y SmolLM2. La descarga ocurre una única vez
-y queda en el caché `transformers-cache` de la Cache API.
+615.402.140 bytes) y `t5-base-grammar-correction` añade ~110 MB. Supertonic,
+el motor de síntesis de voz (tres sesiones ONNX encadenadas — `text_encoder`,
+`latent_denoiser` y `voice_decoder` — que decodifican la forma de onda
+directamente, sin vocoder externo), pesa ~250,7 MB; sustituye al par
+SpeechT5 + vocoder HiFiGAN que pesaba ~613 MB, un ahorro neto de ~362 MB
+sobre el presupuesto de descarga. A eso se suma SmolLM2. La descarga ocurre
+una única vez y queda en el caché `transformers-cache` de la Cache API.
 
 **Los modelos no se cargan todos al abrir la aplicación.** Reconocimiento de
-voz y corrección gramatical se precargan al montar la pantalla; SmolLM2 se
-precarga al seleccionar un escenario; SpeechT5 se carga en el primer turno con
-respuesta hablada. Una sesión en la que solo se abre la aplicación y no se
-habla deja parte de los modelos sin descargar, y por lo tanto **no** habilita
-todavía el uso sin conexión.
+voz, corrección gramatical y síntesis de voz (Supertonic, junto con la
+referencia de voz F1) se precargan en paralelo al montar la pantalla;
+SmolLM2 es el único que espera a que el alumno elija un escenario. Una sesión
+en la que solo se abre la aplicación y no se selecciona escenario deja
+SmolLM2 sin descargar, y por lo tanto **no** habilita todavía el uso sin
+conexión. La referencia de voz F1 (`voices/F1.bin`) es, además, una descarga
+aparte de los pesos de Supertonic: se guarda en el mismo bucket
+`transformers-cache`, pero al no pasar por el cargador de modelos de
+`transformers.js` no emite la señal de `model-ready` que alimenta el aviso de
+disponibilidad offline de abajo; si esa precarga falla, la síntesis degrada
+en el primer turno hablado (recurre al *fetch* propio de la librería) en vez
+de romper el turno.
 
 **Aviso de disponibilidad offline.** La pantalla principal muestra si el
 navegador ya puede practicar sin conexión, distinguiendo tres situaciones:

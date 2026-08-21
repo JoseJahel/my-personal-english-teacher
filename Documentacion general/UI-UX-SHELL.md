@@ -1,7 +1,7 @@
 # UI/UX — Shell de práctica (Estándar chat IA)
 
 **Layout canónico:** *Estándar chat IA* (issue #81)  
-**Referencia de producto (principios):** rail + chat centrado + panel de artefacto (ChatGPT/Claude), sidebar limpia (Linear/Notion).  
+**Referencia de producto (principios):** rail + chat centrado + panel de artefacto (patrón de chat con panel lateral de resultados), sidebar limpia (Linear/Notion).  
 **Implementación:** `app/src/ui/HomeScreen.tsx` + `PracticeRail` + `PracticeComposer` + `FeedbackPanel`
 
 ## Arquitectura de layout
@@ -18,7 +18,7 @@
 ### Rail izquierdo
 
 - Marca **Teacher** (serif itálica) + monograma T · línea “inglés personal”  
-- Nav: **Práctica** · **Historial** · **Señales**  
+- Nav: **Práctica** · **Historial** · **Señales** · **Estudio**  
 - Escenarios (restaurante / aeropuerto / entrevista)  
 - Modo: Conversar (activo) · Repetir (UI presente, deshabilitado hasta #68)  
 - Offline compacto + pista EN del escenario  
@@ -34,6 +34,7 @@
 - **Cerrado por defecto**  
 - Se abre al pulsar Hablar (pestaña Señales, STFT/YIN en vivo) o tras un turno  
 - Pestañas: **Turno** · **Sugerencias** · **Señales** · **Técnico**  
+- Sugerencias: panel propio (`CommunicationSuggestionsPanel`) con tarjetas de vocabulario/naturalidad/fluidez que citan la frase real del alumno (“Tú dijiste”) y la reescritura sugerida (“Prueba esto”), no frases genéricas de escenario  
 - Empty state de Turno hasta el primer resultado  
 - Canvas de espectrograma/pitch **siempre montados** (aunque el panel esté `hidden`) para no romper refs de sesión  
 
@@ -75,6 +76,7 @@
 | `chat-thread` | Hilo de chat |
 | `history-overlay` | Overlay historial |
 | `rail-nav-practice` / `history` / `signals` | Nav del rail |
+| `rail-nav-study` | Nav del rail — Estudio |
 | `panel-tab-turn` / `suggest` / `signals` / `tech` | Pestañas |
 | `panel-empty-state` / `panel-filled-state` | Turno vacío vs con datos |
 
@@ -111,4 +113,5 @@ Solo con `import.meta.env.DEV`.
 2. Hablar → panel Señales se abre; onda + espectro + pitch se mueven  
 3. Detener → utterance completa en los mismos canvas; pestaña Turno con ASR  
 4. Historial en rail → turnos IndexedDB  
-5. Cerrar panel con ✕ o Feedback  
+5. Estudio en rail → catálogo de lecciones y modo de práctica (vocab/completar/traducir/transformar)  
+6. Cerrar panel con ✕ o Feedback  

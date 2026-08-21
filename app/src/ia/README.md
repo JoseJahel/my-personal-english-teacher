@@ -28,14 +28,64 @@ Implementado:
 
 - `grammar-correction.ts`: adaptador T5 con el mismo criterio de device/dtype.
   Si la salida es degenerada, devuelve el texto original.
-- `text-to-speech-synthesis.ts`: **SpeechT5** (`Xenova/speecht5_tts`, dtype
-  **fp32**), vocoder HiFi-GAN por defecto del pipeline, speaker embedding
-  Xenova demo; `synthesizeSpeechFromText` → PCM + sample rate.
+- `text-to-speech-synthesis.ts`: **Supertonic** (`onnx-community/Supertonic-TTS-ONNX`,
+  revisión anclada por SHA, dtype **fp32** — no hay variantes cuantizadas
+  publicadas). Sin vocoder separado: son 3 sesiones ONNX encadenadas
+  (`text_encoder` → `latent_denoiser` → `voice_decoder`) y el propio modelo
+  decodifica la forma de onda. Voz fija **F1**: no una red ni un x-vector por
+  locutor, sino un vector de estilo precomputado (`voices/F1.bin`) que se
+  descarga del propio repo del modelo en el Hub. Ese fetch de
+  `speaker_embeddings` lo resuelve internamente transformers.js con un
+  `fetch()` crudo que no pasa por `getModelFile`/`hub.js` (no hay progreso ni
+  caché de pesos), así que `preloadTutorVoiceEmbeddings` lo descarga aparte
+  durante el warm preload, lo persiste en el mismo bucket `transformers-cache`
+  de Cache Storage y guarda el `Float32Array` decodificado en memoria para que
+  `synthesizeSpeechFromText` se lo pase directo al pipeline; si esa precarga
+  falla, cae de vuelta al fetch original de la librería y la app sigue sin
+  romper el turno. `synthesizeSpeechFromText` → PCM (44.100 Hz) + sample rate.
 - `conversation-suggestions.ts`: genera la **respuesta principal** del tutor
   con SmolLM2 (memoria de hasta 4 turnos previos) + filtro de plausibilidad
   (`isPlausibleTutorReply`). La orquestación del timeout (10 s) y el respaldo
   veraz al guion por escenario viven en `ui/tutor-reply-orchestration.ts` +
-  `ui/tutor-reply-engine.ts`, no en esta capa.
+  `ui/tutor-reply-engine.ts`, no en esta capa. Distinto de
+  `communication-suggestions.ts` (abajo): este módulo decide qué contesta el
+  tutor, no las fichas de coaching sobre lo que dijo el alumno.
+- `communication-suggestions.ts`: ensambla hasta 3 tarjetas de coaching
+  deterministas para el último turno del alumno (`buildCommunicationSuggestions`):
+  **vocabulario**, **naturalidad** y **fluidez**, deduplicadas por tipo y
+  citando siempre la frase real dicha (`youSaidEn`) y la reescritura sugerida
+  (`tryThisEn`) en vez de rotar líneas genéricas de escenario. No confundir
+  con `conversation-suggestions.ts` (arriba), que genera la respuesta
+  principal del tutor; este módulo alimenta la pestaña Sugerencias del panel
+  de feedback.
+- `communication-suggestion-analysis.ts`: parseo puro de un turno de práctica
+  (`analyzePracticeUtterance`) — intención (`order`, `request`, `question`,
+  `thanks`, `introduction`, `experience`, `agreement`, `statement`),
+  complemento extraído por patrón (qué pidió, de qué habló), detección de
+  modal de cortesía (`hasPoliteModal`) y el diff palabra a palabra entre lo
+  dicho y lo corregido por gramática (vía `diffEnglishWords`, de
+  `grammar-correction-diff.ts`) para listar sustituciones, palabras añadidas
+  y eliminadas.
+- `communication-suggestion-rewrites.ts`: reescrituras deterministas
+  construidas sobre ese análisis, no una tabla de frases fija —
+  `rewriteAsNative` (pedidos cortos → «Could I have…, please?», preguntas
+  conocidas reformuladas por clase gramatical: «who is X» → «Sorry, I didn't
+  catch X's name», «where is X» → «Could you tell me where X is?») y
+  `expandForFluency` (alarga turnos cortos con un detalle concreto, p. ej.
+  experiencia laboral). Nunca devuelve una línea de escenario genérica si el
+  alumno dijo otra cosa.
+- `communication-coaching-generation.ts`: pasada opcional con SmolLM2 sobre
+  el último turno del alumno — pide al modelo exactamente dos líneas
+  (`TRY:` / `WHY:`), acotada a **72 tokens nuevos**
+  (`DEFAULT_COACHING_MAX_NEW_TOKENS`) con timeout de **8 s**
+  (`COMMUNICATION_COACHING_TIMEOUT_MS`, corre en carrera contra la
+  generación vía `resolveDynamicCommunicationSuggestions`). El borrador pasa
+  por `isAcceptableCoachingDraft` (longitud 8–180 caracteres, proporción
+  mínima de letras, no puede ser eco literal de lo que dijo el alumno, el
+  «why» no puede repetir el «try», y debe citar una palabra de contenido del
+  turno original o responder al tipo de pregunta hecha) antes de aceptarse;
+  si falla la generación o la validación, respalda a las tarjetas
+  estructurales de `communication-suggestions.ts` sin bloquear el turno.
 - `word-error-rate.ts`: **WER** (Levenshtein a nivel de palabra) para el banco
   de pruebas ASR de desarrollo; no se usa en el pipeline de producción.
 - `transcription-text.ts`: filtra tags no-habla y texto degenerado (bucles).
@@ -48,17 +98,20 @@ Implementado:
 - `inference-worker-protocol.ts`: mensajes
   - entradas: `'transcribe'`, `'correct-grammar'`, `'preload-models'`,
     `'synthesize-speech'`, `'generate-tutor-reply'`,
-    `'preload-conversation-model'`, `'set-preferred-device'` (solo banco de
-    pruebas, sin respuesta); `'transcribe'` y `'preload-models'` aceptan un
-    `asrCandidateId` opcional (solo banco de pruebas; el flujo normal de la
-    app lo omite y usa el candidato activo).
-  - salidas: progreso, `model-ready`, ASR/gramática/TTS/tutor result|error.
-- `inference-worker.ts`: orquestador; **preload en paralelo** Whisper+T5+SpeechT5
-  (`warm-model-preload.ts`); SmolLM2 al elegir escenario; cachea un pipeline
-  Whisper por candidato ASR (`KeyedAsyncCache`) y aplica `set-preferred-device`
-  antes de procesar cualquier otro mensaje.
+    `'generate-communication-coaching'`, `'preload-conversation-model'`,
+    `'set-preferred-device'` (solo banco de pruebas, sin respuesta);
+    `'transcribe'` y `'preload-models'` aceptan un `asrCandidateId` opcional
+    (solo banco de pruebas; el flujo normal de la app lo omite y usa el
+    candidato activo).
+  - salidas: progreso, `model-ready`, ASR/gramática/TTS/tutor/coaching
+    result|error.
+- `inference-worker.ts`: orquestador; **preload en paralelo** Whisper+T5+Supertonic
+  + fichero de voz F1 (`warm-model-preload.ts`, `Promise.allSettled`: un fallo
+  en la voz no bloquea a los demás modelos); SmolLM2 al elegir escenario;
+  cachea un pipeline Whisper por candidato ASR (`KeyedAsyncCache`) y aplica
+  `set-preferred-device` antes de procesar cualquier otro mensaje.
 - `inference-client.ts`: `transcribe`, `correctGrammar`, `synthesizeSpeech`,
-  `generateTutorReply`, `preloadModels`, `preloadConversationModel` +
-  listeners; builders puros de mensajes; `forcedDevice` opcional al crear el
-  cliente (solo banco de pruebas) para fijar el backend sin depender del
-  override de entorno.
+  `generateTutorReply`, `generateCommunicationCoaching`, `preloadModels`,
+  `preloadConversationModel` + listeners; builders puros de mensajes;
+  `forcedDevice` opcional al crear el cliente (solo banco de pruebas) para
+  fijar el backend sin depender del override de entorno.
