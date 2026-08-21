@@ -1,7 +1,10 @@
 /**
  * Pronunciation score from two mono PCM utterances (user vs reference).
  * Pure domain: MFCC + pitch + energy + formants → 0–100 (issue #58).
- * Callers must pass buffers at the **same** sample rate (e.g. both 16 kHz).
+ * Callers must pass buffers at the **same** sample rate. In practice this is
+ * always 16 kHz (WHISPER_SAMPLE_RATE_IN_HERTZ): the MFCC/DTW calibration
+ * constants below were tuned at that rate, so a different shared rate would
+ * still run but would score outside the calibrated regime.
  */
 
 import {

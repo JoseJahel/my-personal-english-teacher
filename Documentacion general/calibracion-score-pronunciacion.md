@@ -32,6 +32,17 @@ score = 100 * exp( -ln(2) * distance / distanceAtHalfScore )
 | Sample rate de referencia | 16 kHz mono |
 | Mínimo de muestras para el fit | 3 (en la práctica se usan las 64) |
 
+> **Nota — la tasa de trabajo de 16 kHz es una condición de validez, no un
+> detalle de implementación.** Estas constantes se ajustaron sobre distancias
+> MFCC/pitch calculadas a 16 kHz. Por eso la cadena de scoring (
+> `run-pronunciation-scoring.ts`) fija esa tasa de forma explícita en vez de
+> heredarla del sintetizador, y remuestrea la referencia del TTS (44.1 kHz en
+> Supertonic) a 16 kHz con el FIR de fase lineal ya existente antes de
+> comparar. El motivo técnico: a 44.1 kHz el banco de 40 filtros mel se
+> reparte hasta 22.05 kHz mientras el pasa-banda corta en 7.5 kHz, dejando
+> banda mel por encima del corte pegada al suelo logarítmico y desplazando
+> los coeficientes MFCC que estas constantes calibraron.
+
 ### 2.1 Banco de frases
 
 1. I would like a glass of water, please.  
@@ -70,6 +81,10 @@ repositorio se aplica un *nudge* determinista de rater (± ~2.4) por índice.
    `pronunciation-score-calibration-constants.ts`.  
 7. Correr `pnpm test` (el test de alineación de constantes fallará si no se
    actualizan a propósito).
+8. Cualquier cambio de motor de voz (TTS) o de tasa de trabajo del score
+   obliga a revisar estas constantes: están calibradas para la tasa fijada
+   en `run-pronunciation-scoring.ts` (16 kHz), no para la tasa nativa que
+   emita el sintetizador de turno.
 
 ## 3. Ajustes aplicados al código (justificación)
 
