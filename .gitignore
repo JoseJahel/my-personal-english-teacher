@@ -40,6 +40,10 @@ estudio/bruto/*.pdf
 estudio/bruto/*.docx
 estudio/bruto/*.epub
 
+# Cualquier captura suelta en la raíz es material de trabajo local, no del producto.
+# Las capturas que sí son entregable van versionadas en Documentacion general/entregas/capturas/.
+/*.png
+
 # Capturas locales de la sesión de estudio (no producto).
 /estudio-*.png
 /qa-*.png
