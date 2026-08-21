@@ -63,9 +63,9 @@ del curso y del README:
    de la PWA. Tampoco APIs remotas de voz o LLM. GitHub (repo + Actions CI)
    es solo colaboración y calidad de código, no el runtime de la demo.
 3. **Issues alineados con capas y enunciado.** Cada ticket debe mapear a
-   `ui/` / `audio/` / `dsp/` / `ia/` / `storage/` o a docs/CI del repo, y a
-   un hito (Avance 1 / 2 / Entrega Final) del curso. Si un ticket implica
-   “subir la app a internet”, es inválido: reescribir o cerrar.
+   `ui/` / `audio/` / `dsp/` / `ia/` / `storage/` / `study/` o a docs/CI del
+   repo, y a un hito (Avance 1 / 2 / Entrega Final) del curso. Si un ticket
+   implica “subir la app a internet”, es inválido: reescribir o cerrar.
 4. **Persona visible.** Assignee de GitHub **y** label `person:…`
    (`person:jahel`, `person:rebeca`, `person:luna`, `person:saul`,
    `person:cesar`).
@@ -91,7 +91,7 @@ Detalle técnico y lección 2026-08-03: `Documentacion general/REGLAS-DE-CODIGO.
 ## Trabajo por módulos
 
 La construcción de la aplicación es modular, siguiendo las capas de
-`app/src` (`audio/`, `dsp/`, `ia/`, `ui/`, `storage/`). Cada Pull Request
+`app/src` (`audio/`, `dsp/`, `ia/`, `ui/`, `storage/`, `study/`). Cada Pull Request
 debe enfocarse idealmente en un solo módulo, para que cada uno pueda
 desarrollarse y ajustarse de forma independiente. Esto no implica una
 asignación fija de módulos por persona.

@@ -68,7 +68,11 @@ Implementado:
     `synthetic-voiced-phrase.ts`. Δlocutor **11.3** ≳ Δerror **9.9**
     (ratio **1.14**) → 0–100 solo en drill. Invariantes:
     `speaker-bias-invariants.ts`.
-  - Orquestación UI: `ui/run-pronunciation-scoring.ts` (cadena #73 + score)
+  - Orquestación UI: `ui/run-pronunciation-scoring.ts` (cadena #73 + score).
+    La tasa de trabajo queda **fijada a 16 kHz** (`WHISPER_SAMPLE_RATE_IN_HERTZ`),
+    no heredada de la tasa que emita el sintetizador TTS (hoy 44.1 kHz en
+    Supertonic): las constantes de calibración MFCC/pitch están afinadas para
+    ese régimen de 16 kHz y se desplazarían si el score usara otra tasa.
   - Doc: `Documentacion general/calibracion-score-pronunciacion.md`
 
 - `polyphase-resample.ts` + `design-linear-phase-lowpass-fir.ts` (issue #92):
@@ -123,6 +127,3 @@ Implementado:
   picos de la envolvente; mediana por utterance en la UI.
   tests en `formant-estimation.test.ts`.
 
-Archivos previstos a futuro (fuera de A2 / final):
-
-- IndexedDB de sesiones.
