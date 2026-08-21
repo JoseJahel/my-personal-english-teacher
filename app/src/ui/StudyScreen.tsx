@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { groupStudyBlocks, type StudyIndexGroup, type StudyIndexItem } from '../study/group-study-blocks'
+import { useMemo, useRef, useState } from 'react'
+import { bookmarkIndex, bookmarkNeedsMoveConfirm, isBookmarkOnSection } from '../study/study-bookmark'
 import { buildPracticeBank } from '../study/practice-bank'
-import type { StudySection } from '../study/study-types'
+import type { StudyBookmark, StudySection } from '../study/study-types'
 import { LessonMarkdown } from './LessonMarkdown'
+import { BookmarkDialog, BookmarkRibbon, type BookmarkDialogKind } from './study-bookmark-controls'
+import { StudyCatalog } from './study-catalog-pane'
 import { StudyPracticeDesk } from './StudyPracticeDesk'
 import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
+import './study-notebook.css'
 import { useStudySession, type UseStudySessionOptions } from './use-study-session'
+
+type StudyPaneView = 'catalog' | 'reader' | 'practice'
 
 export function StudyScreen(
   props: { readonly sessionOptions?: UseStudySessionOptions; readonly embedded?: boolean } = {},
@@ -14,11 +19,11 @@ export function StudyScreen(
   const study = useStudySession(props.sessionOptions)
   const document = study.document
   const active = study.activeSection
-  const sectionCount = document?.sections.length ?? 0
-  const completedCount = study.session?.completedSectionIds.length ?? 0
-  const progressPercent = Math.round(study.progress01 * 100)
-  const [desk, setDesk] = useState<'lesson' | 'practice'>('lesson')
+  const activeIndex = study.session?.activeSectionIndex ?? 0
+  const [view, setView] = useState<StudyPaneView>('catalog')
   const [practiceTema, setPracticeTema] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<BookmarkDialogKind | null>(null)
+  const moveDialogRef = useRef<(confirmed: boolean) => void>(undefined)
 
   const bank = useMemo(
     () =>
@@ -32,301 +37,254 @@ export function StudyScreen(
     [document],
   )
 
+  const openCatalog = () => setView('catalog')
+  const openLesson = (index: number) => {
+    study.selectSectionIndex(index)
+    setView('reader')
+  }
   const openPractice = (tema: string | undefined) => {
     setPracticeTema(tema ?? null)
-    setDesk('practice')
+    setView('practice')
+  }
+
+  const continueIndex = document ? bookmarkIndex(document.sections, study.bookmark) : -1
+  const continueSection = continueIndex >= 0 ? (document?.sections[continueIndex] ?? null) : null
+
+  const openContinue = () => {
+    if (continueIndex < 0) {
+      setDialog('orphan')
+      return
+    }
+    openLesson(continueIndex)
   }
 
   return (
-    <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-sage-50 font-sans text-ink-900"
-      data-testid={STUDY_TEST_IDS.screen}
-    >
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sage-200 bg-atelier-elev px-5 py-3">
-        <div>
-          <h1 className="m-0 font-serif text-2xl text-ink-900">{copy.screenTitle}</h1>
-          {document ? <p className="mt-0.5 text-sm text-ink-600">{copy.catalogTitle}</p> : null}
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-testid={STUDY_TEST_IDS.deskLesson}
-              aria-pressed={desk === 'lesson'}
-              className={deskChipClass(desk === 'lesson')}
-              onClick={() => setDesk('lesson')}
+    <div className="study-notebook flex h-full min-h-0 flex-col overflow-hidden" data-testid={STUDY_TEST_IDS.screen}>
+      <header className="study-notebook-header">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-serif">{copy.screenTitle}</h1>
+            {document ? <p className="catalog-kicker">{copy.catalogTitle}</p> : null}
+            <div className="desk-row">
+              <button
+                type="button"
+                data-testid={STUDY_TEST_IDS.deskLesson}
+                aria-pressed={view !== 'practice'}
+                className="desk-chip"
+                onClick={openCatalog}
+              >
+                {copy.deskLessonLabel}
+              </button>
+              <button
+                type="button"
+                data-testid={STUDY_TEST_IDS.deskPractice}
+                aria-pressed={view === 'practice'}
+                className="desk-chip"
+                onClick={() => openPractice(active?.tema)}
+              >
+                {copy.deskPracticeLabel}
+              </button>
+            </div>
+          </div>
+          <div className="header-right">
+            <span
+              className={study.storageWarning ? 'sync off' : 'sync on'}
+              data-testid={STUDY_TEST_IDS.saveChip}
+              title={study.storageWarning ?? copy.saveChipOn}
             >
-              {copy.deskLessonLabel}
-            </button>
-            <button
-              type="button"
-              data-testid={STUDY_TEST_IDS.deskPractice}
-              aria-pressed={desk === 'practice'}
-              className={deskChipClass(desk === 'practice')}
-              onClick={() => openPractice(active?.tema)}
-            >
-              {copy.deskPracticeLabel}
-            </button>
+              {study.storageWarning ? copy.saveChipOff : copy.saveChipOn}
+            </span>
+            {props.embedded ? null : (
+              <button
+                type="button"
+                className="btn chico"
+                onClick={() => {
+                  window.location.hash = ''
+                }}
+              >
+                {copy.backToPracticeLabel}
+              </button>
+            )}
           </div>
         </div>
-        {props.embedded ? null : (
-          <button
-            type="button"
-            className="rounded-lg border border-sage-200 bg-sage-50 px-3 py-1.5 text-sm font-semibold text-ink-600 hover:border-sage-600"
-            onClick={() => {
-              window.location.hash = ''
-            }}
-          >
-            {copy.backToPracticeLabel}
-          </button>
-        )}
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-6xl flex-1 flex-col gap-3 overflow-hidden px-3 py-3 lg:px-4">
-        {study.status === 'loading' ? (
-          <p className="m-0 text-sm text-ink-600">{copy.loadingMessage}</p>
-        ) : null}
-        {study.storageWarning ? (
-          <p className="m-0 text-sm text-ink-600">{study.storageWarning}</p>
-        ) : null}
+      <div className={view === 'practice' ? 'study-notebook-pane is-practice' : 'study-notebook-pane'}>
+        {study.status === 'loading' ? <p className="nota-info px-4">{copy.loadingMessage}</p> : null}
+        {study.storageWarning ? <p className="nota-info px-4">{study.storageWarning}</p> : null}
 
         {study.status === 'empty' ? (
-          <div className="rounded-2xl bg-atelier-elev p-6 shadow-sm ring-1 ring-sage-200">
-            <p className="m-0 font-serif text-xl text-ink-900">{copy.emptyLead}</p>
-            <p className="mt-2 text-sm leading-relaxed text-ink-600">{copy.emptyHint}</p>
+          <div className="study-notebook-column">
+            <div className="sheet">
+              <h2>{copy.emptyLead}</h2>
+              <p className="nota-info">{copy.emptyHint}</p>
+            </div>
           </div>
         ) : null}
 
-        {document && active && desk === 'lesson' ? (
-          <div className="grid min-h-0 flex-1 gap-3 overflow-hidden lg:grid-cols-[15rem_minmax(0,1fr)]">
-            <StudySyllabusList
-              sections={document.sections}
-              activeSectionIndex={study.session?.activeSectionIndex ?? 0}
-              completedSectionIds={study.session?.completedSectionIds ?? []}
-              onSelect={(index) => {
-                study.selectSectionIndex(index)
-                setDesk('lesson')
-              }}
-            />
-            <StudySectionReader
-              section={active}
-              canGoNext={study.canGoNext}
-              canGoPrevious={study.canGoPrevious}
-              progressPercent={progressPercent}
-              progressLabel={copy.progressValue(completedCount, sectionCount)}
-              onNext={study.goNext}
-              onPrevious={study.goPrevious}
-              onPractice={() => openPractice(active.tema)}
-            />
-          </div>
-        ) : null}
-
-        {document && desk === 'practice' ? (
-          <StudyPracticeDesk
-            bank={bank}
-            tema={practiceTema}
-            lessonTema={active?.tema ?? null}
-            onTemaChange={setPracticeTema}
-            onBackToLesson={() => setDesk('lesson')}
+        {document && view === 'catalog' ? (
+          <StudyCatalog
+            sections={document.sections}
+            bookmark={study.bookmark}
+            continueSection={continueSection}
+            continueOrphan={Boolean(study.bookmark) && continueIndex < 0}
+            onContinue={openContinue}
+            onSelect={openLesson}
           />
+        ) : null}
+
+        {document && active && view === 'reader' ? (
+          <StudySectionReader
+            section={active}
+            lessonNumber={activeIndex + 1}
+            total={document.sections.length}
+            bookmark={study.bookmark}
+            canGoNext={study.canGoNext}
+            canGoPrevious={study.canGoPrevious}
+            onBackToCatalog={openCatalog}
+            onNext={study.goNext}
+            onPrevious={study.goPrevious}
+            onPractice={() => openPractice(active.tema)}
+            onPlant={study.plantBookmark}
+            onClear={study.clearBookmark}
+            onAskMove={() =>
+              new Promise<boolean>((resolve) => {
+                moveDialogRef.current = resolve
+                setDialog('move')
+              })
+            }
+          />
+        ) : null}
+
+        {document && view === 'practice' ? (
+          <div className="study-notebook-column practice-fill">
+            <StudyPracticeDesk
+              bank={bank}
+              tema={practiceTema}
+              lessonTema={active?.tema ?? null}
+              onTemaChange={setPracticeTema}
+              onBackToLesson={() => setView('reader')}
+            />
+          </div>
         ) : null}
       </div>
+
+      {dialog ? (
+        <BookmarkDialog
+          kind={dialog}
+          currentTitle={study.bookmark?.title ?? ''}
+          onConfirm={() => {
+            setDialog(null)
+            if (dialog === 'move') {
+              moveDialogRef.current?.(true)
+              moveDialogRef.current = undefined
+            }
+          }}
+          onCancel={() => {
+            setDialog(null)
+            moveDialogRef.current?.(false)
+            moveDialogRef.current = undefined
+          }}
+        />
+      ) : null}
     </div>
-  )
-}
-
-function deskChipClass(active: boolean): string {
-  return active
-    ? 'rounded-lg bg-sage-100 px-3 py-1.5 text-sm font-semibold text-ink-900 ring-1 ring-sage-600'
-    : 'rounded-lg border border-sage-200 bg-sage-50 px-3 py-1.5 text-sm font-semibold text-ink-600 hover:border-sage-600'
-}
-
-function StudySyllabusList(props: {
-  readonly sections: readonly StudySection[]
-  readonly activeSectionIndex: number
-  readonly completedSectionIds: readonly string[]
-  readonly onSelect: (index: number) => void
-}) {
-  const copy = studyInterfaceTexts
-  const activeButtonRef = useRef<HTMLButtonElement | null>(null)
-  const groups = groupStudyBlocks(props.sections)
-
-  useEffect(() => {
-    const node = activeButtonRef.current
-    if (node && typeof node.scrollIntoView === 'function') {
-      node.scrollIntoView({ block: 'nearest' })
-    }
-  }, [props.activeSectionIndex])
-
-  return (
-    <nav
-      className="flex max-h-40 min-h-0 flex-col overflow-hidden rounded-2xl bg-atelier-elev p-3 shadow-sm ring-1 ring-sage-200 lg:max-h-none"
-      data-testid={STUDY_TEST_IDS.syllabus}
-      aria-label={copy.syllabusTitle}
-    >
-      <h2 className="m-0 shrink-0 px-2 font-serif text-lg text-ink-900">{copy.syllabusTitle}</h2>
-      <ol className="mt-2 min-h-0 list-none space-y-2 overflow-y-auto p-0">
-        {groups.map((group) => (
-          <SyllabusGroup
-            key={groupKey(group)}
-            group={group}
-            activeSectionIndex={props.activeSectionIndex}
-            completedSectionIds={props.completedSectionIds}
-            activeButtonRef={activeButtonRef}
-            onSelect={props.onSelect}
-          />
-        ))}
-      </ol>
-    </nav>
-  )
-}
-
-function groupKey(group: StudyIndexGroup): string {
-  const first = group.items[0]?.index ?? 0
-  return group.type === 'block' ? `block-${group.bloque}-${first}` : `loose-${first}`
-}
-
-function SyllabusGroup(props: {
-  readonly group: StudyIndexGroup
-  readonly activeSectionIndex: number
-  readonly completedSectionIds: readonly string[]
-  readonly activeButtonRef: RefObject<HTMLButtonElement | null>
-  readonly onSelect: (index: number) => void
-}) {
-  const copy = studyInterfaceTexts
-  const rows = props.group.items.map((item) => (
-    <SyllabusLessonRow
-      key={item.section.id}
-      item={item}
-      isActive={item.index === props.activeSectionIndex}
-      done={props.completedSectionIds.includes(item.section.id)}
-      activeButtonRef={props.activeButtonRef}
-      onSelect={props.onSelect}
-    />
-  ))
-  if (props.group.type === 'loose') {
-    return rows
-  }
-  return (
-    <li
-      className="rounded-xl bg-sage-50 p-2 ring-1 ring-sage-200"
-      data-testid={STUDY_TEST_IDS.syllabusBlock}
-    >
-      <p className="m-0 px-1 text-xs font-semibold uppercase tracking-wide text-ink-600">
-        {props.group.bloqueEs}
-      </p>
-      <p className="m-0 px-1 text-[11px] text-ink-600">{copy.blockMeta(props.group.items.length)}</p>
-      <ol className="mt-1 list-none space-y-1 p-0">{rows}</ol>
-    </li>
-  )
-}
-
-function SyllabusLessonRow(props: {
-  readonly item: StudyIndexItem
-  readonly isActive: boolean
-  readonly done: boolean
-  readonly activeButtonRef: RefObject<HTMLButtonElement | null>
-  readonly onSelect: (index: number) => void
-}) {
-  return (
-    <li>
-      <button
-        ref={props.isActive ? props.activeButtonRef : undefined}
-        type="button"
-        aria-current={props.isActive ? 'true' : undefined}
-        className={`flex w-full items-start justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm ${
-          props.isActive
-            ? 'bg-sage-100 font-semibold text-ink-900 ring-1 ring-sage-600'
-            : 'text-ink-600 hover:bg-sage-50'
-        }`}
-        onClick={() => props.onSelect(props.item.index)}
-      >
-        <span>{props.item.section.title}</span>
-        {props.done ? (
-          <span className="shrink-0 text-sage-600" aria-hidden>
-            ✓
-          </span>
-        ) : null}
-      </button>
-    </li>
   )
 }
 
 function StudySectionReader(props: {
   readonly section: StudySection
+  readonly lessonNumber: number
+  readonly total: number
+  readonly bookmark: StudyBookmark | null
   readonly canGoNext: boolean
   readonly canGoPrevious: boolean
-  readonly progressPercent: number
-  readonly progressLabel: string
+  readonly onBackToCatalog: () => void
+  readonly onNext: () => void
+  readonly onPrevious: () => void
+  readonly onPractice: () => void
+  readonly onPlant: () => void
+  readonly onClear: () => void
+  readonly onAskMove: () => Promise<boolean>
+}) {
+  const copy = studyInterfaceTexts
+  return (
+    <div className="study-notebook-column">
+      <LessonNav
+        lessonNumber={props.lessonNumber}
+        total={props.total}
+        canGoNext={props.canGoNext}
+        canGoPrevious={props.canGoPrevious}
+        onBackToCatalog={props.onBackToCatalog}
+        onNext={props.onNext}
+        onPrevious={props.onPrevious}
+        onPractice={props.onPractice}
+      />
+      <article className="sheet sheet-con-marcapaginas">
+        <BookmarkRibbon
+          key={props.section.id}
+          planted={isBookmarkOnSection(props.bookmark, props.section.id)}
+          needsMoveConfirm={bookmarkNeedsMoveConfirm(props.bookmark, props.section.id)}
+          onPlant={props.onPlant}
+          onClear={props.onClear}
+          onAskMove={props.onAskMove}
+        />
+        <span className="lesson-tag" data-testid={STUDY_TEST_IDS.lessonTag}>
+          {copy.lessonTag(props.lessonNumber)}
+        </span>
+        {props.section.bloqueEs ? <span className="lesson-bloque-tag">{props.section.bloqueEs}</span> : null}
+        <h2 data-testid={STUDY_TEST_IDS.sectionTitle}>{props.section.title}</h2>
+        {props.section.titleEn ? <p className="titulo-en">{props.section.titleEn}</p> : null}
+        {props.section.objetivo ? (
+          <p className="nota-info" data-testid={STUDY_TEST_IDS.studyObjetivo}>
+            <b>{copy.studyLabel}</b> {props.section.objetivo}
+          </p>
+        ) : null}
+        <div className="reader-body" data-testid={STUDY_TEST_IDS.sectionBody}>
+          <LessonMarkdown source={props.section.bodyText} />
+        </div>
+      </article>
+    </div>
+  )
+}
+
+function LessonNav(props: {
+  readonly lessonNumber: number
+  readonly total: number
+  readonly canGoNext: boolean
+  readonly canGoPrevious: boolean
+  readonly onBackToCatalog: () => void
   readonly onNext: () => void
   readonly onPrevious: () => void
   readonly onPractice: () => void
 }) {
   const copy = studyInterfaceTexts
   return (
-    <article className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-atelier-elev shadow-sm ring-1 ring-sage-200">
-      <header className="shrink-0 border-b border-sage-200 px-5 py-3">
-        <h2
-          className="m-0 font-serif text-2xl text-ink-900"
-          data-testid={STUDY_TEST_IDS.sectionTitle}
-        >
-          {props.section.title}
-        </h2>
-        {props.section.titleEn ? (
-          <p className="mt-1 text-sm text-ink-600">{props.section.titleEn}</p>
-        ) : null}
-      </header>
-      <div
-        key={props.section.id}
-        className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
-        data-testid={STUDY_TEST_IDS.sectionBody}
+    <div className="lec-nav" data-testid={STUDY_TEST_IDS.lessonNav}>
+      <button type="button" className="btn chico" data-testid={STUDY_TEST_IDS.backToCatalog} onClick={props.onBackToCatalog}>
+        ☰ {copy.catalogButton}
+      </button>
+      <button
+        type="button"
+        className="btn chico"
+        data-testid={STUDY_TEST_IDS.previous}
+        disabled={!props.canGoPrevious}
+        onClick={props.onPrevious}
       >
-        <LessonMarkdown source={props.section.bodyText} />
-      </div>
-      <footer className="shrink-0 border-t border-sage-200 px-5 py-3">
-        <p className="m-0 text-xs font-semibold uppercase tracking-wide text-ink-600">
-          {copy.progressLabel} · {props.progressLabel}
-        </p>
-        <div
-          className="mt-2 h-1.5 overflow-hidden rounded-full bg-sage-200"
-          data-testid={STUDY_TEST_IDS.progress}
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={props.progressPercent}
-        >
-          <div
-            className="h-full rounded-full bg-sage-600"
-            style={{ width: `${props.progressPercent}%` }}
-          />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            data-testid={STUDY_TEST_IDS.previous}
-            className="rounded-lg border border-sage-200 bg-sage-50 px-4 py-2 text-sm font-semibold text-ink-600 hover:border-sage-600 disabled:opacity-40"
-            disabled={!props.canGoPrevious}
-            onClick={props.onPrevious}
-          >
-            {copy.previousLabel}
-          </button>
-          <button
-            type="button"
-            data-testid={STUDY_TEST_IDS.next}
-            className="rounded-lg bg-sage-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sage-700 disabled:opacity-40"
-            disabled={!props.canGoNext}
-            onClick={props.onNext}
-          >
-            {copy.nextLabel}
-          </button>
-          <button
-            type="button"
-            data-testid={STUDY_TEST_IDS.practiceCta}
-            className="rounded-lg border border-sage-600 bg-sage-50 px-4 py-2 text-sm font-semibold text-sage-700 hover:bg-sage-100"
-            onClick={props.onPractice}
-          >
-            {copy.practiceCtaLabel}
-          </button>
-        </div>
-      </footer>
-    </article>
+        ← {copy.previousLabel}
+      </button>
+      <button
+        type="button"
+        className="btn chico"
+        data-testid={STUDY_TEST_IDS.next}
+        disabled={!props.canGoNext}
+        onClick={props.onNext}
+      >
+        {copy.nextLabel} →
+      </button>
+      <button type="button" className="btn primario" data-testid={STUDY_TEST_IDS.practiceCta} onClick={props.onPractice}>
+        {copy.practiceCtaLabel}
+      </button>
+      <span className="pos">{copy.lessonPosition(props.lessonNumber, props.total)}</span>
+    </div>
   )
 }

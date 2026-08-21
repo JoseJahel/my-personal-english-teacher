@@ -1,7 +1,9 @@
-import type { StudyDocument, StudySession } from '../study/study-types'
+import { normalizeStudyBookmark } from '../study/study-bookmark'
+import type { StudyBookmark, StudyDocument, StudySession } from '../study/study-types'
 
 /**
  * Persisted study progress for a packaged catalog. Never the lesson body.
+ * `bookmark` is optional so IDB v2 records without it still load.
  */
 export interface StudyProgressRecord {
   readonly catalogId: string
@@ -9,6 +11,7 @@ export interface StudyProgressRecord {
   readonly activeSectionIndex: number
   readonly completedSectionIds: readonly string[]
   readonly updatedAtIso: string
+  readonly bookmark?: StudyBookmark | null
 }
 
 export function createStudyProgressRecord(
@@ -22,6 +25,7 @@ export function createStudyProgressRecord(
     activeSectionIndex: session.activeSectionIndex,
     completedSectionIds: session.completedSectionIds,
     updatedAtIso,
+    ...(session.bookmark ? { bookmark: session.bookmark } : {}),
   }
 }
 
@@ -86,5 +90,25 @@ export function studySessionFromProgress(
     documentId: document.id,
     activeSectionIndex,
     completedSectionIds,
+    bookmark: readProgressBookmark(record.bookmark, knownIds, record.catalogId),
   }
+}
+
+function readProgressBookmark(
+  raw: unknown,
+  knownIds: ReadonlySet<string>,
+  catalogId: string,
+): StudyBookmark | null {
+  if (raw === undefined || raw === null) {
+    return null
+  }
+  const normalized = normalizeStudyBookmark(raw)
+  if (normalized && knownIds.has(normalized.sectionId)) {
+    return normalized
+  }
+  console.warn('Dropped invalid study bookmark.', {
+    catalogId,
+    sectionId: normalized?.sectionId,
+  })
+  return null
 }
