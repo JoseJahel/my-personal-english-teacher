@@ -167,8 +167,8 @@ export function HomeScreen(props: HomeScreenProps) {
     ? `${transcribedText}\u0000${correctedGrammarText}\u0000${String(pronunciationScore0to100)}`
     : ''
 
-  // ChatGPT-style artifact panel: auto-open when there is turn data the user
-  // has not dismissed; manual open always wins.
+  // Chat-with-artifact-panel layout: auto-open when there is turn data the
+  // user has not dismissed; manual open always wins.
   const isFeedbackPanelOpen =
     panelManuallyOpen ||
     (turnFingerprint !== '' && turnFingerprint !== dismissedTurnFingerprint)
@@ -222,7 +222,7 @@ export function HomeScreen(props: HomeScreenProps) {
     <div
       className="flex h-full min-h-0 flex-col bg-sage-50 font-sans text-ink-900"
       data-testid={PRACTICE_SHELL_TEST_IDS.shell}
-      data-shell-variant="chatgpt"
+      data-shell-variant="chat-artifact"
     >
       {showMockEnvironmentWarning && environmentDiagnosticsMessage ? (
         <p className="shrink-0 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900 ring-1 ring-amber-200">
@@ -309,9 +309,11 @@ export function HomeScreen(props: HomeScreenProps) {
                 openFeedbackPanel('signals')
               }}
             />
-            <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
-              <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />
-            </div>
+            {communicationSuggestions.length > 0 ? (
+              <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
+                <CommunicationSuggestionsPanel suggestions={communicationSuggestions} />
+              </div>
+            ) : null}
 
             <div className="mt-3 w-full max-w-[44rem] rounded-2xl bg-white p-4 shadow-sm ring-1 ring-sage-200/80">
               <DrillPanel
@@ -378,6 +380,7 @@ export function HomeScreen(props: HomeScreenProps) {
           livePeak={livePeak}
           isListening={isListening}
           isStarting={isStarting}
+          communicationSuggestions={communicationSuggestions}
           onClose={closeFeedbackPanel}
           onSelectTab={setFeedbackTab}
         />

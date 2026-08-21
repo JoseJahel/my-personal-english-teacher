@@ -1,14 +1,13 @@
 import type { TextGenerationPipeline, TextToAudioPipeline } from '@huggingface/transformers'
+import { generateCommunicationCoaching } from './communication-coaching-generation'
 import { generateTutorReply } from './conversation-suggestions'
 import type {
+  GenerateCommunicationCoachingRequestMessage,
   GenerateTutorReplyRequestMessage,
   InferenceWorkerResponseMessage,
   SynthesizeSpeechRequestMessage,
 } from './inference-worker-protocol'
-import {
-  prepareTextForSpeechSynthesis,
-  synthesizeSpeechFromText,
-} from './text-to-speech-synthesis'
+import { prepareTextForSpeechSynthesis, synthesizeSpeechFromText } from './text-to-speech-synthesis'
 
 export async function handleGenerateTutorReplyMessage(
   message: GenerateTutorReplyRequestMessage,
@@ -36,7 +35,11 @@ export async function handleGenerateTutorReplyMessage(
       })
       return
     }
-    deps.postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'model-load-failed' })
+    deps.postResponse({
+      type: 'generate-tutor-reply-error',
+      requestId,
+      reason: 'model-load-failed',
+    })
     return
   }
 
@@ -64,7 +67,58 @@ export async function handleGenerateTutorReplyMessage(
       })
       return
     }
-    deps.postResponse({ type: 'generate-tutor-reply-error', requestId, reason: 'generation-failed' })
+    deps.postResponse({
+      type: 'generate-tutor-reply-error',
+      requestId,
+      reason: 'generation-failed',
+    })
+  }
+}
+
+export async function handleGenerateCommunicationCoachingMessage(
+  message: GenerateCommunicationCoachingRequestMessage,
+  deps: {
+    readonly getConversationGenerator: () => Promise<TextGenerationPipeline>
+    readonly emitModelReady: () => void
+    readonly postResponse: (message: InferenceWorkerResponseMessage) => void
+  },
+): Promise<void> {
+  const { requestId, scenarioContextEn, lastTutorLineEn, userUtteranceEn } = message
+
+  let generator: TextGenerationPipeline
+  try {
+    generator = await deps.getConversationGenerator()
+    deps.emitModelReady()
+  } catch (error) {
+    console.error('Failed to load SmolLM2 conversation model.', error)
+    deps.postResponse({
+      type: 'generate-communication-coaching-error',
+      requestId,
+      reason: 'model-load-failed',
+    })
+    return
+  }
+
+  try {
+    const result = await generateCommunicationCoaching(generator, {
+      scenarioContextEn,
+      lastTutorLineEn,
+      userUtteranceEn,
+    })
+    deps.postResponse({
+      type: 'generate-communication-coaching-result',
+      requestId,
+      tryThisEn: result.draft?.tryThisEn ?? '',
+      whyEs: result.draft?.whyEs ?? '',
+      usedFallback: result.usedFallback,
+    })
+  } catch (error) {
+    console.error('Communication coaching generation failed.', error)
+    deps.postResponse({
+      type: 'generate-communication-coaching-error',
+      requestId,
+      reason: 'generation-failed',
+    })
   }
 }
 

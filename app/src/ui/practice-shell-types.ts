@@ -36,6 +36,8 @@ export const PRACTICE_SHELL_TEST_IDS = {
   tabSuggest: 'panel-tab-suggest',
   tabSignals: 'panel-tab-signals',
   tabTech: 'panel-tab-tech',
+  suggestionsPanel: 'communication-suggestions',
+  suggestionsEmpty: 'communication-suggestions-empty',
   panelEmpty: 'panel-empty-state',
   panelFilled: 'panel-filled-state',
   spectrogramCanvas: 'spectrogram-canvas',

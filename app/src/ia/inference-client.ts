@@ -4,6 +4,7 @@
  */
 
 import type {
+  GenerateCommunicationCoachingErrorReason,
   GenerateTutorReplyErrorReason,
   GenerateTutorReplyRequestMessage,
   GrammarCorrectionErrorReason,
@@ -31,6 +32,7 @@ export type InferenceClientErrorReason =
   | PreloadModelsErrorReason
   | SynthesizeSpeechErrorReason
   | GenerateTutorReplyErrorReason
+  | GenerateCommunicationCoachingErrorReason
   | PreloadConversationModelErrorReason
   | 'worker-unavailable'
 
@@ -42,6 +44,18 @@ export interface SynthesizedSpeechResult {
 export interface TutorReplyResult {
   readonly tutorReplyText: string
   readonly usedFallback: boolean
+}
+
+export interface CommunicationCoachingResult {
+  readonly tryThisEn: string
+  readonly whyEs: string
+  readonly usedFallback: boolean
+}
+
+export interface GenerateCommunicationCoachingInput {
+  readonly scenarioContextEn: string
+  readonly lastTutorLineEn: string
+  readonly userUtteranceEn: string
 }
 
 export interface GenerateTutorReplyInput {
@@ -126,12 +140,16 @@ export interface InferenceClient {
    */
   transcribe: (samples16kHz: Float32Array, asrCandidateId?: AsrModelCandidateId) => Promise<string>
   correctGrammar: (englishText: string) => Promise<string>
-  /** SpeechT5 TTS; also part of the parallel warm preload. */
+  /** Supertonic TTS; also part of the parallel warm preload. */
   synthesizeSpeech: (englishText: string) => Promise<SynthesizedSpeechResult>
   /** SmolLM2 tutor reply; loads on first call; falls back to scenario line on soft failure. */
   generateTutorReply: (input: GenerateTutorReplyInput) => Promise<TutorReplyResult>
+  /** SmolLM2 rewrite of the student's line for the suggestions panel. */
+  generateCommunicationCoaching: (
+    input: GenerateCommunicationCoachingInput,
+  ) => Promise<CommunicationCoachingResult>
   /**
-   * Warm-load Whisper + T5 + SpeechT5 in parallel (progress events still fire).
+   * Warm-load Whisper + T5 + Supertonic in parallel (progress events still fire).
    * `asrCandidateId` is a benchmark-only override; normal app flow omits it.
    */
   preloadModels: (asrCandidateId?: AsrModelCandidateId) => Promise<void>
@@ -160,6 +178,11 @@ interface PendingTutorReplyRequest {
   reject: (error: InferenceClientError) => void
 }
 
+interface PendingCoachingRequest {
+  resolve: (result: CommunicationCoachingResult) => void
+  reject: (error: InferenceClientError) => void
+}
+
 interface PendingVoidRequest {
   resolve: () => void
   reject: (error: InferenceClientError) => void
@@ -183,6 +206,7 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
   const pendingTextRequests = new Map<string, PendingTextRequest>()
   const pendingSpeechRequests = new Map<string, PendingSpeechRequest>()
   const pendingTutorReplyRequests = new Map<string, PendingTutorReplyRequest>()
+  const pendingCoachingRequests = new Map<string, PendingCoachingRequest>()
   const pendingVoidRequests = new Map<string, PendingVoidRequest>()
   const progressListeners = new Set<ModelLoadingProgressListener>()
   const modelReadyListeners = new Set<ModelReadyListener>()
@@ -268,6 +292,25 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
           )
         pendingTutorReplyRequests.delete(message.requestId)
         break
+      case 'generate-communication-coaching-result':
+        pendingCoachingRequests.get(message.requestId)?.resolve({
+          tryThisEn: message.tryThisEn,
+          whyEs: message.whyEs,
+          usedFallback: message.usedFallback,
+        })
+        pendingCoachingRequests.delete(message.requestId)
+        break
+      case 'generate-communication-coaching-error':
+        pendingCoachingRequests
+          .get(message.requestId)
+          ?.reject(
+            new InferenceClientError(
+              message.reason,
+              `Communication coaching failed with reason '${message.reason}'.`,
+            ),
+          )
+        pendingCoachingRequests.delete(message.requestId)
+        break
       case 'preload-models-result':
         pendingVoidRequests.get(message.requestId)?.resolve()
         pendingVoidRequests.delete(message.requestId)
@@ -319,6 +362,10 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
       pendingRequest.reject(workerError)
     }
     pendingTutorReplyRequests.clear()
+    for (const pendingRequest of pendingCoachingRequests.values()) {
+      pendingRequest.reject(workerError)
+    }
+    pendingCoachingRequests.clear()
     for (const pendingRequest of pendingVoidRequests.values()) {
       pendingRequest.reject(workerError)
     }
@@ -394,6 +441,26 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
       }
 
       worker.postMessage(message)
+    })
+  }
+
+  function generateCommunicationCoaching(
+    input: GenerateCommunicationCoachingInput,
+  ): Promise<CommunicationCoachingResult> {
+    const disposedError = rejectIfDisposed()
+    if (disposedError) {
+      return Promise.reject(disposedError)
+    }
+    const requestId = crypto.randomUUID()
+    return new Promise<CommunicationCoachingResult>((resolve, reject) => {
+      pendingCoachingRequests.set(requestId, { resolve, reject })
+      worker.postMessage({
+        type: 'generate-communication-coaching',
+        requestId,
+        scenarioContextEn: input.scenarioContextEn,
+        lastTutorLineEn: input.lastTutorLineEn,
+        userUtteranceEn: input.userUtteranceEn,
+      })
     })
   }
 
@@ -486,6 +553,10 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
       pendingRequest.reject(disposalError)
     }
     pendingTutorReplyRequests.clear()
+    for (const pendingRequest of pendingCoachingRequests.values()) {
+      pendingRequest.reject(disposalError)
+    }
+    pendingCoachingRequests.clear()
     for (const pendingRequest of pendingVoidRequests.values()) {
       pendingRequest.reject(disposalError)
     }
@@ -501,6 +572,7 @@ export function createInferenceClient(options?: CreateInferenceClientOptions): I
     correctGrammar,
     synthesizeSpeech,
     generateTutorReply,
+    generateCommunicationCoaching,
     preloadModels,
     preloadConversationModel,
     subscribeToModelLoadingProgress,

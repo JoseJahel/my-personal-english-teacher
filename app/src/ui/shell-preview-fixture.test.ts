@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createShellPreviewComposingProps,
+  createShellPreviewFilledProps,
   resolveShellPreviewVariant,
 } from './shell-preview-fixture'
 
@@ -21,5 +22,17 @@ describe('createShellPreviewComposingProps', () => {
     expect(props.isTutorSpeaking).toBe(false)
     expect(props.isListening).toBe(false)
     expect(props.isStarting).toBe(false)
+  })
+})
+
+describe('createShellPreviewFilledProps', () => {
+  it('includes real communication suggestions for the completed turn', () => {
+    const props = createShellPreviewFilledProps()
+    expect(props.communicationSuggestions.length).toBeGreaterThan(0)
+    expect(
+      props.communicationSuggestions.some((item) =>
+        (item.tryThisEn ?? item.text).toLowerCase().includes('glass of water'),
+      ),
+    ).toBe(true)
   })
 })

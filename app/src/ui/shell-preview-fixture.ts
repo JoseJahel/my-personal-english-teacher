@@ -4,6 +4,7 @@
  */
 
 import { createRef } from 'react'
+import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
 import type { PracticeTurnRecord } from '../storage/practice-session-types'
 import type { HomeScreenProps } from './HomeScreen'
 import type { PracticeChatMessage } from './practice-chat-messages'
@@ -150,6 +151,12 @@ export function createShellPreviewFilledProps(): HomeScreenProps {
     chatMessages: sampleMessages,
     transcribedText: 'I would like a glass of water please',
     correctedGrammarText: 'I would like a glass of water, please.',
+    communicationSuggestions: buildCommunicationSuggestions({
+      scenarioId: 'restaurant',
+      userUtteranceEn: 'I would like a glass of water please',
+      correctedUtteranceEn: 'I would like a glass of water, please.',
+      userTurnIndex: 0,
+    }),
     pronunciationScore0to100: 78,
     pronunciationMfccScore0to100: 81,
     pronunciationPitchScore0to100: 74,

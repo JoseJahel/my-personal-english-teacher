@@ -85,9 +85,6 @@ export const homeScreenInterfaceTexts = {
     emptyPanelTitle: 'Aún no hay turno',
     emptyPanelDescription:
       'Cuando hables, aquí verás transcripción, gramática, puntuación y palabras marcadas — como el panel de artefacto en un chat de escritorio.',
-    suggestionsEmpty: 'Las sugerencias de comunicación aparecerán aquí tras un turno (issue #60).',
-    suggestionsPlaceholderHint:
-      'Por ahora el tutor responde en el chat; el panel dedicado de sugerencias es el siguiente paso de producto.',
     scoreBlockLabel: 'Pronunciación',
     breakdownTitle: 'Desglose',
     metricMfcc: 'MFCC',
@@ -104,7 +101,7 @@ export const homeScreenInterfaceTexts = {
     techAsrValue: 'whisper-small.en',
     techGrammarValue: 'T5 · WASM',
     techTutorValue: 'SmolLM2 + reglas',
-    techTtsValue: 'SpeechT5',
+    techTtsValue: 'Supertonic',
     techScoreValue: 'MFCC · YIN · DTW',
     techMicInactive: 'inactivo',
     techMicListening: 'escuchando',
@@ -357,7 +354,11 @@ export const homeScreenInterfaceTexts = {
   pronunciationPanelLabel: 'Pronunciación (señales)',
   communicationSuggestions: {
     panelTitle: 'Sugerencias para comunicarte mejor',
-    panelHint: 'Ideas offline para sonar más natural — no reemplazan al tutor.',
+    panelHint: 'Reescritura de tu última frase — no son consejos genéricos.',
+    emptyHint:
+      'Cuando completes un turno, aquí verás cómo mejorar esa frase concreta: lo que dijiste y una versión más natural.',
+    youSaidLabel: 'Tú dijiste',
+    tryThisLabel: 'Prueba esto',
     typeLabels: {
       vocabulario: 'Vocabulario',
       fluidez: 'Fluidez',

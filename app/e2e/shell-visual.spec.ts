@@ -42,6 +42,11 @@ test.describe('practice shell — structure', () => {
     await expect(page.getByTestId('panel-filled-state')).toBeVisible()
     await expect(page.getByTestId('panel-tab-turn')).toHaveAttribute('aria-selected', 'true')
 
+    await page.getByTestId('panel-tab-suggest').click()
+    const suggestionsTab = page.getByTestId('feedback-panel').getByTestId('communication-suggestions')
+    await expect(suggestionsTab).toBeVisible()
+    await expect(suggestionsTab).toContainText('Could I have a glass of water, please?')
+
     await page.getByTestId('panel-tab-signals').click()
     await expect(page.getByTestId('formant-vowel-map')).toBeVisible()
 
