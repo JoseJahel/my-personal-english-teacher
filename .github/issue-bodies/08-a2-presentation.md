@@ -42,7 +42,7 @@ Defensa oral del equipo ante el profesor con estructura profesional.
 
 ## 7. Estado actual
 - `app/README.md` checklist offline
-- `_claude/artifacts/screenshots/` (pueden servir de base; verificar que no estén obsoletas)
+- Capturas ya guardadas localmente (pueden servir de base; verificar que no estén obsoletas)
 - Issue #28 (Final) — referencia de alcance, no sustituye A2
 
 ## 8. Investigación

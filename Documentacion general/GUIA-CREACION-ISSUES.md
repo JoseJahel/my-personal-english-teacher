@@ -26,7 +26,7 @@ Un issue no es un recordatorio vago (“mejorar audio”). Es un **contrato de t
 5. Verificar el resultado con **criterios de aceptación medibles**.
 6. Abrir un PR hacia `main` (rama personal `*-frontend` o rama temporal de agente) con `Closes #N`.
 
-Si el ticket no basta para que un agente de IA arranque sin preguntar “¿qué es el proyecto?”, el ticket **no está listo**.
+Si el ticket no basta para que alguien nuevo en el proyecto arranque sin preguntar “¿qué es el proyecto?”, el ticket **no está listo**.
 
 ---
 

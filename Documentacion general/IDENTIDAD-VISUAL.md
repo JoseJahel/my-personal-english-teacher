@@ -42,7 +42,7 @@ Los tokens `sage-*` se reutilizan en clases Tailwind existentes; los valores hex
 
 - Letra **T** (Teacher) en círculo `ink-900` con texto `sage-50`, serif itálica  
 - Wordmark **Teacher** en Instrument Serif itálica; no MPET ni Atelier  
-- No copiar marcas de terceros (ChatGPT, Claude, etc.)
+- No copiar marcas ni iconografía de productos de chat comerciales de terceros
 
 ## Anti-patrones
 
