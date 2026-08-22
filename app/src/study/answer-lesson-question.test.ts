@@ -86,4 +86,26 @@ describe('answerLessonQuestion', () => {
     expect(answerLessonQuestion('como se dice', LESSON).kind).toBe('unknown')
     expect(answerLessonQuestion('   ', LESSON).kind).toBe('unknown')
   })
-})
+  it('reads the goal from the body when the lesson has no objetivo field', () => {
+    const lesson: LessonQuestionSource = {
+      lessonId: 'file-1a',
+      tema: 'besingular',
+      bodyMarkdown: [
+        '## Qu\u00e9 vas a aprender',
+        '- Saludar, presentarte y decir *Nice to meet you*.',
+        '- Usar el verbo *be* en singular con *I* y *you*.',
+        '',
+        '## Explicacion',
+        'Texto largo que no es el objetivo.',
+        '',
+      ].join('\n'),
+    }
+
+    const answer = answerLessonQuestion('de que trata esta leccion', lesson)
+
+    expect(answer.kind).toBe('overview')
+    if (answer.kind !== 'overview') return
+    expect(answer.objetivo).toContain('Saludar, presentarte')
+    expect(answer.objetivo).not.toContain('*')
+    expect(answer.objetivo).not.toContain('Texto largo')
+  })})

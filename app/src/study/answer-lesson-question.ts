@@ -117,7 +117,7 @@ export function answerLessonQuestion(
   if (OVERVIEW_QUESTION_PATTERNS.some((pattern) => pattern.test(normalizedQuestion))) {
     return {
       kind: 'overview',
-      objetivo: lesson.objetivo?.trim() ? lesson.objetivo.trim() : null,
+      objetivo: resolveLessonGoal(lesson),
       examplePhrasesEn: phrases.slice(0, MAXIMUM_PHRASE_MATCHES),
     }
   }
@@ -261,6 +261,66 @@ function unknownAnswer(pairs: readonly ExtractedVocabPair[]): LessonUnknownAnswe
   }
 }
 
+/** Headings the courseware uses for "what you will learn", accent-insensitive. */
+const LEARNING_GOAL_HEADINGS: readonly string[] = [
+  'que vas a aprender',
+  'objetivo',
+  'what you will learn',
+]
+
+const MAXIMUM_GOAL_LINES = 3
+
+/**
+ * Prefers the `objetivo` frontmatter field, but the processed courseware states
+ * the goal as a bulleted section in the body instead, so fall back to reading
+ * that section rather than answering "what is this lesson about" generically.
+ */
+function resolveLessonGoal(lesson: LessonQuestionSource): string | null {
+  const declared = lesson.objetivo?.trim()
+  if (declared) {
+    return declared
+  }
+  return readLearningGoalSection(lesson.bodyMarkdown)
+}
+
+function readLearningGoalSection(bodyMarkdown: string): string | null {
+  const lines = bodyMarkdown.replace(/\r\n/g, '\n').split('\n')
+  const start = lines.findIndex((line) => isLearningGoalHeading(line))
+  if (start < 0) {
+    return null
+  }
+  const collected: string[] = []
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const raw = lines[index] ?? ''
+    if (isMarkdownHeading(raw)) {
+      break
+    }
+    const text = raw
+      .replace(/^\s*[-*]\s+/, '')
+      .replace(/[*_`]/g, '')
+      .trim()
+    if (text.length === 0) {
+      continue
+    }
+    collected.push(text)
+    if (collected.length >= MAXIMUM_GOAL_LINES) {
+      break
+    }
+  }
+  return collected.length > 0 ? collected.join(' ') : null
+}
+
+function isMarkdownHeading(line: string): boolean {
+  return /^#{1,3}\s/.test(line.trim())
+}
+
+function isLearningGoalHeading(line: string): boolean {
+  if (!isMarkdownHeading(line)) {
+    return false
+  }
+  const heading = normalizeForMatching(line.trim().replace(/^#{1,3}\s*/, ''))
+  return LEARNING_GOAL_HEADINGS.includes(heading)
+}
 function containsWholeWord(haystack: string, needle: string): boolean {
   return new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(haystack)
 }
