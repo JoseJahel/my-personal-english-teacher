@@ -1,13 +1,19 @@
 import { useMemo, useRef, useState } from 'react'
-import { bookmarkIndex, bookmarkNeedsMoveConfirm, isBookmarkOnSection } from '../study/study-bookmark'
+import {
+  bookmarkIndex,
+  bookmarkNeedsMoveConfirm,
+  isBookmarkOnSection,
+} from '../study/study-bookmark'
 import { buildPracticeBank } from '../study/practice-bank'
 import type { StudyBookmark, StudySection } from '../study/study-types'
+import { buildLessonSpeechScript } from '../study/lesson-speech-script'
 import { LessonMarkdown } from './LessonMarkdown'
 import { BookmarkDialog, BookmarkRibbon, type BookmarkDialogKind } from './study-bookmark-controls'
 import { StudyCatalog } from './study-catalog-pane'
 import { StudyPracticeDesk } from './StudyPracticeDesk'
 import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
 import './study-notebook.css'
+import { useLessonNarration } from './use-lesson-narration'
 import { useStudySession, type UseStudySessionOptions } from './use-study-session'
 
 type StudyPaneView = 'catalog' | 'reader' | 'practice'
@@ -64,7 +70,10 @@ export function StudyScreen(
   }
 
   return (
-    <div className="study-notebook flex h-full min-h-0 flex-col overflow-hidden" data-testid={STUDY_TEST_IDS.screen}>
+    <div
+      className="study-notebook flex h-full min-h-0 flex-col overflow-hidden"
+      data-testid={STUDY_TEST_IDS.screen}
+    >
       <header className="study-notebook-header">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -119,8 +128,12 @@ export function StudyScreen(
         </div>
       </header>
 
-      <div className={view === 'practice' ? 'study-notebook-pane is-practice' : 'study-notebook-pane'}>
-        {study.status === 'loading' ? <p className="nota-info px-4">{copy.loadingMessage}</p> : null}
+      <div
+        className={view === 'practice' ? 'study-notebook-pane is-practice' : 'study-notebook-pane'}
+      >
+        {study.status === 'loading' ? (
+          <p className="nota-info px-4">{copy.loadingMessage}</p>
+        ) : null}
         {study.storageWarning ? <p className="nota-info px-4">{study.storageWarning}</p> : null}
 
         {study.status === 'empty' ? (
@@ -146,6 +159,7 @@ export function StudyScreen(
 
         {document && active && view === 'reader' ? (
           <StudySectionReader
+            key={active.id}
             section={active}
             lessonNumber={activeIndex + 1}
             total={document.sections.length}
@@ -220,6 +234,11 @@ function StudySectionReader(props: {
   readonly onAskMove: () => Promise<boolean>
 }) {
   const copy = studyInterfaceTexts
+  const narration = useLessonNarration()
+  const speechScript = useMemo(
+    () => buildLessonSpeechScript(props.section.bodyText, props.section.id, props.section.tema),
+    [props.section.bodyText, props.section.id, props.section.tema],
+  )
   return (
     <div className="study-notebook-column">
       <LessonNav
@@ -254,6 +273,32 @@ function StudySectionReader(props: {
             <b>{copy.studyLabel}</b> {props.section.objetivo}
           </p>
         ) : null}
+        {speechScript.length > 0 ? (
+          <p className="nota-info">
+            <button
+              type="button"
+              className="btn chico"
+              data-testid={STUDY_TEST_IDS.lessonListen}
+              aria-pressed={narration.status === 'speaking'}
+              onClick={() => {
+                if (narration.status === 'speaking') {
+                  narration.stop()
+                } else {
+                  narration.start(speechScript)
+                }
+              }}
+            >
+              {narration.status === 'speaking'
+                ? copy.listenLessonStopLabel
+                : copy.listenLessonLabel}
+            </button>{' '}
+            <span role="status" data-testid={STUDY_TEST_IDS.lessonListenStatus}>
+              {narration.status === 'speaking'
+                ? copy.listenLessonProgress(narration.spokenLineIndex + 1, speechScript.length)
+                : copy.listenLessonHint}
+            </span>
+          </p>
+        ) : null}{' '}
         <div className="reader-body" data-testid={STUDY_TEST_IDS.sectionBody}>
           <LessonMarkdown source={props.section.bodyText} />
         </div>
@@ -280,7 +325,12 @@ function LessonNav(props: {
   return (
     <div className="lec-nav" data-testid={STUDY_TEST_IDS.lessonNav}>
       <div className="lec-nav-row">
-        <button type="button" className="btn chico" data-testid={STUDY_TEST_IDS.backToCatalog} onClick={props.onBackToCatalog}>
+        <button
+          type="button"
+          className="btn chico"
+          data-testid={STUDY_TEST_IDS.backToCatalog}
+          onClick={props.onBackToCatalog}
+        >
           ☰ {copy.catalogButton}
         </button>
         <button
@@ -301,7 +351,12 @@ function LessonNav(props: {
         >
           {copy.nextLabel} →
         </button>
-        <button type="button" className="btn primario" data-testid={STUDY_TEST_IDS.practiceCta} onClick={props.onPractice}>
+        <button
+          type="button"
+          className="btn primario"
+          data-testid={STUDY_TEST_IDS.practiceCta}
+          onClick={props.onPractice}
+        >
           {copy.practiceCtaLabel}
         </button>
         <span className="pos">{copy.lessonPosition(props.lessonNumber, props.total)}</span>
