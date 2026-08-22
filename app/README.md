@@ -340,7 +340,10 @@ aparte de los pesos de Supertonic: se guarda en el mismo bucket
 `transformers.js` no emite la señal de `model-ready` que alimenta el aviso de
 disponibilidad offline de abajo; si esa precarga falla, la síntesis degrada
 en el primer turno hablado (recurre al *fetch* propio de la librería) en vez
-de romper el turno.
+de romper el turno. El indicador sigue sin contar este fichero, pero el
+funcionamiento sin red ya se comprobó manualmente: el 2026-08-21 `voices/F1.bin`
+apareció en el bucket `transformers-cache` de Cache Storage tras la precarga,
+y un turno completo corrió sin red sobre `pnpm build` + `pnpm preview`.
 
 **Aviso de disponibilidad offline.** La pantalla principal muestra si el
 navegador ya puede practicar sin conexión, distinguiendo tres situaciones:

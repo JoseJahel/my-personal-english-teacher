@@ -355,6 +355,32 @@ MFCC a media escala **16.5**, distancia de pitch relativo a media escala
 Δlocutor/Δerror = 1.14) tampoco cambia: se midió ya sobre esta cadena de 16
 kHz compartida.
 
+## 5.11 Verificación manual de Supertonic en navegador (2026-08-21)
+
+El autor del proyecto verificó manualmente en `localhost`, sobre el build de
+producción (`pnpm build` + `pnpm preview`, `http://localhost:4173`):
+
+1. **Validación perceptual.** La voz del tutor sintetizada por Supertonic
+   (revisión anclada `cff123c84b0655d9d647641f1b532c3cbb8f7faa`) se escucha
+   correctamente en el navegador. Apreciación subjetiva del autor, sin prueba
+   MOS ni comparación instrumentada: la voz suena mejor que el motor anterior
+   (SpeechT5 + HiFiGAN).
+2. **Precarga del fichero de voz.** `voices/F1.bin` aparece en Cache Storage
+   del navegador, en el bucket `transformers-cache`, confirmando
+   empíricamente que la precarga del fichero de voz (`preloadTutorVoiceEmbeddings`,
+   `ia/text-to-speech-synthesis.ts`) funciona: antes ese fichero se traía con
+   un *fetch* suelto que no pasaba por el caché persistente de los pesos.
+3. **Turno completo sin red.** Con el servidor detenido tras precargar
+   (`pnpm build` + `pnpm preview`), un turno completo de práctica se ejecutó
+   sin conexión: ASR, gramática, tutor y la voz de Supertonic funcionaron de
+   extremo a extremo. Valida la promesa offline-first con el motor de voz
+   actual.
+
+Lo que esta verificación **no** cubre: la latencia de síntesis de Supertonic
+sobre WASM en el navegador sigue sin medirse (L-6, §8).
+
+Fuente: verificación manual del autor, 2026-08-21.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -425,13 +451,14 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
   actualizar la §4/§5.
 - **L-5 — Half-duplex mejorable.** El bloqueo del micrófono durante el TTS puede
   endurecerse con abort de tracks (issue #26).
-- **L-6 — Voz de Supertonic sin validar en el navegador de este proyecto.**
-  Nadie del equipo ha validado perceptualmente la voz sintetizada por
-  Supertonic (revisión anclada `cff123c84b0655d9d647641f1b532c3cbb8f7faa`)
-  dentro del navegador de esta app, y no existe medición de su latencia de
-  síntesis sobre WASM en ese entorno. Las únicas cifras de latencia publicadas
-  por el autor del modelo corresponden a ejecución nativa CPU/GPU, no a WASM
-  en navegador; este reporte no las presenta como si lo fueran.
+- **L-6 — Latencia de síntesis de Supertonic sobre WASM en navegador, sin
+  medir.** La validación perceptual de la voz sintetizada por Supertonic
+  (revisión anclada `cff123c84b0655d9d647641f1b532c3cbb8f7faa`) en el
+  navegador de esta app se hizo manualmente el 2026-08-21 (§5.11); lo que
+  sigue sin medir es su latencia de síntesis sobre WASM en ese entorno. Las
+  únicas cifras de latencia publicadas por el autor del modelo corresponden a
+  ejecución nativa CPU/GPU, no a WASM en navegador; este reporte no las
+  presenta como si lo fueran.
 - **L-7 — Modelo de voz sin mantenimiento activo por parte de su autor.** El 23
   de julio de 2026 Supertone anunció el archivado de su proyecto open source
   Supertonic; su Voice Builder deja de estar accesible después del 31 de
