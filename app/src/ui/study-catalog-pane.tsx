@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { continueBookmarkLabel } from '../study/study-bookmark'
+import { continueBookmarkLabel, isBookmarkOnSection } from '../study/study-bookmark'
 import { groupStudyBlocks, type StudyIndexGroup, type StudyIndexItem } from '../study/group-study-blocks'
 import type { StudyBookmark, StudySection } from '../study/study-types'
 import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
@@ -7,6 +7,7 @@ import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
 export function StudyCatalog(props: {
   readonly sections: readonly StudySection[]
   readonly bookmark: StudyBookmark | null
+  readonly completedSectionIds: ReadonlySet<string>
   readonly continueSection: StudySection | null
   readonly continueOrphan: boolean
   readonly onContinue: () => void
@@ -20,7 +21,7 @@ export function StudyCatalog(props: {
   return (
     <div className="study-notebook-column" data-testid={STUDY_TEST_IDS.catalog}>
       <div className="sheet">
-        <h2>{copy.indexTitle}</h2>
+        <h2 className="sheet-title">{copy.indexTitle}</h2>
         <p className="nota-info">{copy.indexHint}</p>
         {props.continueOrphan ? <p className="nota-info">{copy.continueOrphanNote}</p> : null}
         {props.continueSection ? (
@@ -39,7 +40,13 @@ export function StudyCatalog(props: {
         />
         <div className="indice-lista" data-testid={STUDY_TEST_IDS.syllabus} aria-label={copy.syllabusTitle}>
           {groups.map((group) => (
-            <CatalogGroup key={groupKey(group)} group={group} onSelect={props.onSelect} />
+            <CatalogGroup
+              key={groupKey(group)}
+              group={group}
+              bookmark={props.bookmark}
+              completedSectionIds={props.completedSectionIds}
+              onSelect={props.onSelect}
+            />
           ))}
           {noMatches ? <p className="nota-info">{copy.searchEmpty}</p> : null}
         </div>
@@ -116,6 +123,8 @@ function groupKey(group: StudyIndexGroup): string {
 
 function CatalogGroup(props: {
   readonly group: StudyIndexGroup
+  readonly bookmark: StudyBookmark | null
+  readonly completedSectionIds: ReadonlySet<string>
   readonly onSelect: (index: number) => void
 }) {
   const copy = studyInterfaceTexts
@@ -124,6 +133,8 @@ function CatalogGroup(props: {
       key={item.section.id}
       item={item}
       nested={props.group.type === 'block'}
+      bookmark={props.bookmark}
+      completedSectionIds={props.completedSectionIds}
       onSelect={props.onSelect}
     />
   ))
@@ -133,7 +144,6 @@ function CatalogGroup(props: {
   return (
     <section className="indice-bloque" data-testid={STUDY_TEST_IDS.syllabusBlock}>
       <header className="indice-bloque-cab">
-        <span className="indice-bloque-marca" aria-hidden="true" />
         <span className="indice-bloque-titulo">{props.group.bloqueEs}</span>
         <span className="indice-bloque-meta">{copy.blockMeta(props.group.items.length)}</span>
       </header>
@@ -145,23 +155,42 @@ function CatalogGroup(props: {
 function CatalogLessonRow(props: {
   readonly item: StudyIndexItem
   readonly nested: boolean
+  readonly bookmark: StudyBookmark | null
+  readonly completedSectionIds: ReadonlySet<string>
   readonly onSelect: (index: number) => void
 }) {
   const copy = studyInterfaceTexts
   const section = props.item.section
+  const state = isBookmarkOnSection(props.bookmark, section.id)
+    ? 'current'
+    : props.completedSectionIds.has(section.id)
+      ? 'done'
+      : 'pending'
   return (
     <button
       type="button"
       className={props.nested ? 'indice-fila indice-fila-sub' : 'indice-fila'}
       onClick={() => props.onSelect(props.item.index)}
     >
-      <span className="indice-num">{props.item.index + 1}</span>
+      <span className="indice-num" data-state={state}>
+        {props.item.index + 1}
+      </span>
+      {state === 'done' ? <span className="sr-only">{copy.lessonStateDone}</span> : null}
       <span className="indice-titulo">
         <span className="titulo-es">{section.title}</span>
         {section.titleEn ? <span className="titulo-en">{section.titleEn}</span> : null}
         {section.objetivo ? <span className="indice-objetivo">{section.objetivo}</span> : null}
       </span>
-      <span className="indice-abrir">{copy.openLesson}</span>
+      {state === 'current' ? (
+        <>
+          <span className="indice-fila-cinta" aria-hidden="true">
+            <span className="mp-cinta-mini" />
+          </span>
+          <span className="sr-only">{copy.lessonStateCurrent}</span>
+        </>
+      ) : (
+        <span className="indice-abrir">{copy.openLesson}</span>
+      )}
     </button>
   )
 }

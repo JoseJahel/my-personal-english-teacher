@@ -3,7 +3,7 @@ import {
   type PracticeDirection,
   type PracticeFacing,
 } from './practice-direction'
-import type { PracticeMode } from './study-types'
+import type { PracticeItem, PracticeMode } from './study-types'
 
 export type PracticeGrade = 'correct' | 'incorrect'
 
@@ -112,6 +112,17 @@ export function practiceAnswersMatch(input: string, expected: string): boolean {
   const left = normalizePracticeAnswer(input)
   const right = normalizePracticeAnswer(expected)
   return left.length > 0 && left === right
+}
+
+export function choiceCorrectIndex(item: PracticeItem): number | null {
+  if (item.kind === 'completar') {
+    return item.correctIndex
+  }
+  if (item.kind !== 'transformar' || !item.options?.length) {
+    return null
+  }
+  const index = item.options.indexOf(item.answer)
+  return index >= 0 ? index : null
 }
 
 export function checkCompletarChoice(

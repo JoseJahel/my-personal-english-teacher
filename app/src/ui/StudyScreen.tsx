@@ -25,6 +25,11 @@ export function StudyScreen(
   const [dialog, setDialog] = useState<BookmarkDialogKind | null>(null)
   const moveDialogRef = useRef<(confirmed: boolean) => void>(undefined)
 
+  const completedSectionIds = useMemo(
+    () => new Set(study.session?.completedSectionIds ?? []),
+    [study.session?.completedSectionIds],
+  )
+
   const bank = useMemo(
     () =>
       buildPracticeBank(
@@ -61,30 +66,10 @@ export function StudyScreen(
   return (
     <div className="study-notebook flex h-full min-h-0 flex-col overflow-hidden" data-testid={STUDY_TEST_IDS.screen}>
       <header className="study-notebook-header">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="font-serif">{copy.screenTitle}</h1>
+            <h1>{copy.screenTitle}</h1>
             {document ? <p className="catalog-kicker">{copy.catalogTitle}</p> : null}
-            <div className="desk-row">
-              <button
-                type="button"
-                data-testid={STUDY_TEST_IDS.deskLesson}
-                aria-pressed={view !== 'practice'}
-                className="desk-chip"
-                onClick={openCatalog}
-              >
-                {copy.deskLessonLabel}
-              </button>
-              <button
-                type="button"
-                data-testid={STUDY_TEST_IDS.deskPractice}
-                aria-pressed={view === 'practice'}
-                className="desk-chip"
-                onClick={() => openPractice(active?.tema)}
-              >
-                {copy.deskPracticeLabel}
-              </button>
-            </div>
           </div>
           <div className="header-right">
             <span
@@ -94,6 +79,31 @@ export function StudyScreen(
             >
               {study.storageWarning ? copy.saveChipOff : copy.saveChipOn}
             </span>
+            <div
+              className="view-switch"
+              role="group"
+              aria-label={copy.viewSwitchLabel}
+              data-testid={STUDY_TEST_IDS.viewSwitch}
+            >
+              <button
+                type="button"
+                data-testid={STUDY_TEST_IDS.deskLesson}
+                aria-pressed={view !== 'practice'}
+                className="view-switch-item"
+                onClick={openCatalog}
+              >
+                {copy.deskLessonLabel}
+              </button>
+              <button
+                type="button"
+                data-testid={STUDY_TEST_IDS.deskPractice}
+                aria-pressed={view === 'practice'}
+                className="view-switch-item"
+                onClick={() => openPractice(active?.tema)}
+              >
+                {copy.deskPracticeLabel}
+              </button>
+            </div>
             {props.embedded ? null : (
               <button
                 type="button"
@@ -126,6 +136,7 @@ export function StudyScreen(
           <StudyCatalog
             sections={document.sections}
             bookmark={study.bookmark}
+            completedSectionIds={completedSectionIds}
             continueSection={continueSection}
             continueOrphan={Boolean(study.bookmark) && continueIndex < 0}
             onContinue={openContinue}
@@ -138,6 +149,7 @@ export function StudyScreen(
             section={active}
             lessonNumber={activeIndex + 1}
             total={document.sections.length}
+            progressDone={Math.round(study.progress01 * document.sections.length)}
             bookmark={study.bookmark}
             canGoNext={study.canGoNext}
             canGoPrevious={study.canGoPrevious}
@@ -195,6 +207,7 @@ function StudySectionReader(props: {
   readonly section: StudySection
   readonly lessonNumber: number
   readonly total: number
+  readonly progressDone: number
   readonly bookmark: StudyBookmark | null
   readonly canGoNext: boolean
   readonly canGoPrevious: boolean
@@ -212,6 +225,8 @@ function StudySectionReader(props: {
       <LessonNav
         lessonNumber={props.lessonNumber}
         total={props.total}
+        progressDone={props.progressDone}
+        progressTotal={props.total}
         canGoNext={props.canGoNext}
         canGoPrevious={props.canGoPrevious}
         onBackToCatalog={props.onBackToCatalog}
@@ -228,10 +243,10 @@ function StudySectionReader(props: {
           onClear={props.onClear}
           onAskMove={props.onAskMove}
         />
-        <span className="lesson-tag" data-testid={STUDY_TEST_IDS.lessonTag}>
-          {copy.lessonTag(props.lessonNumber)}
-        </span>
-        {props.section.bloqueEs ? <span className="lesson-bloque-tag">{props.section.bloqueEs}</span> : null}
+        <p className="lesson-meta">
+          <span data-testid={STUDY_TEST_IDS.lessonTag}>{copy.lessonTag(props.lessonNumber)}</span>
+          {props.section.bloqueEs ? <span> · {props.section.bloqueEs}</span> : null}
+        </p>
         <h2 data-testid={STUDY_TEST_IDS.sectionTitle}>{props.section.title}</h2>
         {props.section.titleEn ? <p className="titulo-en">{props.section.titleEn}</p> : null}
         {props.section.objetivo ? (
@@ -250,6 +265,8 @@ function StudySectionReader(props: {
 function LessonNav(props: {
   readonly lessonNumber: number
   readonly total: number
+  readonly progressDone: number
+  readonly progressTotal: number
   readonly canGoNext: boolean
   readonly canGoPrevious: boolean
   readonly onBackToCatalog: () => void
@@ -258,33 +275,53 @@ function LessonNav(props: {
   readonly onPractice: () => void
 }) {
   const copy = studyInterfaceTexts
+  const progressPercent =
+    props.progressTotal === 0 ? 0 : Math.round((props.progressDone / props.progressTotal) * 100)
   return (
     <div className="lec-nav" data-testid={STUDY_TEST_IDS.lessonNav}>
-      <button type="button" className="btn chico" data-testid={STUDY_TEST_IDS.backToCatalog} onClick={props.onBackToCatalog}>
-        ☰ {copy.catalogButton}
-      </button>
-      <button
-        type="button"
-        className="btn chico"
-        data-testid={STUDY_TEST_IDS.previous}
-        disabled={!props.canGoPrevious}
-        onClick={props.onPrevious}
-      >
-        ← {copy.previousLabel}
-      </button>
-      <button
-        type="button"
-        className="btn chico"
-        data-testid={STUDY_TEST_IDS.next}
-        disabled={!props.canGoNext}
-        onClick={props.onNext}
-      >
-        {copy.nextLabel} →
-      </button>
-      <button type="button" className="btn primario" data-testid={STUDY_TEST_IDS.practiceCta} onClick={props.onPractice}>
-        {copy.practiceCtaLabel}
-      </button>
-      <span className="pos">{copy.lessonPosition(props.lessonNumber, props.total)}</span>
+      <div className="lec-nav-row">
+        <button type="button" className="btn chico" data-testid={STUDY_TEST_IDS.backToCatalog} onClick={props.onBackToCatalog}>
+          ☰ {copy.catalogButton}
+        </button>
+        <button
+          type="button"
+          className="btn chico"
+          data-testid={STUDY_TEST_IDS.previous}
+          disabled={!props.canGoPrevious}
+          onClick={props.onPrevious}
+        >
+          ← {copy.previousLabel}
+        </button>
+        <button
+          type="button"
+          className="btn chico"
+          data-testid={STUDY_TEST_IDS.next}
+          disabled={!props.canGoNext}
+          onClick={props.onNext}
+        >
+          {copy.nextLabel} →
+        </button>
+        <button type="button" className="btn primario" data-testid={STUDY_TEST_IDS.practiceCta} onClick={props.onPractice}>
+          {copy.practiceCtaLabel}
+        </button>
+        <span className="pos">{copy.lessonPosition(props.lessonNumber, props.total)}</span>
+      </div>
+      <div className="lec-progress">
+        <span className="lec-progress-label">
+          {copy.progressLabel} · {copy.progressValue(props.progressDone, props.progressTotal)}
+        </span>
+        <span
+          className="lec-progress-track"
+          role="progressbar"
+          aria-label={copy.progressLabel}
+          aria-valuemin={0}
+          aria-valuemax={props.progressTotal}
+          aria-valuenow={props.progressDone}
+          data-testid={STUDY_TEST_IDS.progress}
+        >
+          <span className="lec-progress-fill" style={{ width: `${progressPercent}%` }} />
+        </span>
+      </div>
     </div>
   )
 }
