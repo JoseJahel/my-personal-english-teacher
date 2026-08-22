@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"${CLAUDE_PROJECT_DIR}/.grok/hooks/bin/deep-scan-git-sync.ps1\"",
+            "command": "run-deep-scan-git-sync.cmd",
             "timeout": 120
           }
         ]
