@@ -8,6 +8,8 @@
   Trigger phrase (flexible match):
     "escanea el proyecto" + "historial de git"  (and/or "a fondo")
   Fail-open: any unexpected error exits 0 so the agent still runs.
+  Invoked via ../run-deep-scan-git-sync.cmd — do not put ${CLAUDE_PROJECT_DIR}
+  in the hook JSON command (PowerShell on Windows expands it to empty).
 #>
 
 $ErrorActionPreference = 'Stop'

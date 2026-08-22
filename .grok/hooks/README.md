@@ -29,6 +29,15 @@ Cualquiera de estas (case-insensitive):
 2. Recarga hooks: **`/hooks`** → tecla `r`, o reinicia la sesión.
 3. Escribe el mensaje de escaneo en cualquier rama personal (`jahel-frontend`, etc.).
 
+### Por qué el `command` es un `.cmd` (no `${CLAUDE_PROJECT_DIR}`)
+
+Grok en Windows lanza el hook a través de PowerShell. `${CLAUDE_PROJECT_DIR}`
+en esa cadena es interpolación de **variable de sesión** de PowerShell, no
+de entorno: queda vacía y `-File` recibe `/.grok/hooks/bin/…` (exit 1).
+El launcher `run-deep-scan-git-sync.cmd` (ruta relativa al JSON) usa
+`%~dp0` para hallar el `.ps1` aunque el path del repo tenga espacios.
+El `command` del JSON **no debe contener `$`**.
+
 ### Seguridad
 
 - No corre si hay cambios sin commitear.
