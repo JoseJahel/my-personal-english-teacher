@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { PracticeItem } from './study-types'
 import {
   checkCompletarChoice,
+  choiceCorrectIndex,
   checkWrittenAnswer,
   createPracticeSession,
   currentPracticeIndex,
@@ -78,6 +80,38 @@ describe('reveal and grade', () => {
     const hit = checkCompletarChoice(session, 2, 2, 1)
     expect(hit.index).toBe(1)
     expect(hit.grade).toBeNull()
+  })
+
+  it('resolves the correct option index of a choice item', () => {
+    const completar: PracticeItem = {
+      id: 'c1',
+      tema: 'besingular',
+      kind: 'completar',
+      phrase: '___ , please.',
+      options: ['hello', 'table'],
+      correctIndex: 0,
+    }
+    expect(choiceCorrectIndex(completar)).toBe(0)
+    const transformar: PracticeItem = {
+      id: 'f1',
+      tema: 'besingular',
+      kind: 'transformar',
+      prompt: 'Contracción',
+      stimulus: 'I am Helen.',
+      answer: "I'm Helen.",
+      options: ['I am Helen.', "I'm Helen."],
+    }
+    expect(choiceCorrectIndex(transformar)).toBe(1)
+    expect(choiceCorrectIndex({ ...transformar, options: ['I am Helen.'] })).toBeNull()
+    expect(choiceCorrectIndex({ ...transformar, options: undefined })).toBeNull()
+    const vocab: PracticeItem = {
+      id: 'v1',
+      tema: 'besingular',
+      kind: 'vocab',
+      frontEs: 'hola',
+      backEn: 'hello',
+    }
+    expect(choiceCorrectIndex(vocab)).toBeNull()
   })
 
   it('normalizes written answers: lower case, trim, strip final punctuation', () => {

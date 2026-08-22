@@ -1,13 +1,40 @@
+import { useState } from 'react'
 import type { PracticeFacing } from '../study/practice-direction'
 import { resolveBilingualSides } from '../study/practice-direction'
+import { choiceCorrectIndex } from '../study/practice-session'
 import type { PracticeItem } from '../study/study-types'
 import { STUDY_TEST_IDS, studyInterfaceTexts } from './study-interface-texts'
+
+type PracticeGrade = 'correct' | 'incorrect' | null
+
+function optionClassName(
+  optionIndex: number,
+  correctIndex: number | null,
+  chosenIndex: number | null,
+  grade: PracticeGrade,
+): string {
+  if (grade !== 'incorrect') return 'practice-option'
+  if (optionIndex === correctIndex) return 'practice-option is-correct'
+  if (optionIndex === chosenIndex) return 'practice-option is-incorrect'
+  return 'practice-option'
+}
+
+function SolutionLine(props: { readonly answer: string; readonly lang?: 'es' | 'en' }) {
+  return (
+    <p className="practice-solution" data-testid={STUDY_TEST_IDS.practiceSolution} role="alert">
+      {studyInterfaceTexts.incorrectLabel}{' '}
+      <em className="practice-solution-answer" lang={props.lang}>
+        {props.answer}
+      </em>
+    </p>
+  )
+}
 
 export function PracticeItemPane(props: {
   readonly item: PracticeItem
   readonly facing: PracticeFacing
   readonly revealed: boolean
-  readonly grade: 'correct' | 'incorrect' | null
+  readonly grade: PracticeGrade
   readonly draft: string
   readonly onDraft: (value: string) => void
   readonly onReveal: () => void
@@ -25,6 +52,7 @@ export function PracticeItemPane(props: {
       <VocabPane
         stimulus={sides.stimulus}
         expected={sides.expected}
+        facing={props.facing}
         flipHint={props.facing === 'en-es' ? copy.flipHintToEs : copy.flipHint}
         revealed={props.revealed}
         onReveal={props.onReveal}
@@ -38,7 +66,7 @@ export function PracticeItemPane(props: {
       <ChoicePane
         prompt={item.phrase}
         options={item.options}
-        solution={item.options[item.correctIndex] ?? ''}
+        correctIndex={choiceCorrectIndex(item)}
         grade={props.grade}
         onChoose={props.onChoose}
         onNext={props.onNext}
@@ -52,6 +80,7 @@ export function PracticeItemPane(props: {
         prompt={props.facing === 'en-es' ? copy.translatePromptToEs : copy.translatePrompt}
         stimulus={sides.stimulus}
         expected={sides.expected}
+        facing={props.facing}
         placeholder={
           props.facing === 'en-es' ? copy.translatePlaceholderToEs : copy.translatePlaceholder
         }
@@ -68,7 +97,7 @@ export function PracticeItemPane(props: {
       <ChoicePane
         prompt={`${item.prompt} · ${item.stimulus}`}
         options={item.options}
-        solution={item.answer}
+        correctIndex={choiceCorrectIndex(item)}
         grade={props.grade}
         onChoose={props.onChoose}
         onNext={props.onNext}
@@ -93,6 +122,7 @@ export function PracticeItemPane(props: {
 function VocabPane(props: {
   readonly stimulus: string
   readonly expected: string
+  readonly facing: PracticeFacing
   readonly flipHint: string
   readonly revealed: boolean
   readonly onReveal: () => void
@@ -100,6 +130,8 @@ function VocabPane(props: {
   readonly onDidnt: () => void
 }) {
   const copy = studyInterfaceTexts
+  const stimulusLang = props.facing === 'en-es' ? 'en' : 'es'
+  const expectedLang = props.facing === 'en-es' ? 'es' : 'en'
   return (
     <div className="practice-pane">
       <button
@@ -111,12 +143,14 @@ function VocabPane(props: {
       >
         <p
           data-testid={STUDY_TEST_IDS.practiceCardFront}
+          lang={stimulusLang}
           className={props.revealed ? 'hidden' : 'practice-stim-vocab'}
         >
           {props.stimulus}
         </p>
         <p
           data-testid={STUDY_TEST_IDS.practiceCardBack}
+          lang={expectedLang}
           className={props.revealed ? 'practice-stim-vocab' : 'hidden'}
         >
           {props.expected}
@@ -150,13 +184,20 @@ function VocabPane(props: {
 function ChoicePane(props: {
   readonly prompt: string
   readonly options: readonly string[]
-  readonly solution: string
-  readonly grade: 'correct' | 'incorrect' | null
+  readonly correctIndex: number | null
+  readonly grade: PracticeGrade
   readonly onChoose: (optionIndex: number) => void
   readonly onNext: () => void
 }) {
   const copy = studyInterfaceTexts
+  const [promptKey, setPromptKey] = useState(props.prompt)
+  const [chosen, setChosen] = useState<number | null>(null)
+  if (promptKey !== props.prompt) {
+    setPromptKey(props.prompt)
+    setChosen(null)
+  }
   const locked = props.grade !== null
+  const solution = props.correctIndex === null ? '' : (props.options[props.correctIndex] ?? '')
   return (
     <div className="practice-pane">
       <p className="practice-prompt">{props.prompt}</p>
@@ -166,9 +207,12 @@ function ChoicePane(props: {
             key={`${option}-${optionIndex}`}
             type="button"
             data-testid={STUDY_TEST_IDS.practiceOption}
-            className="practice-option"
+            className={optionClassName(optionIndex, props.correctIndex, chosen, props.grade)}
             disabled={locked}
-            onClick={() => props.onChoose(optionIndex)}
+            onClick={() => {
+              setChosen(optionIndex)
+              props.onChoose(optionIndex)
+            }}
           >
             {option}
           </button>
@@ -176,9 +220,7 @@ function ChoicePane(props: {
       </div>
       {props.grade === 'incorrect' ? (
         <>
-          <p className="practice-solution" data-testid={STUDY_TEST_IDS.practiceSolution} role="alert">
-            {copy.incorrectLabel} {props.solution}
-          </p>
+          <SolutionLine answer={solution} />
           <div className="practice-actions">
             <button
               type="button"
@@ -199,21 +241,26 @@ function WrittenPane(props: {
   readonly prompt: string
   readonly stimulus: string
   readonly expected: string
+  readonly facing?: PracticeFacing
   readonly placeholder: string
   readonly draft: string
-  readonly grade: 'correct' | 'incorrect' | null
+  readonly grade: PracticeGrade
   readonly onDraft: (value: string) => void
   readonly onCheck: () => void
   readonly onNext: () => void
 }) {
   const copy = studyInterfaceTexts
+  const stimulusLang = props.facing === undefined ? undefined : props.facing === 'en-es' ? 'en' : 'es'
+  const expectedLang = props.facing === undefined ? undefined : props.facing === 'en-es' ? 'es' : 'en'
   return (
     <div className="practice-pane">
       <p className="practice-consigna">{props.prompt}</p>
-      <p className="practice-estimulo">{props.stimulus}</p>
+      <p className="practice-estimulo" lang={stimulusLang}>
+        {props.stimulus}
+      </p>
       <input
         data-testid={STUDY_TEST_IDS.practiceTranslateInput}
-        className="practice-input"
+        className={props.grade === 'incorrect' ? 'practice-input is-incorrect' : 'practice-input'}
         value={props.draft}
         placeholder={props.placeholder}
         disabled={props.grade === 'incorrect'}
@@ -247,9 +294,7 @@ function WrittenPane(props: {
         ) : null}
       </div>
       {props.grade === 'incorrect' ? (
-        <p className="practice-solution" data-testid={STUDY_TEST_IDS.practiceSolution} role="alert">
-          {copy.incorrectLabel} {props.expected}
-        </p>
+        <SolutionLine answer={props.expected} lang={expectedLang} />
       ) : null}
     </div>
   )

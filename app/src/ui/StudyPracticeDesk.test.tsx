@@ -404,4 +404,126 @@ describe('StudyPracticeDesk', () => {
       'hola',
     )
   })
+
+  it('highlights the wrong choice and the solution after an incorrect answer', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
+    })
+    const options = () =>
+      [...host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.practiceOption}"]`)] as HTMLButtonElement[]
+    act(() => {
+      options()[1]!.click()
+    })
+    expect(options()[1]!.classList.contains('is-incorrect')).toBe(true)
+    expect(options()[0]!.classList.contains('is-correct')).toBe(true)
+    expect(options()[2]!.classList.contains('is-incorrect')).toBe(false)
+    const solution = host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceSolution}"]`)
+    expect(solution?.querySelector('.practice-solution-answer')?.textContent).toBe('hello')
+  })
+
+  it('advances to the next item when the choice is right, with no graded panel', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeCompletar}"]`) as HTMLButtonElement).click()
+    })
+    const options = () =>
+      [...host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.practiceOption}"]`)] as HTMLButtonElement[]
+    expect(host.querySelector('.practice-prompt')?.textContent).toBe('___ , please.')
+    act(() => {
+      options()[0]!.click()
+    })
+    expect(host.querySelector('.practice-prompt')?.textContent).toBe('___ and thanks.')
+    expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceSolution}"]`)).toBeNull()
+    expect(host.querySelector('.practice-feedback')).toBeNull()
+    expect(options().every((option) => !option.disabled)).toBe(true)
+    expect(options().some((option) => option.classList.contains('is-correct'))).toBe(false)
+  })
+
+  it('marks the written answer and its solution when the answer is wrong', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`) as HTMLButtonElement).click()
+    })
+    act(() => {
+      fillInput(host, 'bye')
+    })
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCheck}"]`) as HTMLButtonElement).click()
+    })
+    const input = host.querySelector(
+      `[data-testid="${STUDY_TEST_IDS.practiceTranslateInput}"]`,
+    ) as HTMLInputElement
+    expect(input.classList.contains('is-incorrect')).toBe(true)
+    const solution = host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceSolution}"]`)
+    expect(solution?.querySelector('.practice-solution-answer')?.textContent).toBe('hello')
+  })
+
+  it('tags the traducir stimulus and solution with the language they show', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.querySelector('.practice-estimulo')?.getAttribute('lang')).toBe('es')
+    act(() => {
+      fillInput(host, 'bye')
+    })
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCheck}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.querySelector('.practice-solution-answer')?.getAttribute('lang')).toBe('en')
+  })
+
+  it('flips the traducir language tags when the direction changes', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceModeTraducir}"]`) as HTMLButtonElement).click()
+    })
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEnEs}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(host.querySelector('.practice-estimulo')?.getAttribute('lang')).toBe('en')
+    act(() => {
+      fillInput(host, 'bye')
+    })
+    act(() => {
+      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCheck}"]`) as HTMLButtonElement).click()
+    })
+    expect(host.querySelector('.practice-solution-answer')?.getAttribute('lang')).toBe('es')
+  })
+
+  it('tags each vocab face with the language it shows', async () => {
+    act(() => {
+      renderDesk(root!)
+    })
+    await flush()
+    const front = () => host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardFront}"]`)
+    const back = () => host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceCardBack}"]`)
+    expect(front()?.getAttribute('lang')).toBe('es')
+    expect(back()?.getAttribute('lang')).toBe('en')
+    act(() => {
+      ;(
+        host.querySelector(`[data-testid="${STUDY_TEST_IDS.practiceDirectionEnEs}"]`) as HTMLButtonElement
+      ).click()
+    })
+    expect(front()?.getAttribute('lang')).toBe('en')
+    expect(back()?.getAttribute('lang')).toBe('es')
+  })
 })

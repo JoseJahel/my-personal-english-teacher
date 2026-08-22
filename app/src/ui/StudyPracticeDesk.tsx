@@ -21,6 +21,7 @@ import {
 import {
   checkCompletarChoice,
   checkWrittenAnswer,
+  choiceCorrectIndex,
   createPracticeSession,
   currentPracticeIndex,
   goToNextPracticeItem,
@@ -34,13 +35,6 @@ import {
 import { PRACTICE_MODES, type PracticeBank, type PracticeItem, type PracticeMode } from '../study/study-types'
 import { STUDY_TEST_IDS, labelForStudyTema, studyInterfaceTexts } from './study-interface-texts'
 import { PracticeItemPane } from './study-practice-panes'
-
-function choiceCorrectIndex(item: PracticeItem): number | null {
-  if (item.kind === 'completar') return item.correctIndex
-  if (item.kind !== 'transformar' || !item.options?.length) return null
-  const index = item.options.indexOf(item.answer)
-  return index >= 0 ? index : null
-}
 
 function writtenExpected(item: PracticeItem, facing: PracticeFacing): string | null {
   if (item.kind === 'traducir') return resolveBilingualSides(item, facing).expected
@@ -276,13 +270,13 @@ export function StudyPracticeDesk(props: {
       <div className="practice-desk-body">
         {empty ? (
           <div className="practice-empty" data-testid={STUDY_TEST_IDS.practiceEmpty}>
-            <p className="m-0 font-serif text-xl text-ink-900">{copy.emptyModeLead}</p>
+            <p className="m-0 text-[1.05rem] font-bold tracking-tight text-ink-900">{copy.emptyModeLead}</p>
             <p className="mt-2 text-base text-ink-600">{copy.emptyModeHint}</p>
           </div>
         ) : null}
         {showCaughtUp ? (
           <div className="practice-empty" data-testid={STUDY_TEST_IDS.practiceEmpty}>
-            <p className="m-0 font-serif text-xl text-ink-900">{copy.srsCaughtUpLead}</p>
+            <p className="m-0 text-[1.05rem] font-bold tracking-tight text-ink-900">{copy.srsCaughtUpLead}</p>
             <p className="mt-2 text-base text-ink-600">{copy.srsCaughtUpHint}</p>
           </div>
         ) : null}
