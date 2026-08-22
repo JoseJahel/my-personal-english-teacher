@@ -8,6 +8,7 @@ import { buildPracticeBank } from '../study/practice-bank'
 import type { StudyBookmark, StudySection } from '../study/study-types'
 import { buildLessonSpeechScript } from '../study/lesson-speech-script'
 import { LessonMarkdown } from './LessonMarkdown'
+import { LessonTutorPanel } from './LessonTutorPanel'
 import { BookmarkDialog, BookmarkRibbon, type BookmarkDialogKind } from './study-bookmark-controls'
 import { StudyCatalog } from './study-catalog-pane'
 import { StudyPracticeDesk } from './StudyPracticeDesk'
@@ -234,6 +235,17 @@ function StudySectionReader(props: {
   readonly onAskMove: () => Promise<boolean>
 }) {
   const copy = studyInterfaceTexts
+  const tutorLesson = useMemo(
+    () => ({
+      lessonId: props.section.id,
+      bodyMarkdown: props.section.bodyText,
+      ...(props.section.tema !== undefined ? { tema: props.section.tema } : {}),
+      ...(props.section.objetivo !== undefined
+        ? { objetivo: props.section.objetivo }
+        : {}),
+    }),
+    [props.section],
+  )
   const narration = useLessonNarration()
   const speechScript = useMemo(
     () => buildLessonSpeechScript(props.section.bodyText, props.section.id, props.section.tema),
@@ -303,6 +315,7 @@ function StudySectionReader(props: {
           <LessonMarkdown source={props.section.bodyText} />
         </div>
       </article>
+      <LessonTutorPanel lesson={tutorLesson} />
     </div>
   )
 }

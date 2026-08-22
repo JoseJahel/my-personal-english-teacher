@@ -47,6 +47,10 @@ export const STUDY_TEST_IDS = {
   practiceDirectionMixed: 'study-practice-direction-mixed',
   lessonListen: 'study-lesson-listen',
   lessonListenStatus: 'study-lesson-listen-status',
+  askTutorPanel: 'study-ask-tutor-panel',
+  askTutorInput: 'study-ask-tutor-input',
+  askTutorSend: 'study-ask-tutor-send',
+  askTutorAnswer: 'study-ask-tutor-answer',
 } as const
 
 export const studyInterfaceTexts = {
@@ -97,6 +101,20 @@ export const studyInterfaceTexts = {
   deskPracticeLabel: 'Prácticas',
   viewSwitchLabel: 'Temario o prácticas',
   practiceCtaLabel: 'Practicar este tema',
+  askTutorTitle: 'Pregúntale al profesor',
+  askTutorPlaceholder: 'Escribe tu duda sobre esta lección…',
+  askTutorSendLabel: 'Preguntar',
+  askTutorHint:
+    'Respondo solo con el contenido de esta lección, así que nunca invento palabras.',
+  answerVocabularyLead: 'En esta lección eso se dice así:',
+  answerVocabularyLine: (spanishTerm: string, englishTerm: string) =>
+    `${spanishTerm} → ${englishTerm}`,
+  answerExampleLabel: 'Ejemplo de la lección:',
+  answerPhraseLead:
+    'No está en el vocabulario, pero aparece en estas frases de la lección:',
+  answerOverviewLead: (objetivo: string) => `Esta lección es para: ${objetivo}`,
+  answerOverviewFallbackLead: 'Estas son las frases clave de esta lección:',
+  answerUnknownLead: 'Eso no aparece en esta lección. Sí puedes preguntarme por:',
   listenLessonLabel: 'Escuchar lección',
   listenLessonStopLabel: 'Detener lectura',
   listenLessonHint: 'El profesor lee en voz alta el inglés de esta lección.',
