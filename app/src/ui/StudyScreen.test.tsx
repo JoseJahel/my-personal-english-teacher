@@ -50,6 +50,10 @@ function bookmarkButton(host: HTMLElement): HTMLButtonElement {
   return host.querySelector(`[data-testid="${STUDY_TEST_IDS.bookmark}"]`) as HTMLButtonElement
 }
 
+function backToCatalogButton(host: HTMLElement): HTMLButtonElement {
+  return host.querySelector(`[data-testid="${STUDY_TEST_IDS.backToCatalog}"]`) as HTMLButtonElement
+}
+
 describe('StudyScreen', () => {
   let root: ReturnType<typeof createRoot> | null = null
   let host: HTMLDivElement
@@ -69,7 +73,7 @@ describe('StudyScreen', () => {
     root = null
   })
 
-  it('shows the lesson index sheet without opening a lesson', async () => {
+  async function renderGroupedStudy(): Promise<void> {
     await act(async () => {
       root?.render(
         <StudyScreen
@@ -81,6 +85,10 @@ describe('StudyScreen', () => {
       )
     })
     await flush()
+  }
+
+  it('shows the lesson index sheet without opening a lesson', async () => {
+    await renderGroupedStudy()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.screen}"]`)).not.toBeNull()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.catalog}"]`)).not.toBeNull()
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.search}"]`)).not.toBeNull()
@@ -107,6 +115,75 @@ describe('StudyScreen', () => {
     expect(row.textContent).toContain('1')
     expect(row.textContent).toContain(studyInterfaceTexts.openLesson)
     expect(lessonButton(host, 'Repaso extra').closest(`[data-testid="${STUDY_TEST_IDS.syllabusBlock}"]`)).toBeNull()
+  })
+
+  it('groups the lesson/practice switch as one segmented control', async () => {
+    await renderGroupedStudy()
+    const group = host.querySelector(`[data-testid="${STUDY_TEST_IDS.viewSwitch}"]`)
+    expect(group).not.toBeNull()
+    expect(group?.getAttribute('role')).toBe('group')
+    expect(group?.getAttribute('aria-label')).toBe(studyInterfaceTexts.viewSwitchLabel)
+    expect(group?.querySelector(`[data-testid="${STUDY_TEST_IDS.deskLesson}"]`)).not.toBeNull()
+    expect(group?.querySelector(`[data-testid="${STUDY_TEST_IDS.deskPractice}"]`)).not.toBeNull()
+  })
+
+  it('renders the lesson progress bar in the lesson nav', async () => {
+    await renderGroupedStudy()
+    await act(async () => {
+      lessonButton(host, '1A · Encantado de conocerte').click()
+    })
+    const bar = host.querySelector(`[data-testid="${STUDY_TEST_IDS.progress}"]`)
+    expect(bar).not.toBeNull()
+    expect(bar?.getAttribute('role')).toBe('progressbar')
+    expect(bar?.getAttribute('aria-valuemin')).toBe('0')
+    expect(bar?.getAttribute('aria-valuemax')).toBe('4')
+    expect(bar?.getAttribute('aria-valuenow')).toBe('1')
+    expect(bar?.closest('.lec-progress')?.textContent).toContain(studyInterfaceTexts.progressLabel)
+  })
+
+  it('renders lesson number and block in one meta line', async () => {
+    await renderGroupedStudy()
+    await act(async () => {
+      lessonButton(host, '1A · Encantado de conocerte').click()
+    })
+    const tag = host.querySelector(`[data-testid="${STUDY_TEST_IDS.lessonTag}"]`)
+    expect(tag?.textContent).toBe(studyInterfaceTexts.lessonTag(1))
+    expect(tag?.closest('.lesson-meta')?.textContent).toContain('File 1 · Conocerse')
+  })
+
+  it('marks the bookmarked lesson as current and leaves the rest pending', async () => {
+    await renderGroupedStudy()
+    await act(async () => {
+      lessonButton(host, '1A · Encantado de conocerte').click()
+    })
+    await act(async () => {
+      bookmarkButton(host).click()
+    })
+    await flush()
+    await act(async () => {
+      backToCatalogButton(host).click()
+    })
+    const rows = host.querySelectorAll('.indice-fila')
+    expect(rows[0]?.querySelector('.indice-num')?.getAttribute('data-state')).toBe('current')
+    expect(rows[0]?.querySelector('.indice-fila-cinta')).not.toBeNull()
+    expect(rows[0]?.textContent).toContain(studyInterfaceTexts.lessonStateCurrent)
+    expect(rows[1]?.querySelector('.indice-num')?.getAttribute('data-state')).toBe('pending')
+    expect(rows[1]?.textContent).not.toContain(studyInterfaceTexts.lessonStateCurrent)
+    expect(rows[1]?.textContent).not.toContain(studyInterfaceTexts.lessonStateDone)
+  })
+
+  it('marks a visited lesson without a bookmark as done', async () => {
+    await renderGroupedStudy()
+    await act(async () => {
+      lessonButton(host, '1B · Música del mundo').click()
+    })
+    await act(async () => {
+      backToCatalogButton(host).click()
+    })
+    const rows = host.querySelectorAll('.indice-fila')
+    expect(rows[1]?.querySelector('.indice-num')?.getAttribute('data-state')).toBe('done')
+    expect(rows[1]?.querySelector('.indice-fila-cinta')).toBeNull()
+    expect(rows[1]?.textContent).toContain(studyInterfaceTexts.lessonStateDone)
   })
 
   it('opens the reader from a lesson row and returns via Índice', async () => {
@@ -148,24 +225,14 @@ describe('StudyScreen', () => {
   })
 
   it('does not show Continúa after opening a lesson without planting', async () => {
-    await act(async () => {
-      root?.render(
-        <StudyScreen
-          sessionOptions={{
-            createStore: async () => memoryStore(),
-            loadCatalog: () => groupedCatalog(),
-          }}
-        />,
-      )
-    })
-    await flush()
+    await renderGroupedStudy()
     await act(async () => {
       lessonButton(host, '1B · Música').click()
     })
     expect(bookmarkButton(host).getAttribute('aria-pressed')).toBe('false')
     expect(bookmarkButton(host).className).not.toContain('marcapaginas-plantado')
     await act(async () => {
-      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.backToCatalog}"]`) as HTMLButtonElement).click()
+      backToCatalogButton(host).click()
     })
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.continue}"]`)).toBeNull()
   })
@@ -294,17 +361,7 @@ describe('StudyScreen', () => {
   })
 
   it('asks before moving the bookmark and keeps or moves it from the dialog', async () => {
-    await act(async () => {
-      root?.render(
-        <StudyScreen
-          sessionOptions={{
-            createStore: async () => memoryStore(),
-            loadCatalog: () => groupedCatalog(),
-          }}
-        />,
-      )
-    })
-    await flush()
+    await renderGroupedStudy()
     await act(async () => {
       lessonButton(host, '1A · Encantado de conocerte').click()
     })
@@ -336,7 +393,7 @@ describe('StudyScreen', () => {
     await flush()
     expect(bookmarkButton(host).getAttribute('aria-pressed')).toBe('true')
     await act(async () => {
-      ;(host.querySelector(`[data-testid="${STUDY_TEST_IDS.backToCatalog}"]`) as HTMLButtonElement).click()
+      backToCatalogButton(host).click()
     })
     expect(host.querySelector(`[data-testid="${STUDY_TEST_IDS.continue}"]`)?.textContent).toMatch(/Música/)
   })
@@ -373,17 +430,7 @@ describe('StudyScreen', () => {
   })
 
   it('filters the index with the search box', async () => {
-    await act(async () => {
-      root?.render(
-        <StudyScreen
-          sessionOptions={{
-            createStore: async () => memoryStore(),
-            loadCatalog: () => groupedCatalog(),
-          }}
-        />,
-      )
-    })
-    await flush()
+    await renderGroupedStudy()
     await act(async () => {
       changeSearch(host, 'Música')
     })
@@ -463,17 +510,7 @@ describe('StudyScreen', () => {
   })
 
   it('groups contiguous lessons into topic headings with clickable lessons', async () => {
-    await act(async () => {
-      root?.render(
-        <StudyScreen
-          sessionOptions={{
-            createStore: async () => memoryStore(),
-            loadCatalog: () => groupedCatalog(),
-          }}
-        />,
-      )
-    })
-    await flush()
+    await renderGroupedStudy()
     expect(host.textContent).toContain('File 1 · Conocerse')
     expect(host.textContent).toContain('Inglés práctico 1 · Deletrear')
     expect(host.querySelectorAll(`[data-testid="${STUDY_TEST_IDS.syllabusBlock}"]`).length).toBe(2)
