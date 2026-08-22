@@ -88,9 +88,13 @@ Half-duplex: el mic se bloquea **solo** mientras Supertonic habla (issue #96). S
 
 ## Q14. ¿Funciona de verdad sin internet?
 
+Sí: comprobado el 2026-08-21, manualmente, por el autor — turno completo de
+práctica corrido con el servidor **detenido**, sobre `pnpm build` +
+`pnpm preview` (`http://localhost:4173`).
+
 Tras **una** descarga (Cache API de transformers.js, &gt; 1 GB). ASR, gramática y Supertonic se precargan **juntos al abrir**; SmolLM2 se precarga al elegir escenario (`ia/warm-model-preload.ts`; el propio comentario de `ui/offline-readiness.ts` lo resume así: “ASR, grammar and Supertonic preload on mount; SmolLM2 on scenario selection”). El aviso del rail sale de `storage/model-load-history.ts`, no de espiar el caché (los eventos de progreso no distinguen red vs caché en transformers.js 3.8.1).
 
-Hay un archivo que ese aviso **no** cuenta: la voz de referencia F1 (`voices/F1.bin`, 51 712 bytes), que no pasa por el cargador de pesos de la librería (`getModelFile`/`hub.js`). Antes se traía sin caché recién en el primer turno hablado; ahora `preloadTutorVoiceEmbeddings` la descarga durante ese mismo warm preload y la persiste en el bucket `transformers-cache` de Cache Storage (`ia/text-to-speech-synthesis.ts`) — pero sigue fuera de `OFFLINE_READINESS_MODEL_KEYS` (`ui/offline-readiness.ts`), así que el rail puede marcar los cuatro modelos como listos sin que ese archivo termine de bajar. Si esa precarga falla, no rompe el turno: `synthesizeSpeechFromText` cae al fetch propio de la librería (`ia/warm-model-preload.ts`) y el fallo queda en consola.
+Hay un archivo que ese aviso **no** cuenta: la voz de referencia F1 (`voices/F1.bin`, 51 712 bytes), que no pasa por el cargador de pesos de la librería (`getModelFile`/`hub.js`). Antes se traía sin caché recién en el primer turno hablado; ahora `preloadTutorVoiceEmbeddings` la descarga durante ese mismo warm preload y la persiste en el bucket `transformers-cache` de Cache Storage (`ia/text-to-speech-synthesis.ts`) — pero sigue fuera de `OFFLINE_READINESS_MODEL_KEYS` (`ui/offline-readiness.ts`), así que el rail puede marcar los cuatro modelos como listos sin que ese archivo termine de bajar; el indicador sigue sin contarlo aunque el funcionamiento sin red ya se comprobó manualmente (arriba) — el 2026-08-21 `voices/F1.bin` apareció en el bucket `transformers-cache` de Cache Storage tras la precarga. Si esa precarga falla, no rompe el turno: `synthesizeSpeechFromText` cae al fetch propio de la librería (`ia/warm-model-preload.ts`) y el fallo queda en consola.
 
 Verificar siempre con `pnpm preview`, no con `pnpm dev`.
 
