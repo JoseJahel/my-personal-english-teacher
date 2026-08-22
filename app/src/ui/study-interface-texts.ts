@@ -45,6 +45,8 @@ export const STUDY_TEST_IDS = {
   practiceDirectionEsEn: 'study-practice-direction-es-en',
   practiceDirectionEnEs: 'study-practice-direction-en-es',
   practiceDirectionMixed: 'study-practice-direction-mixed',
+  lessonListen: 'study-lesson-listen',
+  lessonListenStatus: 'study-lesson-listen-status',
 } as const
 
 export const studyInterfaceTexts = {
@@ -95,6 +97,10 @@ export const studyInterfaceTexts = {
   deskPracticeLabel: 'Prácticas',
   viewSwitchLabel: 'Temario o prácticas',
   practiceCtaLabel: 'Practicar este tema',
+  listenLessonLabel: 'Escuchar lección',
+  listenLessonStopLabel: 'Detener lectura',
+  listenLessonHint: 'El profesor lee en voz alta el inglés de esta lección.',
+  listenLessonProgress: (n: number, total: number) => `Leyendo ${n} de ${total}`,
   backToCatalogLabel: 'Volver al temario',
   backToLessonLabel: 'Volver a la lección',
   filterAllLabel: 'Todo el curso',
