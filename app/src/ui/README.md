@@ -124,26 +124,43 @@ sincronizando el hash `#estudio` (gateado por `shouldShowStudyScreen` en
   `embedded` como panel hermano del rail, no como overlay a pantalla completa.
 - `StudyScreen.tsx`: pantalla contenedora con tres vistas internas
   (`catalog` / `reader` / `practice`) más el diálogo de marcapáginas.
-  Cabecera con chips Temario/Prácticas, chip de guardado (refleja
-  `storageWarning` de `use-study-session.ts`) y botón volver a práctica
-  (oculto en modo `embedded`). Arma el banco de prácticas con
-  `buildPracticeBank` (`study/practice-bank.ts`) a partir de las secciones
-  del documento cargado. El lector de lección usa `LessonMarkdown` para el
-  cuerpo, la cinta de marcapáginas (`BookmarkRibbon`) y la navegación
-  anterior/siguiente/practicar.
+  Cabecera de una fila: título + kicker de lección a la izquierda, chip de
+  guardado (refleja `storageWarning` de `use-study-session.ts`) y el
+  segmentado Temario/Prácticas (`.view-switch`, `role="group"`,
+  `data-testid="study-view-switch"`, un botón `aria-pressed` por vista) a la
+  derecha; el botón "Volver a práctica" (oculto en modo `embedded`) cierra
+  esa fila. Arma el banco de prácticas con `buildPracticeBank`
+  (`study/practice-bank.ts`) a partir de las secciones del documento
+  cargado. El lector de lección usa `LessonMarkdown` para el cuerpo, la
+  cinta de marcapáginas (`BookmarkRibbon`), la navegación
+  anterior/siguiente/practicar y, debajo de esa fila de botones, una barra
+  de progreso de lecciones visitadas (`role="progressbar"`,
+  `aria-valuemin`/`aria-valuemax`/`aria-valuenow` sobre el total de
+  secciones del documento) calculada desde `study.progress01`.
 - `study-catalog-pane.tsx`: `StudyCatalog` — índice de lecciones con
   buscador en vivo (filtra por título ES/EN, objetivo y bloque), agrupado
   por bloque temático vía `groupStudyBlocks` (subtemas del mismo bloque
   anidados bajo una cabecera común) y la tarjeta "Continúa desde donde lo
   dejaste", que abre la lección del marcapáginas o, si esa lección ya no
-  existe en el curso, deja la nota de marcapáginas huérfano.
+  existe en el curso, deja la nota de marcapáginas huérfano. Cada numeral de
+  fila (`.indice-num`) lleva `data-state="pending" | "done" | "current"`
+  (marcapáginas > completada > pendiente, contra `completedSectionIds` de
+  la sesión y `isBookmarkOnSection`); la fila con el marcapáginas muestra
+  además la cinta mini (`.indice-fila-cinta`) en vez del enlace "Abrir".
 - `study-practice-panes.tsx`: `PracticeItemPane` despacha por tipo de ítem a
-  tres paneles — `VocabPane` (tarjeta volteable con "Sabía" / "No sabía"),
-  `ChoicePane` (opción múltiple; la usan `completar` y `transformar` cuando
-  trae opciones) y `WrittenPane` (respuesta escrita libre; la usan
-  `traducir` y `transformar` sin opciones). Las direcciones ES→EN / EN→ES de
-  vocabulario y traducción se resuelven con `resolveBilingualSides`
-  (`study/practice-direction.ts`).
+  tres paneles — `VocabPane` (tarjeta volteable con "Sabía" / "No sabía";
+  cada cara lleva `lang="es"`/`lang="en"` según la dirección de práctica, y
+  la cara en español tipografía sans en vez de la serif itálica reservada al
+  inglés), `ChoicePane` (opción múltiple; la usan `completar` y
+  `transformar` cuando trae opciones) y `WrittenPane` (respuesta escrita
+  libre; la usan `traducir` y `transformar` sin opciones). Tras una
+  respuesta incorrecta, la opción/entrada elegida recibe `.is-incorrect` y
+  la opción correcta `.is-correct` (paleta semántica sage/blush del shell,
+  nunca hex directo) junto con la solución (`.practice-solution`,
+  `role="alert"`); un acierto no muestra ese refuerzo porque el escritorio
+  avanza al siguiente ítem sin estado intermedio observable. Las
+  direcciones ES→EN / EN→ES de vocabulario y traducción se resuelven con
+  `resolveBilingualSides` (`study/practice-direction.ts`).
 - `study-bookmark-controls.tsx`: `BookmarkRibbon` (cinta animada para
   plantar/quitar el marcapáginas, con locks de tiempo
   `BOOKMARK_PLANT_LOCK_MS` / `BOOKMARK_RETRACT_LOCK_MS` que saltan al estado
@@ -161,10 +178,22 @@ sincronizando el hash `#estudio` (gateado por `shouldShowStudyScreen` en
   lector, marcapáginas, modos de práctica, mensajes de repetición espaciada)
   más `STUDY_TEST_IDS` y `labelForStudyTema` (etiqueta legible de cada tema
   del temario, p. ej. `besingular` → "Verbo be (I, you, he, she, it)").
-- `study-notebook.css`: hoja de estilos con la identidad "cuaderno" del modo
-  Estudio, escopada por completo bajo `.study-notebook` — cabecera y chip de
-  guardado, filas y bloques del índice, la cinta de marcapáginas animada,
-  los diálogos modales y los paneles de práctica.
+- `study-notebook.css`: hoja de estilos del modo Estudio, escopada por
+  completo bajo `.study-notebook`, sobre la misma identidad Atelier del
+  Home (`app/src/index.css`, `@theme` de Tailwind 4): cabecera y chip de
+  guardado, el segmentado Temario/Prácticas, filas y bloques del índice, la
+  cinta de marcapáginas animada, los diálogos modales y los paneles de
+  práctica leen tokens `var(--color-sage-*)` / `var(--color-ink-*)` /
+  `var(--color-atelier-elev)`, tipografía `var(--font-sans)` /
+  `var(--font-serif)` (esta última solo en cursiva, para la marca, cifras
+  grandes y el inglés a practicar) y las recetas de tarjeta/botón/chip del
+  Home — sin la paleta ni el fondo cuadriculado del "cuaderno" anterior, sin
+  gradientes y sin hex sueltos fuera de esos tokens salvo `#fff` en tarjetas
+  grandes y en texto sobre acento sólido (guardado por
+  `study-notebook-skin.test.ts`). Un único bloque de foco
+  (`.study-notebook :is(button, input, a):focus-visible`) usa el anillo
+  `var(--color-sage-600)` del shell en vez de los `outline` azules
+  repartidos que tenía antes.
 
 **Solo desarrollo — banco de pruebas ASR** (`#asr-benchmark`, gateado por
 `import.meta.env.DEV` en `App.tsx` / `app-routing.ts`, nunca en producción):

@@ -18,7 +18,7 @@
 ### Rail izquierdo
 
 - Marca **Teacher** (serif itálica) + monograma T · línea “inglés personal”  
-- Nav: **Práctica** · **Historial** · **Señales** · **Estudio**  
+- Nav: **Práctica** · **Historial** · **Señales** · **Estudio** (piel Atelier propia, ver `IDENTIDAD-VISUAL.md` § Estudio hereda Atelier)  
 - Escenarios (restaurante / aeropuerto / entrevista)  
 - Modo: Conversar (activo) · Repetir (UI presente, deshabilitado hasta #68)  
 - Offline compacto + pista EN del escenario  

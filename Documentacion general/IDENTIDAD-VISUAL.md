@@ -50,6 +50,35 @@ Los tokens `sage-*` se reutilizan en clases Tailwind existentes; los valores hex
 - No cambiar la paleta sin actualizar este doc **y** `theme-tokens.test.ts`  
 - No hardcodear hex en JSX; usar clases de tokens  
 
+## Estudio hereda Atelier
+
+El modo Estudio (`app/src/ui/study-notebook.css`, escopado bajo
+`.study-notebook`) dejó su piel "cuaderno" propia y pasó a leer los mismos
+tokens que el shell del Home, conservando su estructura y sus funciones.
+
+- **Serif solo en cursiva** (`--font-serif`, itálica): reservada a la marca,
+  a cifras grandes de puntuación/progreso y al **inglés a practicar**
+  (estímulo/objetivo de vocabulario y traducción, prompts de completar). El
+  español de la interfaz y de las tarjetas de vocabulario usa `--font-sans`.
+- **Versalitas** para rótulos de sección: cabeceras de bloque del catálogo,
+  metadatos de lección (`Lección N · bloque`) y consigna de práctica —
+  `text-transform: uppercase`, tracking amplio, `--color-ink-600`, sin peso
+  de título.
+- **Foco:** un único anillo `outline: 2px solid var(--color-sage-600)` en
+  todo `.study-notebook`, igual que el resto del shell; nada de `outline`
+  azules locales.
+- **Sin bordes de 2px ni sombras duras:** tarjetas y controles usan bordes
+  de 1px (`var(--color-sage-200)`) y la sombra suave de una capa
+  (`0 1px 2px 0 rgb(0 0 0 / 0.05)` + halo `color-mix` con `sage-200`) de las
+  recetas del Home; no hay offset shadows tipo "papel" ni fondo cuadriculado.
+- **Sin hex fuera de tokens:** todo color en `study-notebook.css` referencia
+  `var(--color-*)` de `app/src/index.css`, salvo `#fff` en las tarjetas
+  grandes (sheet, lec-nav, escritorio, diálogo) y en el texto sobre acento
+  sólido (botón primario, numeral completado) — la única tarjeta blanca pura
+  del sistema, según la paleta de identidad. Los aciertos/errores de
+  práctica usan la misma paleta semántica sage (acierto) / blush (error) del
+  resto del producto, nunca un verde o rojo literal.
+
 ## Evolución
 
 Cualquier cambio material de color o tipo es un PR de diseño que actualiza:  
