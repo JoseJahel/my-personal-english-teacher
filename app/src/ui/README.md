@@ -28,7 +28,7 @@ Implementado:
   `tutor-reply-engine.test.ts`).
 - `tutor-reply-orchestration.ts`: timeout de 10 s si se llama a SmolLM2.
   El turno de práctica **no espera** al LLM: `resolvePracticeTutorReply`
-  publica al instante la línea del motor de reglas y la voz (caché SpeechT5
+  publica al instante la línea del motor de reglas y la voz (caché Supertonic
   o `speechSynthesis` local).
 - `spoken-progress.ts` / `interruption-turn-classifier.ts` /
   `interruption-resume-bridges.ts` / `tutor-speech-playback.ts`: barge-in del
@@ -48,9 +48,35 @@ Implementado:
   `UI-UX-SHELL.md`. Preview DEV: `#shell-preview` / `-filled` / `-listening` /
   `-composing` (#96: usuario + “Escribiendo…”, Hablar habilitado).
   E2E Playwright: `app/e2e/shell-visual.spec.ts`.
+- `feedback-panel-parts.tsx`: piezas presentacionales puras que usa
+  `FeedbackPanel.tsx` en sus cuatro tabs — `PanelTab` (pestaña `role="tab"`
+  con `aria-selected`), `FeedbackBlock` (contenedor con título en versalitas
+  para cada bloque del tab Turno), `Metric` (par etiqueta/valor de la
+  cuadrícula de desglose MFCC/pitch/energía/formantes) y `TechRow` (fila
+  etiqueta/valor del tab Técnico).
+- `CommunicationSuggestionsPanel.tsx`: pinta en el tab Sugerencias las
+  tarjetas que arma `ia/communication-suggestions.ts` — insignia de tipo
+  (vocabulario/fluidez/naturalidad), "Dijiste" con la frase real del alumno,
+  "Prueba esto" con la reescritura (se omite si es idéntica a lo dicho) y el
+  consejo en español. Sin sugerencias no pinta nada, salvo que
+  `showEmptyState` esté activo (`FeedbackPanel` siempre lo pasa en `true`).
+- `schedule-dynamic-suggestions.ts`: tras publicar las tarjetas
+  estructurales, lanza en segundo plano y sin bloquear el turno
+  `resolveDynamicCommunicationSuggestions` (de
+  `ia/communication-coaching-generation.ts`) contra SmolLM2; si
+  `generateCommunicationCoaching` no está disponible en el cliente, no hace
+  nada. Compara el número de generación al resolver
+  (`readCurrentGeneration` vs. `startedAtGeneration`) para descartar el
+  resultado si ya empezó un turno más nuevo antes de llamar a
+  `setSuggestions`.
 - `run-pronunciation-scoring.ts`: PCM del usuario + TTS de la frase corregida
   → **misma** cadena `prepareSpeechPcmForModels` (resample + pasa-banda #73)
-  → score DSP (MFCC + pitch + energía + formantes, issue #58).
+  → score DSP (MFCC + pitch + energía + formantes, issue #58). La tasa de
+  trabajo se fija a `WHISPER_SAMPLE_RATE_IN_HERTZ` (16 kHz) en vez de
+  heredarse de la tasa que emita el sintetizador (Supertonic entrega
+  44.100 Hz): el remuestreo lleva a usuario y referencia al mismo régimen de
+  banco mel/pasa-banda para el que están calibradas las constantes de
+  `pronunciation-score.ts`.
 - `pronunciation-score-eligibility.ts`: política #75 — no puntuar si no hay
   habla usable, tag de no-habla o texto degenerado (`not-evaluated`). Issue
   **#95**: conversación tampoco muestra 0–100 (`deferred-to-drill`) porque
@@ -65,7 +91,7 @@ Implementado:
   detener, las mismas funciones pintan la utterance completa.
 - `use-home-screen-session.ts`: shell de escenario + mic → vistas de señal →
   ASR → gramática → **burbuja de usuario (issue #96)** → tutor híbrido
-  (**SmolLM2** + respaldo) → score de pronunciación → **SpeechT5** →
+  (**SmolLM2** + respaldo) → score de pronunciación → **Supertonic** →
   persistencia en IndexedDB. El mic no se bloquea mientras el tutor genera
   texto; solo durante TTS. Perfil ASR en el rail
   (`asr-demo-profile-presentation.ts`).
@@ -86,6 +112,59 @@ Implementado:
   días locales y conteo de turnos “bien” (≥ umbral good 72) sobre IndexedDB.
 - `PracticeHistoryPanel.tsx`: panel con los últimos turnos guardados en
   IndexedDB (`storage/`).
+
+**Modo Estudio:** consume la sexta capa del proyecto (`study/`, dominio puro
+sin React/DOM/`ui/`/`ia/`) y se monta como una vista más del rail izquierdo,
+no como pantalla enrutada aparte por `App.tsx`. `HomeScreen.tsx` alterna su
+`activeView` a `'study'` (cuarto ítem del rail) y monta `StudyShellPane`,
+sincronizando el hash `#estudio` (gateado por `shouldShowStudyScreen` en
+`app-routing.ts`, raíz de `src/`).
+
+- `StudyShellPane.tsx`: envoltorio de una línea — monta `StudyScreen` en modo
+  `embedded` como panel hermano del rail, no como overlay a pantalla completa.
+- `StudyScreen.tsx`: pantalla contenedora con tres vistas internas
+  (`catalog` / `reader` / `practice`) más el diálogo de marcapáginas.
+  Cabecera con chips Temario/Prácticas, chip de guardado (refleja
+  `storageWarning` de `use-study-session.ts`) y botón volver a práctica
+  (oculto en modo `embedded`). Arma el banco de prácticas con
+  `buildPracticeBank` (`study/practice-bank.ts`) a partir de las secciones
+  del documento cargado. El lector de lección usa `LessonMarkdown` para el
+  cuerpo, la cinta de marcapáginas (`BookmarkRibbon`) y la navegación
+  anterior/siguiente/practicar.
+- `study-catalog-pane.tsx`: `StudyCatalog` — índice de lecciones con
+  buscador en vivo (filtra por título ES/EN, objetivo y bloque), agrupado
+  por bloque temático vía `groupStudyBlocks` (subtemas del mismo bloque
+  anidados bajo una cabecera común) y la tarjeta "Continúa desde donde lo
+  dejaste", que abre la lección del marcapáginas o, si esa lección ya no
+  existe en el curso, deja la nota de marcapáginas huérfano.
+- `study-practice-panes.tsx`: `PracticeItemPane` despacha por tipo de ítem a
+  tres paneles — `VocabPane` (tarjeta volteable con "Sabía" / "No sabía"),
+  `ChoicePane` (opción múltiple; la usan `completar` y `transformar` cuando
+  trae opciones) y `WrittenPane` (respuesta escrita libre; la usan
+  `traducir` y `transformar` sin opciones). Las direcciones ES→EN / EN→ES de
+  vocabulario y traducción se resuelven con `resolveBilingualSides`
+  (`study/practice-direction.ts`).
+- `study-bookmark-controls.tsx`: `BookmarkRibbon` (cinta animada para
+  plantar/quitar el marcapáginas, con locks de tiempo
+  `BOOKMARK_PLANT_LOCK_MS` / `BOOKMARK_RETRACT_LOCK_MS` que saltan al estado
+  final de una vez si `prefers-reduced-motion`) y `BookmarkDialog` (confirma
+  mover el marcapáginas a otra lección o avisa de marcapáginas huérfano;
+  cierra con Escape o clic fuera del diálogo).
+- `use-study-session.ts`: carga el catálogo procesado
+  (`loadProcessedLessons`), restaura progreso y marcapáginas desde
+  `storage/study-document-store.ts` (IndexedDB) o crea sesión nueva si no
+  hay nada guardado; expone navegación entre secciones (`selectSectionIndex`,
+  `goNext`, `goPrevious`) y marcapáginas (`plantBookmark`, `clearBookmark`),
+  persistiendo cada cambio. Si el store falla, degrada a solo-sesión y
+  expone `storageWarning`.
+- `study-interface-texts.ts`: textos en español del modo Estudio (catálogo,
+  lector, marcapáginas, modos de práctica, mensajes de repetición espaciada)
+  más `STUDY_TEST_IDS` y `labelForStudyTema` (etiqueta legible de cada tema
+  del temario, p. ej. `besingular` → "Verbo be (I, you, he, she, it)").
+- `study-notebook.css`: hoja de estilos con la identidad "cuaderno" del modo
+  Estudio, escopada por completo bajo `.study-notebook` — cabecera y chip de
+  guardado, filas y bloques del índice, la cinta de marcapáginas animada,
+  los diálogos modales y los paneles de práctica.
 
 **Solo desarrollo — banco de pruebas ASR** (`#asr-benchmark`, gateado por
 `import.meta.env.DEV` en `App.tsx` / `app-routing.ts`, nunca en producción):

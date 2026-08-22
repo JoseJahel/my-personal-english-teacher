@@ -54,6 +54,15 @@ describe('DEFAULT_ASR_CANDIDATE_ID', () => {
   })
 })
 
+describe('modelRegistry.textToSpeech', () => {
+  it('uses Supertonic instead of SpeechT5 so the tutor does not garble words', () => {
+    expect(modelRegistry.textToSpeech.huggingFaceModelId).toBe(
+      'onnx-community/Supertonic-TTS-ONNX',
+    )
+    expect(modelRegistry.textToSpeech.revision).toMatch(/^[0-9a-f]{40}$/)
+  })
+})
+
 describe('modelRegistry.automaticSpeechRecognition', () => {
   it('derives from the default ASR candidate so existing consumers do not break', () => {
     expect(modelRegistry.automaticSpeechRecognition.huggingFaceModelId).toBe(

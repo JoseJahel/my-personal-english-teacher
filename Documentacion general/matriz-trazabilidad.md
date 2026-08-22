@@ -27,8 +27,8 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
     parte del alcance del enunciado.
   - `Pendiente` — decidido/diseñado, aún no en código.
   - `Descartado` — excluido explícitamente por una decisión documentada.
-- **Módulo:** capa de `app/src/` (`ui/`, `ia/`, `dsp/`, `audio/`, `storage/`)
-  y archivo(s) principal(es).
+- **Módulo:** capa de `app/src/` (`ui/`, `ia/`, `dsp/`, `audio/`, `storage/`,
+  `study/`) y archivo(s) principal(es).
 
 ## Requerimientos funcionales (core del enunciado)
 
@@ -46,8 +46,8 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RF-10 | Puntaje de pronunciación 0–100 | Alta | Curso | `dsp/pronunciation-score.ts`, `ui/run-pronunciation-scoring.ts`, calibración (#29), sesgo locutor (`measure-speaker-bias.ts`, issue #95) | Implementado | `dsp/pronunciation-score.test.ts`, `dsp/measure-speaker-bias.test.ts`, `ui/pronunciation-score-eligibility.test.ts` | 0–100 en **Repetir**; conversación no califica (Δlocutor 11.3 ≳ Δerror 9.9, ratio 1.14) |
 | RF-11 | Highlights en palabras problemáticas | Media | Curso | `dsp/word-pronunciation-highlights.ts` (path DTW) | Implementado | `dsp/word-pronunciation-highlights.test.ts` | Aproximación temporal por letras |
 | RF-12 | Respuesta conversacional generada del tutor | Alta | Curso | `ia/conversation-suggestions.ts`, `ui/tutor-reply-orchestration.ts`, `ui/tutor-reply-engine.ts` | Implementado | `ui/tutor-reply-orchestration.test.ts`, `ui/tutor-reply-engine.test.ts`, `ia/conversation-suggestions.test.ts` | SmolLM2 + respaldo reglas, timeout 10 s |
-| RF-13 | Respuesta hablada del tutor (TTS SpeechT5) | Alta | Curso | `ia/text-to-speech-synthesis.ts`, `audio/play-pcm-mono.ts` | Implementado | `ia/text-to-speech-synthesis.test.ts` | Síntesis + reproducción |
-| RF-14 | Sugerencias de comunicación (vocabulario / fluidez / naturalidad) como salida diferenciada | Media | Curso | `ia/conversation-suggestions.ts` (dentro del turno del tutor) | Parcial | `ia/conversation-suggestions.test.ts` | Van embebidas en la respuesta; sin panel propio de sugerencias |
+| RF-13 | Respuesta hablada del tutor (TTS Supertonic) | Alta | Curso | `ia/text-to-speech-synthesis.ts`, `audio/play-pcm-mono.ts` | Implementado | `ia/text-to-speech-synthesis.test.ts` | Síntesis + reproducción |
+| RF-14 | Sugerencias de comunicación (vocabulario / fluidez / naturalidad) como salida diferenciada | Media | Curso | `ia/communication-suggestions.ts` (ensambla y deduplica), `ia/communication-suggestion-analysis.ts` (intención/complemento/cortesía), `ia/communication-suggestion-rewrites.ts` (reescrituras), `ia/communication-coaching-generation.ts` (pasada opcional SmolLM2) | Implementado | `ia/communication-suggestions.test.ts`, `ia/communication-suggestion-analysis.test.ts`, `ia/communication-suggestion-rewrites.test.ts`, `ia/communication-coaching-generation.test.ts`, `ui/CommunicationSuggestionsPanel.test.tsx` | Panel propio (`ui/CommunicationSuggestionsPanel.tsx`) en la pestaña Sugerencias del feedback; 3 tarjetas citan la frase real del alumno (`youSaidEn`/`tryThisEn`); enriquecimiento asíncrono no bloqueante vía `ui/schedule-dynamic-suggestions.ts` |
 
 ## Requerimientos de procesamiento de señales (DSP)
 
@@ -63,6 +63,23 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RF-22 | Robustez a ruido / edge cases (acento fuerte, ruido, frases largas) | Media | Curso | `audio/capture-diagnostics.ts`, preproceso `audio/*` + issues #30/#31 + RF-23 | Implementado | `audio/*test.ts`, `dsp/reduce-stationary-noise.test.ts` | Preproceso endurecido; Wiener STFT en la rama ASR del usuario |
 | RF-23 | Filtrado adaptativo de ruido | Baja | Curso | `dsp/reduce-stationary-noise.ts` + `audio/prepare-user-asr-pcm.ts` (Wiener STFT; piso en tramas ≤ −12 dB del pico; si no hay tramas quietas, passthrough). No se aplica a la ref TTS | Implementado | `dsp/reduce-stationary-noise.test.ts`, `audio/prepare-user-asr-pcm.test.ts` | SNR de regiones de ruido baja; tono limpio ≈ invariante |
 
+## Requerimientos del modo de estudio
+
+Alcance de producto nuevo (temario English File como cuaderno de estudio),
+mergeado en `main` (PRs #122 y #125) y fuera del lote de rúbrica #57-#79,
+#81, #92-#98 (meta-issue #80, cerrado). Capa de dominio puro en `study/`
+(sin React/DOM/`ui`/`ia`/`audio`/`storage`), accesible en el hash `#estudio`
+(`app-routing.ts::shouldShowStudyScreen`, cuarto ítem del rail izquierdo) y
+persistida en `storage/study-document-store.ts`.
+
+| ID | Descripción | Prioridad | Fuente | Módulo / Funcionalidad | Estado | Pruebas de verificación | Métrica |
+|----|-------------|-----------|--------|------------------------|--------|-------------------------|---------|
+| RF-24 | Carga y parseo del temario procesado a banco de práctica | Alta | Equipo | `study/load-processed-lessons.ts` (36 lecciones markdown en `estudio/procesado/` vía `import.meta.glob`), `study/parse-lesson-markdown.ts` (frontmatter YAML), `study/group-study-blocks.ts`, `study/extract-practice-items.ts`, `study/practice-bank.ts` | Implementado | `study/load-processed-lessons.test.ts`, `study/parse-lesson-markdown.test.ts`, `study/group-study-blocks.test.ts`, `study/extract-practice-items.test.ts`, `study/practice-bank.test.ts` | 36 lecciones cargadas; capa de dominio puro sin dependencia de React/DOM/`ui`/`ia`/`audio`/`storage` |
+| RF-25 | Cuatro modos de práctica: vocabulario, completar, traducir, transformar | Alta | Equipo | `study/study-types.ts` (`PRACTICE_MODES`), `study/practice-session.ts`, `study/practice-drills.ts`, `ui/StudyPracticeDesk.tsx`, `ui/study-practice-panes.tsx` | Implementado | `study/practice-session.test.ts`, `ui/StudyPracticeDesk.test.tsx` | 4 modos (`vocab`/`completar`/`traducir`/`transformar`) |
+| RF-26 | Repetición espaciada de tarjetas de práctica | Media | Equipo | `study/practice-srs.ts` (SM-2 adaptado) | Implementado | `study/practice-srs.test.ts` | Intervalos (h) 0.5/4/24/72/168/336/720/1440; ease acotado 1.3–3.0 (inicial 2.3, +0.05 acierto / −0.2 fallo); reintento a 60 s tras un fallo; selección ponderada de la siguiente tarjeta (nueva +16, vencida +8, hasta +6 por fallos previos) |
+| RF-27 | Marcapáginas de reanudación de lección | Media | Equipo | `study/study-bookmark.ts`, `ui/study-bookmark-controls.tsx` | Implementado | `study/study-bookmark.test.ts` | Diálogo de confirmación al mover el marcapáginas; respeta `prefers-reduced-motion` |
+| RF-28 | Dirección de práctica es→en / en→es / mixta | Media | Equipo | `study/practice-direction.ts` | Implementado | `study/practice-direction.test.ts` | 3 direcciones (`es-en`/`en-es`/`mixed`); tarjetas SRS independientes por dirección (`study/practice-srs.ts`) |
+
 ## Requerimientos no funcionales y de plataforma
 
 | ID | Descripción | Prioridad | Fuente | Módulo / Funcionalidad | Estado | Pruebas de verificación | Métrica |
@@ -74,7 +91,7 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 | RNF-05 | Modelos HF compatibles con browser (ONNX/quantized), anclados a SHA | Alta | Curso | `ia/model-registry.ts`, `ia/onnx-dtype.ts`, `ia/resolve-inference-device.ts` | Implementado | `ia/model-registry.test.ts`, `ia/resolve-inference-device.test.ts` | Revisiones ancladas a commit SHA |
 | RNF-06 | Latencia de respuesta < 2 s donde aplique | Media | Curso | Presupuesto de 2 s = **feedback ASR+T5** (issue #96), no el turno tutor/TTS. DSP local &lt; 2 s; ASR precisión `small-en` ~3.4 s; perfil latencia `tiny-en` vía `pnpm dev:latency` (issue #61) | Parcial | Bench 2026-07-29; `ia/model-registry.test.ts`; `ui/progressive-tutor-turn.test.ts` | Precisión no cumple 2 s en ASR; el chat ya no espera al tutor; cifra `tiny-en` **no medida** |
 | RNF-07 | Navegador objetivo Chrome/Chromium con WebGPU→WASM fallback | Media | Equipo | `ia/resolve-inference-device.ts` | Implementado | `ia/resolve-inference-device.test.ts` | Auto-detección de adapter |
-| RNF-08 | Sin servicios en la nube para el producto (local-only) | Alta | Equipo | Todo el runtime; CI solo para calidad | Implementado | `docs/local-only-constraints` + `CONTRIBUTING.md` §Constraints | Demo en `localhost` |
+| RNF-08 | Sin servicios en la nube para el producto (local-only) | Alta | Equipo | Todo el runtime; CI solo para calidad | Implementado | `Documentacion general/REGLAS-DE-CODIGO.md` §1.1 (Producto local y offline — límites no negociables) + `CONTRIBUTING.md` §Constraints del producto | Demo en `localhost` |
 | RNF-09 | Interfaz, instrucciones y correcciones en español | Media | Usuario | `ui/interface-texts.ts` | Implementado | Textos centralizados | Sin toggle bilingüe |
 | RNF-10 | Half-duplex: bloquear mic mientras el tutor habla (TTS) | Media | Equipo | Sesión de UI + abort TTS con `cutoffMs` | Implementado | `ui/use-home-microphone-session.ts`, `audio/play-pcm-mono.test.ts` | Mic deshabilitado en UI; barge-in registra `spoken_progress` (issue #46) |
 | RNF-11 | Barge-in / interrupción mid-utterance sin perder contexto de escena | Media | Equipo | `ui/spoken-progress.ts`, `interruption-turn-classifier.ts`, `interruption-resume-bridges.ts`, `storage` pending | Implementado | `ui/spoken-progress.test.ts`, `interruption-*.test.ts`, `storage/session-repository.test.ts` | Casos A/B/C/D issue #46; `spoken_progress` en turno + sesión |
@@ -91,21 +108,24 @@ sección 6 exigida por la estructura obligatoria del documento técnico.
 
 ## Resumen de cobertura
 
-| Estado | Funcionales + DSP | No funcionales | Extensiones | Total |
-|--------|:-----------------:|:--------------:|:-----------:|:-----:|
-| Implementado | 18 | 8 | 2 | 28 |
-| Parcial | 3 | 2 | 1 | 6 |
-| Pendiente | 1 | 0 | 1 | 2 |
+| Estado | Funcionales + DSP + Estudio | No funcionales | Extensiones | Total |
+|--------|:----------------------------:|:--------------:|:-----------:|:-----:|
+| Implementado | 28 | 10 | 2 | 40 |
+| Parcial | 0 | 1 | 1 | 2 |
+| Pendiente | 0 | 0 | 1 | 1 |
 | Descartado | 0 | 0 | 1 | 1 |
 
 **Lectura honesta del estado:** el núcleo funcional exigido por el enunciado
 (ASR, gramática, análisis DSP de pronunciación con MFCC/YIN/DTW/formantes,
-score 0–100, tutor conversacional, TTS, visualizaciones y offline real) está
-**implementado y verificado por la suite de pruebas y el CI**. Los puntos
-`Parcial` son de calibración/endurecimiento, no de ausencia: sugerencias como
-salida diferenciada (RF-14), robustez a ruido (RF-22), latencia < 2 s (RNF-06,
-limitada por el costo de `small-en`), half-duplex estricto (RNF-10) y
-calibración del score (RE-04). Los `Pendiente` (filtrado adaptativo RF-23,
-tendencia de scores RE-02) son extensiones de innovación fuera del core. El
-detalle cuantitativo (WER, latencia, casos de prueba) está en el
+score 0–100, tutor conversacional, TTS, sugerencias de comunicación,
+visualizaciones y offline real) está **implementado y verificado por la
+suite de pruebas y el CI**, igual que el modo de estudio (temario procesado,
+práctica en 4 modos, repetición espaciada, marcapáginas y dirección
+es-en/en-es), alcance de producto nuevo mergeado en `main` y no cubierto por
+el lote de rúbrica. Los dos puntos `Parcial` son de calibración/endurecimiento,
+no de ausencia: latencia < 2 s (RNF-06, limitada por el costo de `small-en`)
+y calibración fina del score con hablantes reales (RE-04). El `Pendiente`
+(tendencia de scores RE-02) y el `Descartado` (soporte multi-idioma RE-05)
+son extensiones de innovación fuera del core. El detalle cuantitativo (WER,
+latencia, casos de prueba) está en el
 [reporte de verificación](./reporte-verificacion.md).

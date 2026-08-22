@@ -1,9 +1,12 @@
 /**
  * Orchestrates pronunciation scoring for a practice turn (main thread).
  * User PCM and TTS reference share `prepareSpeechPcmForModels` (issue #73)
- * so the score does not compare two different preprocess paths.
+ * so the score does not compare two different preprocess paths. Both are
+ * resampled to WHISPER_SAMPLE_RATE_IN_HERTZ regardless of what rate the
+ * TTS engine emits (see targetRate below).
  */
 
+import { WHISPER_SAMPLE_RATE_IN_HERTZ } from '../audio/audio-resampler'
 import { prepareSpeechPcmForModels } from '../audio/prepare-speech-pcm'
 import type { SynthesizedSpeechResult } from '../ia/inference-client'
 import {
@@ -32,7 +35,12 @@ export async function runPronunciationScoringForUtterance(options: {
     return null
   }
 
-  const targetRate = synthesized.sampleRateInHertz
+  // Fixed at 16 kHz, not inherited from the synthesizer: the MFCC/DTW
+  // calibration constants (see pronunciation-score.ts) were tuned for a
+  // 16 kHz mel filterbank + bandpass regime. Letting targetRate follow
+  // whatever rate the TTS engine emits (e.g. 44.1 kHz) would shift the
+  // MFCC coefficients out of that calibrated regime.
+  const targetRate = WHISPER_SAMPLE_RATE_IN_HERTZ
   const userPrepared = prepareSpeechPcmForModels(
     options.userSamples,
     options.userSampleRateInHertz,

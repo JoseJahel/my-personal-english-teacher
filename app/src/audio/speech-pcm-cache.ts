@@ -1,5 +1,5 @@
 /**
- * Session-scoped PCM cache for tutor lines already synthesized with SpeechT5.
+ * Session-scoped PCM cache for tutor lines already synthesized with neural TTS.
  * Keys are normalized so curated script variants hit the same entry.
  */
 

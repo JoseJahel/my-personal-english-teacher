@@ -38,11 +38,11 @@ sobre el PCM decodificado.
 | `normalize-peak.ts` | Peak-normalize con tope de gain (no amplifica casi-silencio) |
 | `mix-to-mono.ts` | Mezcla de canales de un `AudioBuffer` a mono |
 | `audio-resampler.ts` | 44.1/48 kHz → 16 kHz vía FIR de fase lineal (`dsp/polyphase-resample.ts`); lineal solo como fallback |
-| `prepare-speech-pcm.ts` | Cadena compartida (issue #73): resample + un pasa-banda. Misma función para user y ref TTS |
+| `prepare-speech-pcm.ts` | Cadena compartida (issue #73): resample + un pasa-banda. Misma función para user y ref TTS; la referencia de Supertonic entra a 44.1 kHz y se remuestrea a 16 kHz por la rama FIR de fase lineal — hoy un camino que se ejerce de verdad en producción |
 | `prepare-user-asr-pcm.ts` | User → ASR (issue #63): cadena #73 + Wiener si hay tramas quietas. No se usa en la ref TTS |
 | `audio-frame-buffer.ts` | Helper puro para concatenar frames mono (tests; no es el path ASR actual) |
 | `play-pcm-mono.ts` | Reproducir PCM mono (salida TTS) vía `AudioBuffer` |
-| `speech-pcm-cache.ts` | Caché de PCM SpeechT5 por frase del tutor |
+| `speech-pcm-cache.ts` | Caché **en memoria** (Map de módulo, no persiste entre recargas) de PCM Supertonic por frase del tutor |
 | `play-browser-speech-synthesis.ts` | Voz local (`speechSynthesis`) si aún no hay PCM cacheado |
 | `pcm-tap-processor.js` | Worklet: solo copia PCM al hilo principal (no FFT, no ASR) |
 | `start-pcm-tap.ts` | Conecta el worklet al `MediaStreamSource` |

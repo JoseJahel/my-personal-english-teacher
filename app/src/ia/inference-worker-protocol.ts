@@ -31,7 +31,7 @@ export interface PreloadModelsRequestMessage {
   readonly asrCandidateId?: AsrModelCandidateId
 }
 
-/** Synthesize speech for English text (SpeechT5). Loaded on first use — not in default preload. */
+/** Synthesize speech for English text (Supertonic). Loaded on first use — not in default preload. */
 export interface SynthesizeSpeechRequestMessage {
   readonly type: 'synthesize-speech'
   readonly requestId: string
@@ -55,6 +55,15 @@ export interface GenerateTutorReplyRequestMessage {
   readonly fallbackReplyEn: string
 }
 
+/** SmolLM2 rewrite of the student's last line for the suggestions panel. */
+export interface GenerateCommunicationCoachingRequestMessage {
+  readonly type: 'generate-communication-coaching'
+  readonly requestId: string
+  readonly scenarioContextEn: string
+  readonly lastTutorLineEn: string
+  readonly userUtteranceEn: string
+}
+
 /**
  * Dev benchmark only: force the ONNX device for this worker instance,
  * bypassing `resolvePreferredOnnxDevice()`. Fire-and-forget (no requestId,
@@ -73,6 +82,7 @@ export type InferenceWorkerRequestMessage =
   | PreloadModelsRequestMessage
   | SynthesizeSpeechRequestMessage
   | GenerateTutorReplyRequestMessage
+  | GenerateCommunicationCoachingRequestMessage
   | PreloadConversationModelRequestMessage
   | SetPreferredDeviceMessage
 
@@ -184,6 +194,22 @@ export interface GenerateTutorReplyErrorMessage {
   readonly reason: GenerateTutorReplyErrorReason
 }
 
+export interface GenerateCommunicationCoachingResultMessage {
+  readonly type: 'generate-communication-coaching-result'
+  readonly requestId: string
+  readonly tryThisEn: string
+  readonly whyEs: string
+  readonly usedFallback: boolean
+}
+
+export type GenerateCommunicationCoachingErrorReason = 'model-load-failed' | 'generation-failed'
+
+export interface GenerateCommunicationCoachingErrorMessage {
+  readonly type: 'generate-communication-coaching-error'
+  readonly requestId: string
+  readonly reason: GenerateCommunicationCoachingErrorReason
+}
+
 export type InferenceWorkerResponseMessage =
   | ModelLoadingProgressMessage
   | ModelReadyMessage
@@ -197,5 +223,7 @@ export type InferenceWorkerResponseMessage =
   | SynthesizeSpeechErrorMessage
   | GenerateTutorReplyResultMessage
   | GenerateTutorReplyErrorMessage
+  | GenerateCommunicationCoachingResultMessage
+  | GenerateCommunicationCoachingErrorMessage
   | PreloadConversationModelResultMessage
   | PreloadConversationModelErrorMessage

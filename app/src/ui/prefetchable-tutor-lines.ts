@@ -42,7 +42,7 @@ const STATIC_ENGINE_LINES_EN = [
   'Sorry, I did not catch that. Could you please introduce yourself again?',
 ] as const
 
-/** Unique English tutor lines that SpeechT5 can synthesize ahead of the first turn. */
+/** Unique English tutor lines that neural TTS can synthesize ahead of the first turn. */
 export function listPrefetchableTutorLinesEn(): string[] {
   const unique = new Set<string>()
   for (const scenario of practiceScenarios) {

@@ -134,6 +134,12 @@ describe('useHomeScreenSession with injected mocks', () => {
       score0to100: null,
     })
     expect(userTurn?.signalCard).not.toHaveProperty('samples')
+    expect(session.communicationSuggestions.length).toBeGreaterThan(0)
+    expect(
+      session.communicationSuggestions.some((item) =>
+        (item.tryThisEn ?? item.text).includes('glass of water'),
+      ),
+    ).toBe(true)
     expect(Date.now() - startedAt).toBeLessThan(1000)
     expect(MOCK_RESTAURANT_TUTOR_REPLY_EN).toMatch(/drink/)
   })

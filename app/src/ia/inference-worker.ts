@@ -29,6 +29,7 @@ import { deviceForModelKey, resolvePreferredOnnxDevice } from './resolve-inferen
 import type { OnnxInferenceDevice } from './resolve-inference-device'
 import { loadTextToSpeechSynthesizer } from './text-to-speech-synthesis'
 import {
+  handleGenerateCommunicationCoachingMessage,
   handleGenerateTutorReplyMessage,
   handleSynthesizeSpeechMessage,
 } from './inference-worker-speech-jobs'
@@ -162,11 +163,10 @@ function getGrammarCorrector(): Promise<Text2TextGenerationPipeline> {
 
 let textToSpeechSynthesizerPromise: Promise<TextToAudioPipeline> | null = null
 
-// TTS/vocoder is only validated on WASM (deviceForModelKey pins it there):
-// SpeechT5's fp32 WebGPU MatMul kernel is broken (see resolve-inference-device.ts),
-// so there is no WebGPU attempt here and thus no WASM retry to perform — and
-// critically, no `preferredDevicePromise` write, so a TTS failure can no
-// longer contaminate the shared device pin that ASR reads.
+// TTS is only validated on WASM (deviceForModelKey pins it there):
+// the previous SpeechT5 WebGPU MatMul kernel was broken, and Supertonic
+// stays on the same WASM pin so a TTS failure cannot contaminate the
+// shared device pin that ASR reads.
 async function loadTextToSpeechSynthesizerWithFallback(): Promise<TextToAudioPipeline> {
   const device = deviceForModelKey('textToSpeech', await getPreferredDevice())
   const onProgress = (event: SpeechRecognitionProgressEvent) =>
@@ -263,7 +263,7 @@ async function handleCorrectGrammarMessage(message: CorrectGrammarRequestMessage
 }
 
 /**
- * Overlap Whisper + T5 + SpeechT5 downloads. SmolLM2 still waits for a
+ * Overlap Whisper + T5 + Supertonic downloads. SmolLM2 still waits for a
  * scenario pick so it does not steal bandwidth from the first-turn models.
  */
 async function handlePreloadModelsMessage(message: PreloadModelsRequestMessage): Promise<void> {
@@ -337,6 +337,13 @@ self.addEventListener('message', (event: MessageEvent<InferenceWorkerRequestMess
       break
     case 'generate-tutor-reply':
       void handleGenerateTutorReplyMessage(message, {
+        getConversationGenerator,
+        emitModelReady: () => emitModelReady('conversationSuggestions'),
+        postResponse,
+      })
+      break
+    case 'generate-communication-coaching':
+      void handleGenerateCommunicationCoachingMessage(message, {
         getConversationGenerator,
         emitModelReady: () => emitModelReady('conversationSuggestions'),
         postResponse,

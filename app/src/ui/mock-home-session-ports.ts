@@ -55,6 +55,9 @@ export function createMockInferencePort(): InferenceClient {
     async generateTutorReply(): Promise<TutorReplyResult> {
       return { tutorReplyText: MOCK_RESTAURANT_TUTOR_REPLY_EN, usedFallback: false }
     },
+    async generateCommunicationCoaching() {
+      return { tryThisEn: '', whyEs: '', usedFallback: true }
+    },
     async preloadModels(): Promise<void> {
       notifyReady('automaticSpeechRecognition')
       notifyReady('grammarCorrection')

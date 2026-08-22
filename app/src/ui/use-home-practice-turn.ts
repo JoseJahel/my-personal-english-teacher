@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react'
 import { buildCommunicationSuggestions } from '../ia/communication-suggestions'
+import { startDynamicSuggestionEnrichment } from './schedule-dynamic-suggestions'
 import type { PronunciationScoreResult } from '../dsp/pronunciation-score'
 import {
   ensureHomeInferenceClient,
@@ -271,11 +272,15 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
           })
 
       const historyTurnsEn = buildRecentHistoryTurnsEn(chatMessagesRef.current)
+      const lastTutorLineEn =
+        [...chatMessagesRef.current].reverse().find((message) => message.role === 'tutor')?.text ??
+        ''
       const communicationSuggestions = buildCommunicationSuggestions({
         scenarioId: selectedScenarioIdRef.current,
         userUtteranceEn: transcribedTextResult,
         correctedUtteranceEn: referencePhrase,
         userTurnIndex: turnIndex,
+        lastTutorLineEn,
       })
       setCommunicationSuggestions(communicationSuggestions)
       const scenarioContextEn = interruptionResolution?.llmContextNoteEn
@@ -313,6 +318,17 @@ export function useHomePracticeTurn(deps: HomeUtterancePipelineDeps) {
         createTutorReplyMessage(tutorReplyText, nextChatMessageId('tutor'), usedFallback),
       ])
       setTutorGenerationStatus(tutorGenerationStatusFromResult(usedFallback))
+
+      startDynamicSuggestionEnrichment({
+        generateCommunicationCoaching: inferenceClientRef.current?.generateCommunicationCoaching,
+        structural: communicationSuggestions,
+        scenarioContextEn,
+        lastTutorLineEn,
+        userUtteranceEn: transcribedTextResult,
+        startedAtGeneration,
+        readCurrentGeneration: () => transcriptionAttemptGenerationRef.current,
+        setSuggestions: setCommunicationSuggestions,
+      })
 
       if (interruptionResolution?.clearPendingCutoff) {
         await persistPendingSpokenProgress(null)

@@ -29,52 +29,61 @@ apoya en tres niveles complementarios:
    backends WASM y WebGPU y mide **WER** y **latencia** por combinación, con
    export a CSV/JSON. Es la fuente de la decisión del modelo ASR de producción.
 
-> **Nota de reproducibilidad de este reporte.** Las cifras de la suite provienen
-> de la enumeración estática de los archivos `*.test.ts` del repositorio y de la
-> **última corrida verde del CI sobre `main`** (workflow `ci`, corrida
-> `#30869773890`, commit `#42` *pin HF model SHAs and sync README*,
-> 2026-08-04, duración 57 s, resultado **success**). Las cifras de WER y
-> latencia por modelo corresponden al **banco de pruebas del 2026-07-29** sobre
-> la máquina de referencia; no se re-ejecutaron para este documento porque el
-> banco requiere navegador con micrófono y las fixtures de voz nunca se
-> versionan en Git. Cualquier re-medición en el hardware de demo debe rehacerse
-> con `#asr-benchmark` y actualizar la tabla de la §4.
+> **Nota de reproducibilidad de este reporte.** Las cifras de la suite (§2)
+> provienen de una **corrida local de `vitest run`** sobre el estado actual del
+> árbol de trabajo, no de una corrida de CI concreta: desde la última corrida
+> de CI que una revisión anterior de este reporte llegó a documentar (`main`,
+> 2026-08-04) se han integrado más de quince Pull Requests adicionales, y no se
+> dispone de un identificador de corrida de GitHub Actions posterior que se
+> haya verificado para citarlo aquí. El pipeline `ci` (`pnpm lint` →
+> `pnpm exec tsc --noEmit` → `pnpm test` → `pnpm build`) sigue siendo la puerta
+> de integración en cada push y Pull Request (§1, punto 2); esta revisión
+> documenta lo **medido directamente en local**, no una corrida de Actions
+> concreta. Las cifras de WER y latencia por modelo corresponden al **banco de
+> pruebas del 2026-07-29** sobre la máquina de referencia; no se re-ejecutaron
+> para este documento porque el banco requiere navegador con micrófono y las
+> fixtures de voz nunca se versionan en Git. Cualquier re-medición en el
+> hardware de demo debe rehacerse con `#asr-benchmark` y actualizar la tabla de
+> la §4.
 
 ## 2. Cobertura de pruebas automatizadas
 
-La suite Vitest cuenta con **44 archivos de prueba** y **280 casos**
+La suite Vitest cuenta con **123 archivos de prueba** y **798 casos**
 (`it`/`test`), distribuidos por capa:
 
 | Capa | Archivos de prueba | Casos | Qué verifica |
 |------|:------------------:|:-----:|--------------|
-| `dsp/` | 9 | 72 | Energía/gate, YIN, MFCC, DTW, score, espectrograma, VAD, formantes, highlights |
-| `ia/` | 12 | 92 | ASR, gramática, TTS, tutor, worker/cliente, registro de modelos, device policy, WER |
-| `audio/` | 5 | 23 | Resample, mono, normalización, trim de silencio, frame buffer |
-| `storage/` | 4 | 12 | Schema IndexedDB, tipos de sesión, store de fixtures del banco |
-| `ui/` | 13 | 79 | Orquestación de turno, estados de pantalla, chat, tutor, canvas, banco ASR |
-| raíz | 1 (+`theme`) | 4 | Ruteo (`app-routing`), freeze-guard de paleta (`theme-tokens`) |
-| **Total** | **44** | **280** | — |
+| `dsp/` | 27 | 153 | Energía/gate, YIN, MFCC, DTW, score, espectrograma, VAD, formantes, highlights |
+| `ia/` | 20 | 177 | ASR, gramática, TTS (Supertonic), tutor, worker/cliente, registro de modelos, device policy, WER, sugerencias de comunicación |
+| `audio/` | 16 | 119 | Resample, mono, normalización, trim de silencio, frame buffer |
+| `storage/` | 7 | 52 | Schema IndexedDB, tipos de sesión, store de fixtures del banco, store de documentos de estudio |
+| `ui/` | 41 | 200 | Orquestación de turno, estados de pantalla, chat, tutor, canvas, banco ASR, estudio, panel de sugerencias |
+| `study/` | 10 | 59 | Parseo de lecciones markdown, banco de práctica, repetición espaciada (SM-2), marcapáginas, dirección de práctica |
+| raíz | 2 | 38 | Ruteo (`app-routing`, 18 casos), freeze-guard de paleta (`theme-tokens`, 20 casos) |
+| **Total** | **123** | **798** | — |
 
 ### 2.1 Casos por módulo crítico (extracto)
 
 | Módulo | Archivo de prueba | Casos | Foco de verificación |
 |--------|-------------------|:-----:|----------------------|
 | DTW | `dsp/dynamic-time-warping.test.ts` | 14 | Alineación monótona, distancia L2 acumulada, secuencias de distinto largo |
-| Signal energy / gate | `dsp/signal-energy.test.ts` | 11 | RMS/pico, umbral de duración, rechazo de silencio |
+| Signal energy / gate | `dsp/signal-energy.test.ts` | 19 | RMS/pico, umbral de duración, rechazo de silencio |
 | MFCC | `dsp/mfcc-extraction.test.ts` | 10 | Banco mel, DCT-II, dimensiones (13 coef), pre-énfasis |
 | MFCC dorados | `dsp/mfcc-golden-vectors.test.ts` | 1 | Fixture JSON; c0–c12 vs recetas sintéticas; cota 1e-5 |
 | YIN | `dsp/pitch-detection-yin.test.ts` | 10 | F0 en banda 70–400 Hz, frames no sonoros, contorno |
 | FFT / STFT | `dsp/radix2-forward-fft.test.ts`, `dsp/spectrogram.test.ts` | 4+ | Error vs DFT O(N²) &lt; 1e-10 (Float64); Parseval; pico en bin; STFT vs DFT |
-| Device policy | `ia/resolve-inference-device.test.ts` | 14 | WebGPU→WASM fallback, política por modelo |
+| Device policy | `ia/resolve-inference-device.test.ts` | 15 | WebGPU→WASM fallback, política por modelo |
 | Gramática | `ia/grammar-correction.test.ts` | 13 | Corrección post-utterance, casos límite de texto |
 | Tutor (reglas) | `ui/tutor-reply-engine.test.ts` | 18 | Respaldo determinista por escenario, insignia honesta |
 | Sugerencias | `ia/conversation-suggestions.test.ts` | 12 | Generación, memoria de turnos, saneo |
 | WER | `ia/word-error-rate.test.ts` | 7 | Levenshtein por palabra, S/D/I, normalización |
 | Transcripción | `ia/transcription-text.test.ts` | 9 | Filtro de etiquetas no-habla (p. ej. `[Music]`) |
 
-**Resultado:** las 280 pruebas pasan en el CI (etapa *Ejecutar pruebas* en
-verde en la última corrida de `main`). No hay pruebas marcadas como `skip` ni
-`todo` en el pipeline de integración.
+**Resultado:** las 798 pruebas pasan en una corrida local (`vitest run`) sobre
+el árbol de trabajo actual (ver nota de reproducibilidad, §1). No hay pruebas
+marcadas como `skip` ni `todo` en la suite. El pipeline de CI (`lint` →
+`typecheck` → `test` → `build`) sigue siendo la puerta de integración en cada
+push y Pull Request.
 
 ## 3. Métrica WER: metodología
 
@@ -127,7 +136,8 @@ TTS y SmolLM2 corren siempre en WASM.
 
 **Definición del presupuesto de 2 s (issue #96 / RNF-06).** El enunciado se
 aplica al **feedback inmediato** (transcripción Whisper + corrección T5
-visible en el chat), no al turno entero con SmolLM2 y SpeechT5. El chat
+visible en el chat), no al turno entero con SmolLM2 y Supertonic (motor de
+TTS). El chat
 publica la burbuja del estudiante en cuanto cierra ASR+T5; el tutor puede
 tardar hasta 10 s (o caer al respaldo) **después**. `small-en` sigue sin
 cumplir 2 s en el tramo ASR (~3.4 s WebGPU). `tiny-en` **no tiene cifra
@@ -314,6 +324,37 @@ El +4 ms es cuantización: 1100 no es múltiplo de 16; el primer hop con
 con pausas reales). Tests: `dsp/measure-vad-edge-metrics.test.ts` + los de
 comportamiento previos.
 
+## 5.10 Tasa de trabajo del score fijada a 16 kHz
+
+El score de pronunciación (`ui/run-pronunciation-scoring.ts`) compara la voz
+del alumno contra la referencia sintetizada por TTS. La tasa de trabajo del
+score se fijó a `WHISPER_SAMPLE_RATE_IN_HERTZ` (**16 000 Hz**, constante de
+`audio/audio-resampler.ts`) para ambas señales, en vez de heredarla de
+`synthesized.sampleRateInHertz` (la tasa que emite el sintetizador). Con
+Supertonic como motor de voz (§5, §7) esa tasa nativa es **44 100 Hz**, muy
+distinta de los 16 kHz sobre los que se calibró el score (issue #29,
+[documento de calibración](./calibracion-score-pronunciacion.md)); dejar que
+`targetRate` siguiera al sintetizador habría movido la comparación fuera de
+ese régimen. Usuario y referencia se remuestrean a 16 kHz con la misma rama
+FIR de fase lineal del §5.5 (para 44.1→16 kHz: factor racional 160/441,
+atenuación de alias medida 86.6 dB) y comparten después el mismo pasa-banda
+del §5.7 (`prepareSpeechPcmForModels`, issue #73).
+
+**Por qué importa.** A 44 100 Hz el banco de 40 filtros mel (§5.3) se reparte
+de 0 Hz a 22 050 Hz (Nyquist), mientras que el pasa-banda corta a 7.5 kHz
+(§5.7): alrededor de una docena de filtros mel quedan por encima de ese
+corte, pegados al piso logarítmico (`ln(1e-10)`, §5.3). Como la DCT-II mezcla
+todas las bandas al construir los 13 coeficientes MFCC, ese desplazamiento
+saca las constantes de calibración del régimen en el que se ajustaron.
+
+**Constantes que siguen vigentes gracias a esta fijación** (issue #29,
+[documento de calibración](./calibracion-score-pronunciacion.md)): distancia
+MFCC a media escala **16.5**, distancia de pitch relativo a media escala
+**11.2**, pesos del score combinado MFCC **0.68** / pitch **0.18** / energía
+**0.07** / formantes **0.07** (§5.8). El sesgo de locutor del §5.6 (ratio
+Δlocutor/Δerror = 1.14) tampoco cambia: se midió ya sobre esta cadena de 16
+kHz compartida.
+
 ## 6. Casos de prueba y edge cases
 
 | # | Caso | Entrada | Resultado esperado | Cobertura |
@@ -359,8 +400,9 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
   operación offline.
 - La **calidad de ASR** con `whisper-small.en` es la mejor del catálogo
   (WER 0.000 en las fixtures de referencia), a costa de exigir WebGPU.
-- La **suite automatizada (280 casos) y el CI en verde** dan una red de
-  seguridad reproducible sobre el dominio de señales e inferencia.
+- La **suite automatizada (123 archivos, 798 casos), en verde en una corrida
+  local sobre el árbol de trabajo actual** (§1, §2), da una red de seguridad
+  reproducible sobre el dominio de señales e inferencia.
 
 ## 8. Limitaciones
 
@@ -383,3 +425,19 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
   actualizar la §4/§5.
 - **L-5 — Half-duplex mejorable.** El bloqueo del micrófono durante el TTS puede
   endurecerse con abort de tracks (issue #26).
+- **L-6 — Voz de Supertonic sin validar en el navegador de este proyecto.**
+  Nadie del equipo ha validado perceptualmente la voz sintetizada por
+  Supertonic (revisión anclada `cff123c84b0655d9d647641f1b532c3cbb8f7faa`)
+  dentro del navegador de esta app, y no existe medición de su latencia de
+  síntesis sobre WASM en ese entorno. Las únicas cifras de latencia publicadas
+  por el autor del modelo corresponden a ejecución nativa CPU/GPU, no a WASM
+  en navegador; este reporte no las presenta como si lo fueran.
+- **L-7 — Modelo de voz sin mantenimiento activo por parte de su autor.** El 23
+  de julio de 2026 Supertone anunció el archivado de su proyecto open source
+  Supertonic; su Voice Builder deja de estar accesible después del 31 de
+  agosto de 2026. Los pesos que usa este proyecto siguen alojados en el
+  espejo `onnx-community/Supertonic-TTS-ONNX` de Hugging Face (hosting de
+  Hugging Face, no de Supertone), así que la descarga del modelo no depende de
+  esa empresa; pero no habrá más correcciones del autor original ni la
+  cuantización (q8/fp16) que había prometido — el proyecto sigue en fp32 puro
+  (solo dtype publicado, ~250.7 MB de pesos).

@@ -50,7 +50,9 @@ métrica que tolere diferencias de **ritmo** entre locutores.
 
 - **Importancia educativa.** Un tutor que corrige pronunciación y gramática al
   instante, disponible sin conexión, baja la barrera de práctica oral, que es
-  el cuello de botella real del aprendizaje.
+  el cuello de botella real del aprendizaje, complementado por un modo de
+  estudio con repetición espaciada para consolidar vocabulario y gramática
+  entre sesiones de práctica oral.
 - **Accesibilidad y costo.** Al correr **100% en el navegador** del estudiante
   (edge AI), no hay servidores que pagar ni mantener, funciona **sin internet**
   tras la carga inicial y **no expone la voz** del usuario a terceros.
@@ -100,7 +102,7 @@ flowchart TD
         ASR[Whisper small.en · WebGPU]
         GRAM[T5 gramática · WASM]
         TUTOR[SmolLM2 tutor · WASM]
-        TTS[SpeechT5 TTS · WASM]
+        TTS[Supertonic TTS · WASM]
     end
     subgraph STO["Almacenamiento — storage/"]
         CACHE[(Cache API: pesos de modelos)]
@@ -127,11 +129,25 @@ detener la captura, se **preprocesa** (mono → normalización → trim → resa
 16 kHz) y pasa por el **gate de energía** antes de llegar a Whisper. La
 transcripción alimenta la corrección gramatical (T5), y la frase corregida
 alimenta tanto al **tutor** (SmolLM2, con respaldo de reglas) como al **score de
-pronunciación** (referencia TTS SpeechT5 vs. el audio del usuario, comparados con
+pronunciación** (referencia TTS Supertonic vs. el audio del usuario, comparados con
 MFCC + DTW). Toda la inferencia corre en un **Web Worker** para no bloquear la
 UI. Los pesos de los modelos se cachean con la **Cache API** (gestionada por
 transformers.js); las sesiones y turnos se guardan en **IndexedDB** (sin audio
 crudo).
+
+**Sexta capa: `study/`.** Además del ciclo de práctica conversacional, el
+producto incluye un módulo de estudio autónomo como capa de dominio puro (sin
+React, DOM, `ui/`, `ia/`, `audio/` ni `storage/`, igual que `dsp/`). Su
+pipeline de contenido parte de 36 lecciones en Markdown con frontmatter YAML
+(`study/procesado/*.md`), que `load-processed-lessons.ts` importa en build
+time (`import.meta.glob`) y `parse-lesson-markdown.ts` convierte en
+`StudyDocument`/`StudySection`; `group-study-blocks.ts` y
+`extract-practice-items.ts` derivan de ahí el banco de práctica
+(`practice-bank.ts`) con cuatro modalidades (vocabulario, completar, traducir,
+transformar) y repetición espaciada tipo SM-2 (`practice-srs.ts`). La UI vive
+en `ui/StudyScreen.tsx` y afines, accesible desde el hash `#estudio`; la
+persistencia usa una tercera base IndexedDB (`storage/study-document-store.ts`),
+junto a la de sesiones de práctica y la del banco de pruebas ASR.
 
 **Tecnologías clave:** React + TypeScript + Vite; `@huggingface/transformers`
 (ONNX Runtime Web) con **WebGPU** oportunista y fallback a **WASM**; Web Audio
@@ -264,10 +280,25 @@ donde el costo local es la **distancia euclidiana** entre vectores de features:
 
 $$ d(i,j) = \left\| \mathbf{c}_i^{\,\text{user}} - \mathbf{c}_j^{\,\text{ref}} \right\|_2 = \sqrt{\sum_{p} \left(c_{i,p}^{\text{user}} - c_{j,p}^{\text{ref}}\right)^2} $$
 
-Como la referencia es sintética (SpeechT5), las features se **normalizan por
+Como la referencia es sintética (Supertonic), las features se **normalizan por
 locutor** (contornos de pitch relativos, z-score por enunciado) para que la
 distancia mida pronunciación y no identidad de voz. El costo acumulado se mapea a
 un **score 0–100** (`dsp/dynamic-time-warping.ts` + `dsp/pronunciation-score.ts`).
+
+**Tasa de trabajo del score.** La comparación se hace siempre a
+$f_s = 16\text{ kHz}$: la referencia TTS (44.1 kHz en Supertonic) se
+remuestrea con el mismo FIR de fase lineal racional $160/441$ de la §5.1 antes
+de pasar por el pasa-banda de voz compartido con el usuario (issue #73), en vez
+de heredar la tasa nativa del sintetizador. La razón es que el banco de 40
+filtros mel (§5.3) y el pasa-banda deben cubrir el mismo rango: a 44.1 kHz el
+banco se repartiría de 0 a 22.05 kHz mientras el pasa-banda corta en 7.5 kHz,
+dejando cerca de una docena de filtros mel por encima del corte, pegados al
+suelo logarítmico. Como la DCT-II (§5.3) mezcla todas las bandas mel en cada
+coeficiente, ese desajuste correría los 13 MFCC completos y las constantes de
+calibración (distancia MFCC a media escala 16.5; pesos del score combinado 0.68
+MFCC / 0.18 pitch / 0.07 energía / 0.07 formantes) dejarían de aplicar. Fijar la
+tasa de trabajo a 16 kHz preserva esa alineación entre banco mel y banda
+pasante (`ui/run-pronunciation-scoring.ts`).
 
 ### 5.6 Word Error Rate (WER)
 
@@ -283,8 +314,12 @@ referencia (`ia/word-error-rate.ts`).
 
 `transformers.js` ejecuta modelos en formato **ONNX** sobre **ONNX Runtime Web**
 (backends **WASM** y **WebGPU**). La **cuantización** (p. ej. pesos int8/q8)
-reduce tamaño y memoria a cambio de algo de precisión, lo que hace viable correr
-Whisper, T5, SpeechT5 y SmolLM2 dentro del presupuesto del navegador. La app
+reduce tamaño y memoria a cambio de algo de precisión en Whisper, T5 y SmolLM2.
+El TTS (**Supertonic**, tres sesiones ONNX encadenadas —*text encoder* →
+*latent denoiser* → *voice decoder*— que decodifican la forma de onda sin
+vocoder externo) solo existe en fp32, pero su huella (~250.7 MB) queda
+igualmente dentro del presupuesto del navegador, de hecho muy por debajo de los
+~613 MB del TTS anterior (`speecht5_tts` + vocoder `speecht5_hifigan`). La app
 ancla cada modelo a un **commit SHA** del Hub de Hugging Face para builds
 reproducibles (`ia/model-registry.ts`). El ASR prefiere **WebGPU** por latencia;
 el resto corre en **WASM** para evitar kernels inestables.
@@ -296,10 +331,16 @@ métricas) está en un documento aparte, versionado junto a este:
 
 ➡️ **[matriz-trazabilidad.md](./matriz-trazabilidad.md)**
 
-Resumen de cobertura: **28 requerimientos Implementados, 6 Parciales, 2
-Pendientes, 1 Descartado**. El núcleo funcional del enunciado (ASR, gramática,
+Resumen de cobertura: el núcleo funcional del enunciado (ASR, gramática,
 análisis DSP de pronunciación, score, tutor, TTS, visualizaciones, offline) está
-implementado y verificado.
+implementado y verificado. Las sugerencias de comunicación (RF-14) pasaron de
+ir embebidas en la respuesta del tutor a una salida diferenciada con panel
+propio (`CommunicationSuggestionsPanel.tsx`) y quedan como Implementado. La
+matriz incorpora además los requerimientos del modo de estudio (lecciones,
+banco de práctica en cuatro modalidades, repetición espaciada, marcapáginas),
+funcionalidad adicional mergeada en `main` que no formaba parte del alcance
+original del enunciado. El detalle de estado (Implementado / Parcial /
+Pendiente / Descartado) por requerimiento está en el documento de la matriz.
 
 ## 7. Desarrollo y verificación de funcionalidades
 
@@ -318,7 +359,7 @@ El detalle de casos de prueba, métricas (WER, latencia) y edge cases está en:
 
 ➡️ **[reporte-verificacion.md](./reporte-verificacion.md)**
 
-Puntos clave: **suite de 280 pruebas en 44 archivos** (Vitest) en verde en el
+Puntos clave: **suite de 798 casos en 123 archivos** (Vitest) en verde en el
 CI; **WER 0.000** de `whisper-small.en` sobre las fixtures de referencia
 (bench 2026-07-29); latencia de ASR ~3.4 s/frase en WebGPU (limitación conocida
 frente al objetivo de 2 s, decisión que prioriza precisión). El DSP local
@@ -359,6 +400,7 @@ sequenceDiagram
 | `dsp/` | Dominio de señales puro | `mfcc-extraction.ts`, `pitch-detection-yin.ts`, `dynamic-time-warping.ts` |
 | `audio/` | Captura, resample, reproducción | `open-microphone-stream.ts`, `audio-resampler.ts` |
 | `storage/` | IndexedDB de sesiones + fixtures del banco (dev) | `session-repository.ts`, `database-schema.ts` |
+| `study/` | Dominio puro de contenido de estudio: lecciones, banco de práctica y repetición espaciada (sin React/DOM) | `load-processed-lessons.ts`, `parse-lesson-markdown.ts`, `practice-srs.ts` |
 
 ### 8.2 Extracto de código: función de WER
 
@@ -378,8 +420,14 @@ export function computeWordErrorRate(reference: string, hypothesis: string): Wor
 |-----|---------------------|---------|
 | ASR (default) | `Xenova/whisper-small.en` | WebGPU → WASM |
 | Gramática | `Xenova/t5-base-grammar-correction` | WASM |
-| TTS | `Xenova/speecht5_tts` (+ HiFiGAN) | WASM |
+| TTS | `onnx-community/Supertonic-TTS-ONNX` @ `cff123c` (sin vocoder aparte) | WASM |
 | Tutor | `HuggingFaceTB/SmolLM2-360M-Instruct` | WASM |
+
+El TTS (Supertonic) encadena tres sesiones ONNX —*text encoder* → *latent
+denoiser* → *voice decoder*— que generan la forma de onda directamente, sin el
+vocoder separado (`speecht5_hifigan`) ni el *speaker embedding* de demo
+genérico que usaba el modelo anterior; la voz activa (`F1`) es un vector de
+estilo precomputado por locutor.
 
 ### 8.4 Kit de defensa local (issue #97)
 

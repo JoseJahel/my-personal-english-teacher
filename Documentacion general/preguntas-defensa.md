@@ -1,7 +1,7 @@
 # Preguntas de defensa (DSP / IA / producto)
 
 **Issue:** [#97](https://github.com/JoseJahel/my-personal-english-teacher/issues/97).  
-**Uso:** 12–20 respuestas listas para el tribunal. Cada una cita **cifra o path de este repo**. No inventar milisegundos.  
+**Uso:** 12–21 respuestas listas para el tribunal. Cada una cita **cifra o path de este repo**. No inventar milisegundos.  
 **No es** el deck de 10–15 min ([#64](https://github.com/JoseJahel/my-personal-english-teacher/issues/64)) ni la bitácora de evidencias ([#71](https://github.com/JoseJahel/my-personal-english-teacher/issues/71)).  
 **Riesgos y dueños:** [matriz-riesgos.md](./matriz-riesgos.md).  
 **Cifras maestras:** [reporte-verificacion.md](./reporte-verificacion.md).
@@ -82,15 +82,19 @@ A peso comparable, las variantes entrenadas solo en inglés rinden mejor para el
 
 ## Q13. ¿Qué pasa si el estudiante interrumpe al tutor?
 
-Half-duplex: el mic se bloquea **solo** mientras SpeechT5 habla (issue #96). Si corta a mitad, registramos `cutoffMs` → `spoken_progress` y clasificamos el turno **solo** con el fragmento oído (casos A/B/C/D, issue #46).
+Half-duplex: el mic se bloquea **solo** mientras Supertonic habla (issue #96). Si corta a mitad, registramos `cutoffMs` → `spoken_progress` y clasificamos el turno **solo** con el fragmento oído (casos A/B/C/D, issue #46).
 
 **Fuente:** `ui/spoken-progress.ts`; `audio/play-pcm-mono.ts`; `REGLAS-DE-CODIGO.md` (2026-08-09).
 
 ## Q14. ¿Funciona de verdad sin internet?
 
-Tras **una** descarga (Cache API de transformers.js, &gt; 1 GB). ASR+T5 se precargan al abrir; SmolLM2 al elegir escenario; SpeechT5 en el primer turno hablado. El aviso del rail sale de `storage/model-load-history.ts`, no de espiar el caché (los eventos de progreso no distinguen red vs caché en transformers.js 3.8.1). Verificar siempre con `pnpm preview`, no con `pnpm dev`.
+Tras **una** descarga (Cache API de transformers.js, &gt; 1 GB). ASR, gramática y Supertonic se precargan **juntos al abrir**; SmolLM2 se precarga al elegir escenario (`ia/warm-model-preload.ts`; el propio comentario de `ui/offline-readiness.ts` lo resume así: “ASR, grammar and Supertonic preload on mount; SmolLM2 on scenario selection”). El aviso del rail sale de `storage/model-load-history.ts`, no de espiar el caché (los eventos de progreso no distinguen red vs caché en transformers.js 3.8.1).
 
-**Fuente:** `app/README.md` (checklist offline y límites).
+Hay un archivo que ese aviso **no** cuenta: la voz de referencia F1 (`voices/F1.bin`, 51 712 bytes), que no pasa por el cargador de pesos de la librería (`getModelFile`/`hub.js`). Antes se traía sin caché recién en el primer turno hablado; ahora `preloadTutorVoiceEmbeddings` la descarga durante ese mismo warm preload y la persiste en el bucket `transformers-cache` de Cache Storage (`ia/text-to-speech-synthesis.ts`) — pero sigue fuera de `OFFLINE_READINESS_MODEL_KEYS` (`ui/offline-readiness.ts`), así que el rail puede marcar los cuatro modelos como listos sin que ese archivo termine de bajar. Si esa precarga falla, no rompe el turno: `synthesizeSpeechFromText` cae al fetch propio de la librería (`ia/warm-model-preload.ts`) y el fallo queda en consola.
+
+Verificar siempre con `pnpm preview`, no con `pnpm dev`.
+
+**Fuente:** `app/README.md` (checklist offline y límites); `ia/warm-model-preload.ts`; `ia/text-to-speech-synthesis.ts`; `ui/offline-readiness.ts`.
 
 ## Q15. ¿El tutor es “IA” o un guion?
 
@@ -115,6 +119,32 @@ No. El **gate** (`dsp/signal-energy.ts`) corre *después* de Detener: no manda s
 Plan B **local** (siguiente sección). Nunca un URL público.
 
 **Fuente:** esta página, `app/README.md`, `#shell-preview*`.
+
+## Q19. ¿Por qué cambiaron el motor de voz (SpeechT5 → Supertonic)?
+
+Por descarga y por soporte. SpeechT5 (`Xenova/speecht5_tts` + vocoder aparte `Xenova/speecht5_hifigan` + un speaker embedding demo genérico) pesaba en fp32, medido por `Content-Length`: encoder 342 803 468 B + decoder_model_merged 244 486 683 B + decoder_postnet_and_vocoder 55 432 026 B ≈ **613 MB**. Supertonic (`onnx-community/Supertonic-TTS-ONNX` @ `cff123c84b0655d9d647641f1b532c3cbb8f7faa`), mismo dtype y mismo método de medida: text_encoder ~27.5 MB + latent_denoiser ~126.4 MB + voice_decoder ~96.8 MB ≈ **250.7 MB**. Ahorro neto **~362 MB** sobre el presupuesto de descarga (&gt; 1 GB, issue #96). Es autocontenido — tres sesiones ONNX encadenadas (*text encoder* → *latent denoiser* → *voice decoder*) que decodifican la forma de onda directamente, sin vocoder aparte — y la versión de `@huggingface/transformers` que ya usa el proyecto (**3.8.1**, publicada 2025-12-02) lo soporta de forma nativa vía `pipeline('text-to-speech', ...)`, porque el PR de soporte en la librería se mergeó el 2025-11-19.
+
+Riesgo que declaramos, no escondemos: el 23 de julio de 2026 Supertone archivó el proyecto open source de Supertonic — su Voice Builder deja de estar accesible después del 31 de agosto de 2026. Los pesos siguen alojados en el espejo `onnx-community` de Hugging Face (hosting de Hugging Face, no de Supertone), así que la descarga del modelo no depende de esa empresa; pero no habrá más correcciones ni la cuantización prometida, y solo existe fp32 (no hay q8/fp16 publicados). Tampoco hay todavía validación perceptual de la voz F1 en el navegador de este proyecto ni latencia de síntesis medida sobre WASM — las cifras publicadas por el autor son de ejecución nativa CPU/GPU, no de navegador.
+
+**Fuente:** `matriz-riesgos.md` R14; `documento-tecnico.md` §5.7; `ia/model-registry.ts`; `ia/text-to-speech-synthesis.ts`.
+
+## Q20. La comparación se hace a 16 kHz, pero Supertonic sintetiza a 44.1 kHz. ¿Por qué fijan la tasa así?
+
+`ui/run-pronunciation-scoring.ts` fija la tasa de trabajo a `WHISPER_SAMPLE_RATE_IN_HERTZ` (16 kHz, `audio/audio-resampler.ts`) en vez de heredarla de `synthesized.sampleRateInHertz` (44.1 kHz en Supertonic). Es un problema de Señales y Sistemas, no un capricho: el banco de 40 filtros mel (`dsp/mfcc-extraction.ts`) reparte sus bordes hasta Nyquist por defecto — a 44.1 kHz eso es 22.05 kHz — mientras el pasa-banda de voz compartido usuario/referencia corta en 7 500 Hz (`dsp/biquad-voice-bandpass.ts`, issue #73). Eso deja cerca de una docena de filtros mel por encima del corte, pegados al suelo logarítmico; como la DCT-II mezcla todas las bandas mel en cada coeficiente, los 13 MFCC completos se correrían y las constantes de calibración (distancia MFCC a media escala 16.5, pesos del score combinado 0.68/0.18/0.07/0.07) dejarían de aplicar.
+
+Fijar la tasa a 16 kHz preserva esa alineación: tanto el audio del alumno como la referencia TTS pasan por el mismo remuestreo racional 160/441 con FIR de fase lineal (atenuación de alias medida **86.6 dB**, issues #92/#65) y el mismo pasa-banda 80 Hz–7.5 kHz (`audio/prepare-speech-pcm.ts`), sin importar la tasa nativa del sintetizador.
+
+**Fuente:** `ui/run-pronunciation-scoring.ts`; `documento-tecnico.md` §5.5; `dsp/mfcc-extraction.ts`; `dsp/biquad-voice-bandpass.ts`.
+
+## Q21. ¿Qué es el modo de estudio? ¿De dónde sale el temario y cómo funciona la repetición espaciada?
+
+Es una sexta capa de dominio puro (`study/`, sin React/DOM/`ui`/`ia`/`audio`/`storage`, igual que `dsp/`), accesible en el hash `#estudio` (`shouldShowStudyScreen` en `app-routing.ts`), cuarto ítem del rail izquierdo (`railNavStudy` en `ui/practice-shell-types.ts`). El temario son **36 lecciones** en markdown con frontmatter YAML bajo `estudio/procesado/`, cargadas con `import.meta.glob` (`study/load-processed-lessons.ts`) y parseadas en `study/parse-lesson-markdown.ts`; de ahí se agrupan en bloques y se extraen ítems de práctica (`study/group-study-blocks.ts`, `study/extract-practice-items.ts`, `study/practice-bank.ts`).
+
+Hay **cuatro modos de práctica** (`PRACTICE_MODES` en `study/study-types.ts`): vocabulario, completar, traducir y transformar. La repetición espaciada (`study/practice-srs.ts`) es un SM-2 adaptado: intervalos en horas 0.5 / 4 / 24 / 72 / 168 / 336 / 720 / 1440; factor de facilidad acotado entre 1.3 y 3.0 (inicial 2.3, +0.05 al acertar, −0.2 al fallar); tras un fallo la tarjeta vuelve en 60 s; y la siguiente tarjeta se elige por peso (nueva +16, vencida +8, hasta +6 por fallos previos). La dirección de práctica (`study/practice-direction.ts`) es es→en, en→es o mixta, con tarjetas SRS independientes por dirección. El marcapáginas de reanudación (`study/study-bookmark.ts`) pide confirmación al moverlo y respeta `prefers-reduced-motion`. Todo se persiste en `storage/study-document-store.ts`, la tercera base IndexedDB del proyecto junto a la de progreso de práctica (`storage/session-repository.ts`) y la del banco de pruebas ASR (`storage/benchmark-fixture-store.ts`).
+
+Es alcance nuevo, fuera del lote de rúbrica original (#57–#79, #81, #92–#98): entró por PRs #122 y #125 y está documentado como RF-24 a RF-28 en `matriz-trazabilidad.md`.
+
+**Fuente:** `matriz-trazabilidad.md` (RF-24 a RF-28); `study/practice-srs.ts`; `study/study-bookmark.ts`; `study/practice-direction.ts`; `app-routing.ts`.
 
 ---
 
