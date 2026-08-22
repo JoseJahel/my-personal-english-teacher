@@ -48,7 +48,7 @@ apoya en tres niveles complementarios:
 
 ## 2. Cobertura de pruebas automatizadas
 
-La suite Vitest cuenta con **123 archivos de prueba** y **798 casos**
+La suite Vitest cuenta con **125 archivos de prueba** y **817 casos**
 (`it`/`test`), distribuidos por capa:
 
 | Capa | Archivos de prueba | Casos | Qué verifica |
@@ -57,10 +57,10 @@ La suite Vitest cuenta con **123 archivos de prueba** y **798 casos**
 | `ia/` | 20 | 177 | ASR, gramática, TTS (Supertonic), tutor, worker/cliente, registro de modelos, device policy, WER, sugerencias de comunicación |
 | `audio/` | 16 | 119 | Resample, mono, normalización, trim de silencio, frame buffer |
 | `storage/` | 7 | 52 | Schema IndexedDB, tipos de sesión, store de fixtures del banco, store de documentos de estudio |
-| `ui/` | 41 | 200 | Orquestación de turno, estados de pantalla, chat, tutor, canvas, banco ASR, estudio, panel de sugerencias |
-| `study/` | 10 | 59 | Parseo de lecciones markdown, banco de práctica, repetición espaciada (SM-2), marcapáginas, dirección de práctica |
+| `ui/` | 43 | 218 | Orquestación de turno, estados de pantalla, chat, tutor, canvas, banco ASR, estudio, panel de sugerencias |
+| `study/` | 10 | 60 | Parseo de lecciones markdown, banco de práctica, repetición espaciada (SM-2), marcapáginas, dirección de práctica |
 | raíz | 2 | 38 | Ruteo (`app-routing`, 18 casos), freeze-guard de paleta (`theme-tokens`, 20 casos) |
-| **Total** | **123** | **798** | — |
+| **Total** | **125** | **817** | — |
 
 ### 2.1 Casos por módulo crítico (extracto)
 
@@ -79,7 +79,7 @@ La suite Vitest cuenta con **123 archivos de prueba** y **798 casos**
 | WER | `ia/word-error-rate.test.ts` | 7 | Levenshtein por palabra, S/D/I, normalización |
 | Transcripción | `ia/transcription-text.test.ts` | 9 | Filtro de etiquetas no-habla (p. ej. `[Music]`) |
 
-**Resultado:** las 798 pruebas pasan en una corrida local (`vitest run`) sobre
+**Resultado:** las 817 pruebas pasan en una corrida local (`vitest run`) sobre
 el árbol de trabajo actual (ver nota de reproducibilidad, §1). No hay pruebas
 marcadas como `skip` ni `todo` en la suite. El pipeline de CI (`lint` →
 `typecheck` → `test` → `build`) sigue siendo la puerta de integración en cada
@@ -426,7 +426,7 @@ extensión de innovación (RF-23). Las **frases largas** están cubiertas por DT
   operación offline.
 - La **calidad de ASR** con `whisper-small.en` es la mejor del catálogo
   (WER 0.000 en las fixtures de referencia), a costa de exigir WebGPU.
-- La **suite automatizada (123 archivos, 798 casos), en verde en una corrida
+- La **suite automatizada (125 archivos, 817 casos), en verde en una corrida
   local sobre el árbol de trabajo actual** (§1, §2), da una red de seguridad
   reproducible sobre el dominio de señales e inferencia.
 
